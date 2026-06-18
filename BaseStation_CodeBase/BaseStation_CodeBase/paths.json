@@ -1,0 +1,26 @@
+{
+  "survey_id": "sample_data",
+  "subsystem": "base_station_ppk",
+  "spec_version": "2.0.0",
+  "spec_file": "base_station_confidence_score/base_station_confidence_score.json",
+  "inputs": {
+    "rinex_folder": "sample_data/base_rinex/",
+    "operator_log_folder": "sample_data/operator_log/",
+    "user_input_folder": "sample_data/user_input/"
+  },
+  "outputs": {
+    "stage1_inventory": "outputs/01_inventory.json",
+    "stage2_source_fields": "outputs/02_source_fields.json",
+    "stage3_derived": "outputs/03_derived_fields.json",
+    "stage3_indicators": "outputs/04_indicators.json",
+    "stage3_building_blocks": "outputs/05_building_blocks.json",
+    "stage3_base_score": "outputs/06_base_station_score.json"
+  },
+  "options": {
+    "noaa_swpc_cache_dir": "cache/noaa_swpc/",
+    "noaa_swpc_timeout_sec": 30,
+    "rinex_extensions_supported": [".obs", ".nav", ".21o", ".25o", ".26o", ".26p", ".o", ".n", ".p"],
+    "fail_fast": true,
+    "log_level": "INFO"
+  }
+}

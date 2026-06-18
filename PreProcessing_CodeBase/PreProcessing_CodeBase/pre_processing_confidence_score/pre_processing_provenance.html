@@ -1,0 +1,756 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CB Capture — Pre-Processing Confidence Score (v1.1 Final)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--accent:#4A8BBF;--accent2:#5fa3d8;--gold:#c9a84c;--green:#3dba78;--teal:#3dd8c0;
+--orange:#e08c3a;--purple:#9b6fe0;--red:#e05555;--navy:#0d1b2a;--navy2:#112236;--navy3:#162d44;
+--navy4:#1a3350;--text:#d6e4f0;--textdim:#7a9bb5;--textfaint:#4a6a80;--border:rgba(122,155,181,.18);
+--border2:rgba(122,155,181,.30);--mono:'SF Mono',ui-monospace,Menlo,monospace;
+--sans:-apple-system,Segoe UI,Roboto,sans-serif}
+body{background:var(--navy);color:var(--text);font-family:var(--sans);line-height:1.55;padding:40px 32px 80px;max-width:1180px;margin:0 auto}
+.hdr-eye{font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin-bottom:6px}
+.hdr-title{font-size:30px;font-weight:700;letter-spacing:-.5px}
+.hdr-title span{color:var(--accent2);font-weight:400}
+.hdr-sub{font-size:13px;color:var(--textdim);margin-top:8px;line-height:1.65;max-width:880px}
+.flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:22px 0 8px;font-family:var(--mono);font-size:11px}
+.flow span{padding:5px 11px;border-radius:5px;background:var(--navy3);border:1px solid var(--border2);color:var(--textdim)}
+.flow b{color:var(--gold)}
+.sec{margin:38px 0 0}
+.sec-bar{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border2);padding-bottom:8px;margin-bottom:16px}
+.sec-name{font-size:18px;font-weight:700;color:var(--accent2)}
+.sec-sub{font-size:12px;color:var(--textdim)}
+.card{background:var(--navy2);border:1px solid var(--border);border-radius:9px;padding:18px 20px;margin-bottom:14px}
+.card.gate{border-color:rgba(224,140,58,.35)}
+.row-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.name{font-family:var(--mono);font-size:14px;color:var(--gold);font-weight:600}
+.lname{font-size:13px;color:var(--text)}
+.wt{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--teal)}
+.pill{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:3px;border:1px solid var(--border2);color:var(--textdim)}
+.pill.cov{color:var(--purple);border-color:rgba(155,111,224,.4)}
+.pill.auto{color:var(--teal);border-color:rgba(61,216,192,.35)}
+.pill.user{color:var(--orange);border-color:rgba(224,140,58,.4)}
+.pill.ev-artifact{color:var(--green);border-color:rgba(61,186,120,.4)}
+.pill.ev-manifest{color:var(--gold);border-color:rgba(201,168,76,.4)}
+.pill.ev-report{color:var(--orange);border-color:rgba(224,140,58,.4)}
+.pill.ev-notfeas{color:var(--red);border-color:rgba(224,85,85,.4)}
+.meaning{font-size:12.5px;color:var(--textdim);margin:4px 0}
+.formula{font-family:var(--mono);font-size:12px;color:var(--text);background:var(--navy);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin:8px 0;white-space:pre-wrap;line-height:1.7}
+.src{font-family:var(--mono);font-size:11px;color:var(--accent);margin-top:4px}
+.thr{font-size:11.5px;color:var(--textdim);background:var(--navy);border-left:2px solid var(--accent);padding:7px 10px;border-radius:0 5px 5px 0;margin-top:8px;font-family:var(--mono);line-height:1.6}
+.paths{font-size:11px;color:var(--teal);background:rgba(61,216,192,.05);border:1px dashed rgba(61,216,192,.25);border-radius:5px;padding:6px 10px;margin-top:6px;font-family:var(--mono);line-height:1.6}
+.gatetag{font-size:11px;color:var(--orange);background:rgba(224,140,58,.08);border:1px solid rgba(224,140,58,.25);border-radius:5px;padding:7px 10px;margin-top:8px;font-family:var(--mono)}
+.vsbox{font-size:12px;color:var(--purple);background:rgba(155,111,224,.05);border:1px solid rgba(155,111,224,.35);border-radius:8px;padding:14px 18px;margin-top:14px;line-height:1.7}
+.vsbox b{color:var(--text)}
+.fld{display:grid;grid-template-columns:230px 1fr;gap:14px;padding:7px 0;border-bottom:1px solid var(--border)}
+.fld:last-child{border:0}
+.fld-n{font-family:var(--mono);font-size:12px;color:var(--text)}
+.fld-m{font-size:12px;color:var(--textdim)}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+th{text-align:left;color:var(--gold);font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--border2)}
+td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--textdim);vertical-align:top}
+td.kw{font-family:var(--mono);color:var(--text)}
+.sev-CATASTROPHIC{color:var(--red);font-weight:600}
+.sev-CRITICAL{color:var(--orange);font-weight:600}
+.sev-HIGH{color:var(--gold)}
+.sev-MEDIUM{color:var(--textdim)}
+.sev-LOW{color:var(--textfaint)}
+.sev-ADVISORY{color:var(--textfaint)}
+.disp{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:3px}
+.disp-OWNED{color:var(--green);border:1px solid rgba(61,186,120,.4)}
+.disp-OWNED_BY_VERIFICATION_STATUS{color:var(--purple);border:1px solid rgba(155,111,224,.4)}
+.disp-OWNED_BY_PROCESSING{color:var(--accent2);border:1px solid rgba(95,163,216,.4)}
+.disp-OWNED_BY_ANALYTICS{color:var(--accent);border:1px solid rgba(74,139,191,.4)}
+.note{font-size:12px;color:var(--textdim);background:var(--navy3);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-top:14px;line-height:1.7}
+.note b{color:var(--gold)}
+</style></head><body>
+<div class="hdr-eye">CrystalBall Infinity — CB Capture Universe</div>
+<div class="hdr-title">Pre-Processing Confidence Score <span>v1.1 · Evidence-Based · Four-Block + Per-Artifact Views</span></div>
+<div class="hdr-sub">Four-block evidence-based pre-processing confidence chain with separate verification_status field. CBMI does not perform processing — chain evaluates artifacts and declared/optional processing provenance. Tiered evidence with graceful degradation when reports are not uploaded. Path-aware indicators evaluate only when their applies_to_paths matches the operator-declared workflow. CP-related quality reported as verification_status rather than gating the score — surveys can be high-quality without check points.</div>
+<div class="hdr-sub" style="margin-top:10px;color:var(--gold)">Computed entirely from pre-processing artifacts (geotagged images, GCP coord file, CP coord file) + processing manifest + optional processing report + external sources. Does not read drone_score, base_station_score, gcp_score, or check_point_score outputs at runtime.</div>
+<div class="flow">
+<span><b>Artifacts</b> (geotags + GCP coords + CP coords)</span>→<span>+ Manifest</span>→<span>+ optional Report</span>→<span>Indicators (path-aware, tiered evidence)</span>→<span>Building Blocks</span>→<span><b>pre_processing_score</b></span> + <span><b>verification_status</b></span>
+</div>
+
+<div class="sec"><div class="sec-bar"><div class="sec-name">Core — pre_processing_score</div>
+<div class="sec-sub">Single scalar score from four blocks. Evidence-based — CBMI does not process; chain evaluates artifacts + declared provenance.</div></div>
+<div class="card gate"><div class="row-top"><div class="name">pre_processing_score</div><div class="lname">Pre-Processing Confidence Score</div></div>
+<div class="formula">0.35*reference_frame_score + 0.30*geotag_integrity_score + 0.25*gcp_coord_trust_score + 0.10*survey_design_score</div>
+<div class="formula" style="background:var(--navy2)">aggregator:  block-of-blocks; within-block weighted averages with redistribution when evidence absent or path-N/A</div>
+<div class="gatetag">⊘ GLOBAL GATE: Sets pre_processing_score = 0. The named flag fires with severity CATASTROPHIC.</div>
+<div class="gatetag" style="background:rgba(155,111,224,.08);border-color:rgba(155,111,224,.25);color:var(--purple)">∅ NULL: No null state. Score always computes from the four scoring blocks. The CP situation is reported via verification_status, not as a null.</div>
+<div class="vsbox"><b>verification_status field (separate, not score-gating):</b><br>Separate categorical field reporting CP-related quality. VALUES: VERIFIED, UNVERIFIED_NO_CPS, UNVERIFIED_INSUFFICIENT_CPS, UNVERIFIED_CP_CLUSTERED, UNVERIFIED_CP_NOT_INDEPENDENT, UNVERIFIED_CP_TRUST_LOW. NEVER score-gating. PP_NO_INDEPENDENT_VERIFICATION flag (CRITICAL-informational) fires when verification_status != VERIFIED. Reasoning: surveys can be high-quality without check points; absence of verification does not invalidate the survey quality.</div>
+<div class="meaning" style="margin-top:10px">Evidence-based confidence score for pre-processing outputs. CBMI does NOT perform processing — this chain evaluates artifacts (geotagged images, GCP coord file, CP coord file) and a declared processing manifest. Optional processing report deepens diagnostic depth. Runtime-independent of drone_score, base_station_score, gcp_score, check_point_score — does not read their outputs. Cross-subsystem coupling (e.g., &quot;CP reliability degraded by base risk&quot;) belongs in future capture_score.</div>
+<div class="meaning"><b style="color:var(--text)">Paths supported:</b> AUTONOMOUS / PUBLISHED_BENCHMARK / CORS / CLOUD / CUSTOMER_SUPPLIED / LOCAL_BASE_PPK (path-aware indicators only evaluate when their applies_to_paths matches)</div></div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 1 — Building Blocks</div><div class="sec-sub">Four scoring blocks. CP-related quality reported via verification_status field, NOT as a fifth block.</div></div>
+<div class="card gate">
+<div class="row-top"><div class="name" style="color:var(--red)">reference_frame_score</div>
+<div class="lname">Reference Frame Integrity</div><div class="wt">weight 0.35 in pre_processing_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Are all artifacts in the same, declared, correct reference frame? &nbsp;·&nbsp; <b style="color:var(--text)">Owner:</b> Pre-processing software setup + processing manifest &nbsp;·&nbsp; <b style="color:var(--text)">If low:</b> Verify CRS/datum/geoid/projection/units declarations match project requirement</div>
+<div class="formula">aggregator: weighted average of indicator scores
+indicators:  ref_frame_declared_score(0.30), geoid_model_declared_score(0.20), height_mode_declared_score(0.15), projection_declared_score(0.10), output_crs_metadata_score(0.10), units_declared_score(0.05), customer_coord_crs_declared_score(0.05), localization_disclosed_score(0.03), provenance_consistency_score(0.02)</div><div class="gatetag">⊘ reference_frame_score = 0. Zeros pre_processing_score via block-of-blocks.</div></div>
+<div class="card">
+<div class="row-top"><div class="name" style="color:var(--accent2)">geotag_integrity_score</div>
+<div class="lname">Geotag Integrity</div><div class="wt">weight 0.3 in pre_processing_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Are the geotagged images trustworthy as photogrammetry input? &nbsp;·&nbsp; <b style="color:var(--text)">Owner:</b> Drone PPK processing software + base/CORS data &nbsp;·&nbsp; <b style="color:var(--text)">If low:</b> Reprocess with correct base/CORS pairing; verify per-image solution status</div>
+<div class="formula">aggregator: weighted average of indicator scores (with weight redistribution when evidence absent)
+indicators:  base_pairing_score(0.25), geotag_solution_quality_score(0.20), geotag_completeness_score(0.15), geotag_baseline_score(0.10), session_overlap_score(0.10), overlap_texture_score(0.08), antenna_pco_score(0.05), sensor_metadata_consistency_score(0.03), cors_data_continuity_score(0.02), time_sync_residual_score(0.01), monsoon_flight_artifact_score(0.01)</div></div>
+<div class="card gate">
+<div class="row-top"><div class="name" style="color:var(--green)">gcp_coord_trust_score</div>
+<div class="lname">GCP Coordinate Trust</div><div class="wt">weight 0.25 in pre_processing_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Are the GCP coordinates trustworthy as absolute-accuracy anchors? &nbsp;·&nbsp; <b style="color:var(--text)">Owner:</b> GCP processing software + processing path selection &nbsp;·&nbsp; <b style="color:var(--text)">If low:</b> Reprocess via PPK/CORS; require customer accuracy declaration</div>
+<div class="formula">aggregator: weighted average; GCT1 σ uses mean − 0.25 × (100 − min) across GCPs internally
+indicators:  gcp_sigma_score(0.30), gcp_processing_path_score(0.25), gcp_customer_accuracy_declared_score(0.15), gcp_id_reconciliation_score(0.10), gcp_coord_age_score(0.10), coord_parse_sanity_score(0.05), gcp_residual_score(0.03), cors_station_health_score(0.02)</div><div class="gatetag">⊘ gcp_coord_trust_score = 0. Zeros pre_processing_score via block-of-blocks.</div></div>
+<div class="card">
+<div class="row-top"><div class="name" style="color:var(--orange)">survey_design_score</div>
+<div class="lname">Survey Design Adequacy (GCP-only)</div><div class="wt">weight 0.1 in pre_processing_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Was the GCP layout adequate for the site extent? &nbsp;·&nbsp; <b style="color:var(--text)">Owner:</b> Survey planning + operator deployment &nbsp;·&nbsp; <b style="color:var(--text)">If low:</b> Deploy additional GCPs; redistribute; ensure target visibility</div>
+<div class="formula">aggregator: weighted average of indicator scores
+indicators:  gcp_count_score(0.40), gcp_distribution_score(0.35), target_visibility_score(0.15), vegetation_dtm_declared_score(0.05), software_version_score(0.05)</div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 3 — Indicators</div><div class="sec-sub">34 indicators with applies_to_paths + evidence_required metadata. Graceful degradation when evidence absent.</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--red);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for reference_frame_score</div>
+<div class="card gate">
+<div class="row-top"><div class="name">ref_frame_declared_score</div><div class="lname">CRS / Datum Declaration vs Project</div>
+<div class="wt">weight 0.3 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#1</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← crs_match_project</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">declared CRS/datum matches project across all artifacts → 100; mismatch → 0 + FLAG: PP_WRONG_CRS_DATUM.</div><div class="gatetag">⊘ HARD: crs_match_project=False → reference_frame_score=0; FLAG: PP_WRONG_CRS_DATUM (CATASTROPHIC). Zeros pre_processing_score.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">geoid_model_declared_score</div><div class="lname">Geoid Model Declaration vs Project</div>
+<div class="wt">weight 0.2 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#2</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← geoid_match_project</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">declared geoid matches project + consistent across artifacts → 100; mismatch → 0 + FLAG: PP_GEOID_MISMATCH.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">height_mode_declared_score</div><div class="lname">Height Mode Declaration</div>
+<div class="wt">weight 0.15 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#3</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← height_mode_consistency</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">all artifacts same height_mode AND matches project → 100; inconsistent → 30 + FLAG: PP_HEIGHT_MODE_INCONSISTENT; project mismatch → 0 + FLAG: PP_HEIGHT_MODE_WRONG.</div></div>
+<div class="card gate">
+<div class="row-top"><div class="name">projection_declared_score</div><div class="lname">Projection Declaration vs Survey Location</div>
+<div class="wt">weight 0.1 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#7</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← projection_match_location</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">projection consistent with site bounding box → 100; mismatch → 0 + FLAG: PP_WRONG_PROJECTION.</div><div class="gatetag">⊘ HARD: projection_match_location=False → reference_frame_score=0; FLAG: PP_WRONG_PROJECTION (CATASTROPHIC). Zeros pre_processing_score.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">output_crs_metadata_score</div><div class="lname">Output CRS Metadata in Artifacts</div>
+<div class="wt">weight 0.1 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#6</span> <span class="pill ev-artifact">artifact_only</span></div>
+<div class="src">← output_crs_metadata_present</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">CRS metadata present in each artifact AND matches declared → 100; missing → 50 + FLAG: PP_OUTPUT_CRS_MISSING; mismatch → 0 + FLAG: PP_OUTPUT_CRS_MISMATCH.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">units_declared_score</div><div class="lname">Units Declaration vs Project</div>
+<div class="wt">weight 0.05 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#8</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← units_match_project</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">units declared + match project + consistent → 100; mismatch → 0 + FLAG: PP_UNITS_MISMATCH.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">customer_coord_crs_declared_score</div><div class="lname">Customer-Supplied Coord CRS</div>
+<div class="wt">weight 0.05 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#4</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← customer_coord_crs_consistent</div>
+<div class="paths">applies to: CUSTOMER_SUPPLIED</div>
+<div class="thr">customer-supplied GCP file declares CRS + matches project → 100; missing → 30 + FLAG: PP_CUSTOMER_COORDS_NO_CRS; mismatch → 0 + FLAG: PP_CUSTOMER_COORDS_WRONG_CRS. N/A when not customer-supplied (weight redistributes).</div></div>
+<div class="card">
+<div class="row-top"><div class="name">localization_disclosed_score</div><div class="lname">Site Localization Disclosure</div>
+<div class="wt">weight 0.02 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#5</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← localization_disclosed</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">localization disclosed (whether applied or not) → 100; not disclosed → 60 + FLAG: PP_LOCALIZATION_UNDISCLOSED (HIGH).</div></div>
+<div class="card">
+<div class="row-top"><div class="name">provenance_consistency_score</div><div class="lname">Realization/Epoch Provenance Consistency</div>
+<div class="wt">weight 0.01 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#42</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← provenance_realization_consistent</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">all control declares same realization/epoch → 100; mixed → 50 + FLAG: PP_MIXED_PROVENANCE.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">settings_consistency_score</div><div class="lname">Manifest-Declared vs Report-Actual Settings (Approach 2)</div>
+<div class="wt">weight 0.02 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#36</span> <span class="pill ev-report">detailed_manifest_with_report</span></div>
+<div class="src">← settings_declared_vs_actual_consistent</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">manifest-declared settings match processing-report-actual → 100; mismatch → 30 + FLAG: PP_SETTINGS_DECLARED_ACTUAL_MISMATCH. Advisory only when report absent (weight redistributes within block).</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--accent2);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for geotag_integrity_score</div>
+<div class="card">
+<div class="row-top"><div class="name">base_pairing_score</div><div class="lname">Drone-Base File Pairing</div>
+<div class="wt">weight 0.25 · SHEET (silent CATASTROPHIC inside block — heavily weighted)</div></div>
+<div class="meaning">covers <span class="pill cov">#33</span> <span class="pill ev-artifact">artifact_only</span></div>
+<div class="src">← drone_session_within_base_window</div>
+<div class="paths">applies to: LOCAL_BASE_PPK</div>
+<div class="thr">drone session within base window AND base_file_id matches → 100; outside OR mismatched → 0 + FLAG: PP_WRONG_BASE_PAIRED.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">geotag_solution_quality_score</div><div class="lname">PPK Solution Quality (Per-Image)</div>
+<div class="wt">weight 0.2 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#9</span> <span class="pill ev-artifact">artifact_only</span></div>
+<div class="src">← fraction_geotags_fixed</div>
+<div class="paths">applies to: LOCAL_BASE_PPK / CORS / CLOUD</div>
+<div class="thr">fraction Q=1 ≥0.95 → 100; 0.80-0.95 → 70 + FLAG: PP_GEOTAG_PARTIAL_FIX; &lt;0.80 → 30 + FLAG: PP_GEOTAG_POOR_FIX; &lt;0.50 → 0 + FLAG: PP_GEOTAG_NOT_FIXED.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">geotag_completeness_score</div><div class="lname">Geotag Completeness vs Captures</div>
+<div class="wt">weight 0.15 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#10</span> <span class="pill ev-artifact">artifact_only</span></div>
+<div class="src">← geotag_completeness_fraction</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">≥0.99 → 100; 0.95-0.99 → 80; 0.80-0.95 → 50 + FLAG: PP_GEOTAGS_INCOMPLETE; &lt;0.80 → 0 + FLAG: PP_GEOTAGS_SEVERELY_INCOMPLETE.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">geotag_baseline_score</div><div class="lname">Baseline to Base/CORS (Drone PPK)</div>
+<div class="wt">weight 0.1 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#11</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← baseline_length_km</div>
+<div class="paths">applies to: LOCAL_BASE_PPK / CORS</div>
+<div class="thr">≤5km → 100; 5-10km → 88; 10-20km → 70 + FLAG: PP_LONG_BASELINE; 20-40km → 40 + FLAG: PP_EXCESSIVE_BASELINE; &gt;40km → 20.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">session_overlap_score</div><div class="lname">Drone-Base Session Overlap</div>
+<div class="wt">weight 0.1 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#13</span> <span class="pill ev-artifact">artifact_only</span></div>
+<div class="src">← session_overlap_fraction</div>
+<div class="paths">applies to: LOCAL_BASE_PPK / CORS</div>
+<div class="thr">=1.0 → 100; 0.95-1.0 → 80; 0.80-0.95 → 50 + FLAG: PP_PARTIAL_BASE_OVERLAP; &lt;0.80 → 30 + FLAG: PP_INSUFFICIENT_OVERLAP.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">overlap_texture_score</div><div class="lname">Image Overlap / Tie-Point Density</div>
+<div class="wt">weight 0.08 · SHEET (mining-specific gap)</div></div>
+<div class="meaning">covers <span class="pill cov">#37</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← overlap_texture_proxy</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">declared overlap ≥75/65 → 100; 65-75/55-65 → 70; &lt;65/&lt;55 → 40 + FLAG: PP_SPARSE_TIEPOINTS_RISK. Tie-point density (report) replaces declared when available.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">antenna_pco_score</div><div class="lname">Antenna PCO Declaration vs Actual</div>
+<div class="wt">weight 0.05 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#14</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← antenna_pco_match</div>
+<div class="paths">applies to: LOCAL_BASE_PPK / CORS</div>
+<div class="thr">match → 100; mismatch → 50 + FLAG: PP_ANTENNA_PCO_MISMATCH.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">sensor_metadata_consistency_score</div><div class="lname">Sensor Metadata Cross-Check</div>
+<div class="wt">weight 0.03 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#34</span> <span class="pill ev-artifact">artifact_only</span></div>
+<div class="src">← sensor_metadata_consistent</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">EXIF camera = manifest = flight log → 100; any mismatch → 50 + FLAG: PP_SENSOR_METADATA_MISMATCH.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cors_data_continuity_score</div><div class="lname">CORS Data Continuity During Flight</div>
+<div class="wt">weight 0.02 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#12</span> <span class="pill ev-report">detailed_manifest_with_report</span></div>
+<div class="src">← cors_data_continuity</div>
+<div class="paths">applies to: CORS</div>
+<div class="thr">continuous → 100; minor gaps → 70 + FLAG: PP_CORS_MINOR_GAP; major gaps → 30 + FLAG: PP_CORS_MAJOR_GAP. Advisory when report absent (weight redistributes within block).</div></div>
+<div class="card">
+<div class="row-top"><div class="name">time_sync_residual_score</div><div class="lname">Drone-Base Time-Sync Residuals</div>
+<div class="wt">weight 0.01 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#15</span> <span class="pill ev-report">detailed_manifest_with_report</span></div>
+<div class="src">← time_sync_residual_magnitude</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">&lt;100ms → 100; 100ms-1s → 70 + FLAG: PP_TIME_SYNC_DRIFT; &gt;1s → 30 + FLAG: PP_TIME_SYNC_SEVERE. Advisory when report absent.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">monsoon_flight_artifact_score</div><div class="lname">Adverse Flight Conditions Declaration</div>
+<div class="wt">weight 0.01 · SHEET (cross-handoff to drone chain)</div></div>
+<div class="meaning">covers <span class="pill cov">#41</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← flight_conditions_adverse</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">declared adverse → flag PP_FLIGHT_CONDITION_RISK (advisory) → 70; clear → 100. Cross-handoff to drone chain documented.</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--green);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for gcp_coord_trust_score</div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_sigma_score</div><div class="lname">GCP Coordinate Sigma vs Target</div>
+<div class="wt">weight 0.3 · SHEET (primary trust anchor — per-point with mean − k·worst)</div></div>
+<div class="meaning">covers <span class="pill cov">#16</span> <span class="pill ev-artifact">artifact_only</span></div>
+<div class="src">← gcp_sigma_relative_to_target</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">per-GCP: σ_h ≤ target → 100; 1-2× → 70 + FLAG: PP_GCP_SIGMA_MARGINAL; 2-5× → 30 + FLAG: PP_GCP_SIGMA_HIGH; &gt;5× → 0 + FLAG: PP_GCP_SIGMA_REJECT. Aggregated via mean − 0.25 × (100 − min).</div></div>
+<div class="card gate">
+<div class="row-top"><div class="name">gcp_processing_path_score</div><div class="lname">GCP Processing Path Acceptable</div>
+<div class="wt">weight 0.25 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#17</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← gcp_path_acceptable</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">AUTONOMOUS → 0 + FLAG: PP_GCP_AUTONOMOUS_PATH; LOCAL_BASE_PPK / CORS / CLOUD / PUBLISHED_BENCHMARK → 100; CUSTOMER_SUPPLIED → GCT3 takes over.</div><div class="gatetag">⊘ HARD: gcp_path_acceptable=False → GCP Coord Trust block = 0; FLAG: PP_GCP_AUTONOMOUS_PATH (CATASTROPHIC). Zeros pre_processing_score.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_customer_accuracy_declared_score</div><div class="lname">Customer-Supplied GCP Accuracy Declaration</div>
+<div class="wt">weight 0.15 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#18</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← gcp_customer_accuracy_adequate</div>
+<div class="paths">applies to: CUSTOMER_SUPPLIED</div>
+<div class="thr">declared + meets target → 100; declared but inadequate → 30 + FLAG: PP_GCP_CUSTOMER_INADEQUATE; not declared → 30 + FLAG: PP_GCP_CUSTOMER_NO_ACCURACY_CLAIM (CRITICAL reviewer-blocking). N/A when not customer-supplied (weight redistributes).</div></div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_id_reconciliation_score</div><div class="lname">GCP ID Cross-Artifact Consistency</div>
+<div class="wt">weight 0.1 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#19</span> <span class="pill ev-artifact">artifact_only</span></div>
+<div class="src">← gcp_id_reconciliation</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">all match → 100; minor → 70 + FLAG: PP_GCP_ID_PARTIAL_MISMATCH; major → 30 + FLAG: PP_GCP_ID_MISMATCH.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_coord_age_score</div><div class="lname">GCP Coord Determination Date Staleness</div>
+<div class="wt">weight 0.1 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#21</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← gcp_coord_age_days</div>
+<div class="paths">applies to: CUSTOMER_SUPPLIED</div>
+<div class="thr">&lt;30d → 100; 30-180d → 80; 180-365d → 50 + FLAG: PP_GCP_COORDS_AGED; &gt;365d → 30 + FLAG: PP_GCP_COORDS_STALE. N/A when not customer-supplied.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">coord_parse_sanity_score</div><div class="lname">Coordinate Parse Sanity (axis swap / decimal)</div>
+<div class="wt">weight 0.05 · SHEET (concrete sibling of #24)</div></div>
+<div class="meaning">covers <span class="pill cov">#40</span> <span class="pill ev-artifact">artifact_only</span></div>
+<div class="src">← coord_parse_bbox_sanity</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">parsed coords within declared bounding box → 100; out-of-box / axis-swap signature → 0 + FLAG: PP_COORD_MISPARSE.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_residual_score</div><div class="lname">GCP Residuals from Processing Report</div>
+<div class="wt">weight 0.03 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#20</span> <span class="pill ev-report">detailed_manifest_with_report</span></div>
+<div class="src">← gcp_residuals_within_tolerance</div>
+<div class="paths">applies to: LOCAL_BASE_PPK / CORS</div>
+<div class="thr">all within tolerance → 100; few outliers → 70 + FLAG: PP_GCP_RESIDUAL_OUTLIERS; many → 30 + FLAG: PP_GCP_RESIDUAL_FAILURES. Advisory when report absent (weight redistributes within block).</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cors_station_health_score</div><div class="lname">CORS Station Health During Observation</div>
+<div class="wt">weight 0.02 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#22</span> <span class="pill ev-report">detailed_manifest_with_report</span></div>
+<div class="src">← cors_station_health_acceptable</div>
+<div class="paths">applies to: CORS</div>
+<div class="thr">good → 100; degraded → 50 + FLAG: PP_CORS_STATION_DEGRADED; poor → 0 + FLAG: PP_CORS_STATION_UNHEALTHY. Advisory when report absent.</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for survey_design_score</div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_count_score</div><div class="lname">GCP Count vs Reconstruction Extent</div>
+<div class="wt">weight 0.4 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#27</span> <span class="pill ev-artifact">artifact_only</span></div>
+<div class="src">← gcp_count_adequate</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">adequate ratio → 100; marginal → 70 + FLAG: PP_GCP_COUNT_MARGINAL; insufficient → 30 + FLAG: PP_GCP_COUNT_INSUFFICIENT.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_distribution_score</div><div class="lname">GCP Spatial Distribution</div>
+<div class="wt">weight 0.35 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#28</span> <span class="pill ev-artifact">artifact_only</span></div>
+<div class="src">← gcp_distribution_coverage</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">≥80% extent coverage → 100; partial → 60 + FLAG: PP_GCP_CLUSTERED; severely clustered → 30 + FLAG: PP_GCP_SEVERELY_CLUSTERED.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">target_visibility_score</div><div class="lname">Target Pixel Visibility at GSD</div>
+<div class="wt">weight 0.15 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#31</span> <span class="pill ev-artifact">artifact_only</span></div>
+<div class="src">← target_pixels_at_gsd</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">≥3 px → 100; 2-3 → 60 + FLAG: PP_TARGET_MARGINAL; &lt;2 → 30 + FLAG: PP_TARGET_INVISIBLE.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">vegetation_dtm_declared_score</div><div class="lname">Vegetation / DTM Reliability</div>
+<div class="wt">weight 0.05 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#38</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← vegetation_dtm_risk</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">vegetated + DTM-claimed → 30 + FLAG: PP_VEG_DTM_UNRELIABLE (advisory); else 100.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">software_version_score</div><div class="lname">Processing Software Version</div>
+<div class="wt">weight 0.05 · SHEET (v1: advisory only; v2 once buggy-list maintained)</div></div>
+<div class="meaning">covers <span class="pill cov">#35</span> <span class="pill ev-manifest">declared_manifest</span></div>
+<div class="src">← software_version_in_buggy_list</div>
+<div class="paths">applies to: ALL_PATHS</div>
+<div class="thr">v1: declared → 100; in buggy list → flag PP_BUGGY_SOFTWARE_VERSION (advisory, zero scoring weight in v1). v2: real scoring.</div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 4 — Derived Fields</div><div class="sec-sub">Derivations from source fields. Composite-scoring derived fields combine other deriveds.</div></div><div class="card">
+<div class="fld"><div class="fld-n">crs_match_project</div>
+<div class="fld-m">Whether declared CRS/datum matches project requirement across all artifacts. Hard-gate input.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= declared_crs_per_artifact == project_required_crs for ALL artifacts</span></div></div>
+<div class="fld"><div class="fld-n">geoid_match_project</div>
+<div class="fld-m">Geoid declaration matches project and is internally consistent.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= declared_geoid_per_artifact == project_required_geoid AND consistent across artifacts</span></div></div>
+<div class="fld"><div class="fld-n">height_mode_consistency</div>
+<div class="fld-m">Height mode internal consistency + match to project.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= all artifacts declare same height_mode AND matches project_required_height_mode</span></div></div>
+<div class="fld"><div class="fld-n">projection_match_location</div>
+<div class="fld-m">Projection sanity check against site coordinates. Hard-gate input.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= declared_projection consistent with survey site bounding box (zone correct)</span></div></div>
+<div class="fld"><div class="fld-n">output_crs_metadata_present</div>
+<div class="fld-m">Direct artifact evidence — CRS metadata in EXIF/coord-file headers.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= each output artifact has CRS metadata AND matches declared_crs_per_artifact</span></div></div>
+<div class="fld"><div class="fld-n">units_match_project</div>
+<div class="fld-m">Units consistency + match to project.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= declared_units == project_required_units AND consistent</span></div></div>
+<div class="fld"><div class="fld-n">customer_coord_crs_consistent</div>
+<div class="fld-m">Applies only on customer-supplied path; N/A otherwise.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= when CUSTOMER_SUPPLIED path: customer_supplied_coord_crs declared AND matches project</span></div></div>
+<div class="fld"><div class="fld-n">localization_disclosed</div>
+<div class="fld-m">Fires flag on undisclosed only — not on declared-localized.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= localization_applied_declared IS NOT NULL (operator addressed it, regardless of True/False)</span></div></div>
+<div class="fld"><div class="fld-n">provenance_realization_consistent</div>
+<div class="fld-m">All control sources use same ITRF realization and epoch.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= realization_epoch_per_artifact all match</span></div></div>
+<div class="fld"><div class="fld-n">drone_session_within_base_window</div>
+<div class="fld-m">PPK base-pairing check.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= (drone_session_start_utc &gt;= base_session_start_utc) AND (drone_session_end_utc &lt;= base_session_end_utc) AND base_file_id matches expected</span></div></div>
+<div class="fld"><div class="fld-n">fraction_geotags_fixed</div>
+<div class="fld-m">Fraction of images with FIXED solution. Per-image aggregation.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= (count where per_geotag_fix_status=FIXED) / geotag_count</span></div></div>
+<div class="fld"><div class="fld-n">geotag_completeness_fraction</div>
+<div class="fld-m">Fraction of captured images that received geotags.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= geotag_count / captured_image_count</span></div></div>
+<div class="fld"><div class="fld-n">session_overlap_fraction</div>
+<div class="fld-m">Fraction of drone flight covered by base/CORS recording.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= (min(drone_end, base_end) - max(drone_start, base_start)) / (drone_end - drone_start)</span></div></div>
+<div class="fld"><div class="fld-n">antenna_pco_match</div>
+<div class="fld-m">Antenna PCO declaration vs actual.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= declared_antenna_per_artifact (manifest) == antenna actually used (from device export when available)</span></div></div>
+<div class="fld"><div class="fld-n">sensor_metadata_consistent</div>
+<div class="fld-m">Cross-artifact sensor consistency.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= camera_serial (EXIF) == camera declared in manifest == camera in flight log</span></div></div>
+<div class="fld"><div class="fld-n">cors_data_continuity</div>
+<div class="fld-m">CORS continuity during flight window — report-dependent.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= cors_epoch_coverage_during_flight from processing report (when uploaded)</span></div></div>
+<div class="fld"><div class="fld-n">time_sync_residual_magnitude</div>
+<div class="fld-m">Time-sync drift magnitude.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= statistics from time_sync_residuals (report-dependent)</span></div></div>
+<div class="fld"><div class="fld-n">overlap_texture_proxy</div>
+<div class="fld-m">Overlap from manifest; tie-point density when report present.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= min(planned_forward_overlap, planned_side_overlap) AND optional tiepoint_density</span></div></div>
+<div class="fld"><div class="fld-n">flight_conditions_adverse</div>
+<div class="fld-m">Declared adverse conditions — cross-handoff to drone chain.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= flight_conditions_declared in {hazy, monsoon, thermal-prone}</span></div></div>
+<div class="fld"><div class="fld-n">gcp_sigma_relative_to_target</div>
+<div class="fld-m">Per-GCP σ as multiple of survey accuracy target. Primary trust indicator. Aggregated via mean − 0.25 × (100 − min).<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= per_gcp_sigma_h / accuracy_target_m, per-GCP</span></div></div>
+<div class="fld"><div class="fld-n">cp_sigma_relative_to_target</div>
+<div class="fld-m">Per-CP σ as multiple of accuracy target. Feeds verification_status.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= per_cp_sigma_h / accuracy_target_m, per-CP</span></div></div>
+<div class="fld"><div class="fld-n">gcp_path_acceptable</div>
+<div class="fld-m">AUTONOMOUS path → catastrophic gate.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= declared_path_gcp != AUTONOMOUS</span></div></div>
+<div class="fld"><div class="fld-n">gcp_customer_accuracy_adequate</div>
+<div class="fld-m">Customer-supplied accuracy adequacy. Reviewer-blocking when absent.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= when CUSTOMER_SUPPLIED: customer_accuracy_claim present AND meets accuracy_target_m</span></div></div>
+<div class="fld"><div class="fld-n">gcp_id_reconciliation</div>
+<div class="fld-m">Cross-artifact ID consistency.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= gcp_ids in coord file match gcp_ids in form/manifest</span></div></div>
+<div class="fld"><div class="fld-n">gcp_coord_age_days</div>
+<div class="fld-m">Staleness of customer-supplied GCP coords.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= (flight_date - gcp_coord_determination_date) in days, when CUSTOMER_SUPPLIED</span></div></div>
+<div class="fld"><div class="fld-n">coord_parse_bbox_sanity</div>
+<div class="fld-m">Bounding-box sanity check catches axis-swap / unit-misparse.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= parsed gcp_position falls within reconstruction_extent_polygon (with reasonable margin)</span></div></div>
+<div class="fld"><div class="fld-n">gcp_residuals_within_tolerance</div>
+<div class="fld-m">GCP residual outlier detection — report-dependent.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= all per_gcp_residuals within tolerance (report-dependent)</span></div></div>
+<div class="fld"><div class="fld-n">cors_station_health_acceptable</div>
+<div class="fld-m">CORS station health during observation window.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= cors_quality_metrics (report-dependent)</span></div></div>
+<div class="fld"><div class="fld-n">gcp_count_adequate</div>
+<div class="fld-m">GCP count sufficiency.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= gcp_count vs reconstruction_extent_m2 ratio (industry guidance)</span></div></div>
+<div class="fld"><div class="fld-n">gcp_distribution_coverage</div>
+<div class="fld-m">Spatial coverage of GCPs vs reconstruction extent.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= fraction of reconstruction_extent_polygon covered by GCP convex hull / grid</span></div></div>
+<div class="fld"><div class="fld-n">target_pixels_at_gsd</div>
+<div class="fld-m">Target pixel size for ODM detection.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= target_size_cm / planned_gsd_cm</span></div></div>
+<div class="fld"><div class="fld-n">vegetation_dtm_risk</div>
+<div class="fld-m">DTM-on-vegetation risk.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= site_cover_declared=vegetated AND dtm_in_deliverables=True</span></div></div>
+<div class="fld"><div class="fld-n">settings_declared_vs_actual_consistent</div>
+<div class="fld-m">Approach 2: validates manifest-declared settings against processing-report-actual settings. Report-dependent.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= when processing report uploaded: report_actual_settings match manifest declarations</span></div></div>
+<div class="fld"><div class="fld-n">software_version_in_buggy_list</div>
+<div class="fld-m">v1: advisory only, zero scoring weight. v2: real scoring when list maintained.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= declared_software_version_per_artifact in CBMI known-buggy-versions list (v2)</span></div></div>
+<div class="fld"><div class="fld-n">cp_designated_count</div>
+<div class="fld-m">CP count for verification_status determination.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= count of CP records in CP Coord File</span></div></div>
+<div class="fld"><div class="fld-n">cp_distribution_coverage</div>
+<div class="fld-m">CP spatial coverage for verification_status.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= fraction of reconstruction_extent_polygon covered by CP convex hull</span></div></div>
+<div class="fld"><div class="fld-n">cp_gcp_spatial_independence</div>
+<div class="fld-m">CP-GCP spatial independence for verification_status.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= min pairwise distance from any CP to any GCP</span></div></div>
+</div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 5 — Source Fields</div><div class="sec-sub">Grouped by source file. auto = machine-generated · user = operator-declared.</div></div>
+<div class="card"><div class="row-top"><div class="name">Geotagged Image Set</div><div class="lname">.jpg/.tif (EXIF) + optional .csv/.txt sidecar</div></div>
+<div class="fld"><div class="fld-n">image_id <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Identity]</b> Per-image identifier (filename/sequence number).</div></div>
+<div class="fld"><div class="fld-n">geotag_position <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Position]</b> Per-image position from EXIF or sidecar.</div></div>
+<div class="fld"><div class="fld-n">per_geotag_fix_status <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Quality]</b> Per-image fix quality flag (Q=1 FIXED, Q=2 FLOAT, Q=5 AUTONOMOUS, etc).</div></div>
+<div class="fld"><div class="fld-n">geotag_count <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Identity]</b> Total number of geotagged images in the set.</div></div>
+<div class="fld"><div class="fld-n">crs_in_exif <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Reference]</b> CRS metadata in EXIF or sidecar.</div></div>
+<div class="fld"><div class="fld-n">image_capture_utc <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Timing]</b> Image acquisition time from EXIF.</div></div>
+<div class="fld"><div class="fld-n">camera_serial <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Identity]</b> Camera serial number from EXIF — for cross-check vs manifest.</div></div>
+</div>
+<div class="card"><div class="row-top"><div class="name">GCP Coordinate File</div><div class="lname">.csv / .txt / .pos (vendor-specific)</div></div>
+<div class="fld"><div class="fld-n">gcp_id <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Identity]</b> Per-GCP identifier.</div></div>
+<div class="fld"><div class="fld-n">gcp_position <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Position]</b> Per-GCP processed coordinate.</div></div>
+<div class="fld"><div class="fld-n">per_gcp_sigma_h <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Quality]</b> Per-GCP horizontal σ from processing.</div></div>
+<div class="fld"><div class="fld-n">per_gcp_sigma_v <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Quality]</b> Per-GCP vertical σ from processing.</div></div>
+<div class="fld"><div class="fld-n">crs_in_coord_file_header <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Reference]</b> CRS metadata in the GCP coord file header.</div></div>
+</div>
+<div class="card"><div class="row-top"><div class="name">Check-Point Coordinate File</div><div class="lname">.csv / .txt (vendor-specific)</div></div>
+<div class="fld"><div class="fld-n">cp_id <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Identity]</b> Per-CP identifier.</div></div>
+<div class="fld"><div class="fld-n">cp_position <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Position]</b> Per-CP processed coordinate.</div></div>
+<div class="fld"><div class="fld-n">per_cp_sigma_h <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Quality]</b> Per-CP horizontal σ from processing.</div></div>
+<div class="fld"><div class="fld-n">per_cp_sigma_v <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Quality]</b> Per-CP vertical σ from processing.</div></div>
+</div>
+<div class="card"><div class="row-top"><div class="name">Processing Manifest</div><div class="lname">.json (pp_manifest.json)</div></div>
+<div class="fld"><div class="fld-n">project_required_crs <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Project]</b> Required CRS / datum for the survey deliverable.</div></div>
+<div class="fld"><div class="fld-n">project_required_geoid <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Project]</b> Required geoid model.</div></div>
+<div class="fld"><div class="fld-n">project_required_height_mode <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Project]</b> Required height mode (orthometric / ellipsoidal).</div></div>
+<div class="fld"><div class="fld-n">project_required_units <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Project]</b> Required linear units (m / US Survey ft / Intl ft).</div></div>
+<div class="fld"><div class="fld-n">project_required_projection <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Project]</b> Required projection (zone, false-easting/northing).</div></div>
+<div class="fld"><div class="fld-n">accuracy_target_m <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Project]</b> Survey accuracy target (e.g., 0.02 m for cm-grade).</div></div>
+<div class="fld"><div class="fld-n">declared_crs_per_artifact <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Reference]</b> CRS declared per artifact (geotag / GCP / CP).</div></div>
+<div class="fld"><div class="fld-n">declared_geoid_per_artifact <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Reference]</b> Geoid model declared per artifact.</div></div>
+<div class="fld"><div class="fld-n">declared_height_mode_per_artifact <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Reference]</b> Height mode declared per artifact.</div></div>
+<div class="fld"><div class="fld-n">declared_units_per_artifact <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Reference]</b> Units declared per artifact.</div></div>
+<div class="fld"><div class="fld-n">declared_projection <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Reference]</b> Projection declared.</div></div>
+<div class="fld"><div class="fld-n">realization_epoch_per_artifact <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Reference]</b> ITRF realization and epoch declared per artifact.</div></div>
+<div class="fld"><div class="fld-n">localization_applied_declared <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Reference]</b> Boolean: was site localization applied? Required field — undisclosed (null) → flag fires.</div></div>
+<div class="fld"><div class="fld-n">customer_supplied_coord_crs <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Reference]</b> CRS declaration for customer-supplied coordinates.</div></div>
+<div class="fld"><div class="fld-n">customer_accuracy_claim <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Reference]</b> Customer-supplied accuracy claim (with vs without value).</div></div>
+<div class="fld"><div class="fld-n">declared_path_geotag <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Path]</b> Path category for drone PPK: LOCAL_BASE_PPK / CORS / CLOUD / OTHER.</div></div>
+<div class="fld"><div class="fld-n">declared_path_gcp <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Path]</b> Path category for GCP: AUTONOMOUS / LOCAL_BASE_PPK / CORS / CLOUD / PUBLISHED_BENCHMARK / CUSTOMER_SUPPLIED.</div></div>
+<div class="fld"><div class="fld-n">declared_path_cp <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Path]</b> Path category for CP (mostly inherited from capture).</div></div>
+<div class="fld"><div class="fld-n">declared_software_per_artifact <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Software]</b> Software used per artifact (TBC / Emlid Studio / RTKLIB / Cloud / Custom).</div></div>
+<div class="fld"><div class="fld-n">declared_software_version_per_artifact <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Software]</b> Software version.</div></div>
+<div class="fld"><div class="fld-n">declared_antenna_per_artifact <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Setup]</b> Antenna model declared per artifact (for PCO).</div></div>
+<div class="fld"><div class="fld-n">baseline_length_km <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Setup]</b> Distance from drone/GCP rover to base/CORS.</div></div>
+<div class="fld"><div class="fld-n">captured_image_count <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Identity]</b> Count of images captured (for completeness check vs geotag_count).</div></div>
+<div class="fld"><div class="fld-n">planned_forward_overlap <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Flight Plan]</b> Declared forward overlap (%).</div></div>
+<div class="fld"><div class="fld-n">planned_side_overlap <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Flight Plan]</b> Declared side overlap (%).</div></div>
+<div class="fld"><div class="fld-n">site_cover_declared <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Site]</b> Declared site ground cover (open / vegetated / mixed).</div></div>
+<div class="fld"><div class="fld-n">dtm_in_deliverables <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Deliverable]</b> Boolean: is DTM in the project deliverables?</div></div>
+<div class="fld"><div class="fld-n">target_size_cm <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Target]</b> Declared GCP/CP target physical size.</div></div>
+<div class="fld"><div class="fld-n">planned_gsd_cm <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Flight Plan]</b> Planned ground sample distance.</div></div>
+<div class="fld"><div class="fld-n">target_type <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Target]</b> Target physical type.</div></div>
+<div class="fld"><div class="fld-n">base_file_id <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Identity]</b> Identifier for the base RINEX file used in PPK.</div></div>
+<div class="fld"><div class="fld-n">drone_session_start_utc <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Timing]</b> Drone flight start (UTC).</div></div>
+<div class="fld"><div class="fld-n">drone_session_end_utc <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Timing]</b> Drone flight end (UTC).</div></div>
+<div class="fld"><div class="fld-n">base_session_start_utc <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Timing]</b> Base recording start (UTC).</div></div>
+<div class="fld"><div class="fld-n">base_session_end_utc <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Timing]</b> Base recording end (UTC).</div></div>
+<div class="fld"><div class="fld-n">gcp_coord_determination_date <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Provenance]</b> Date GCP coordinates were determined (for staleness check).</div></div>
+<div class="fld"><div class="fld-n">flight_date <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Provenance]</b> Date of drone flight (for delta to coord-determination date).</div></div>
+<div class="fld"><div class="fld-n">reconstruction_extent_m2 <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Site]</b> Surveyed reconstruction extent (area).</div></div>
+<div class="fld"><div class="fld-n">reconstruction_extent_polygon <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Site]</b> Geometry of reconstruction extent for distribution checks.</div></div>
+<div class="fld"><div class="fld-n">flight_conditions_declared <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Site]</b> Declared flight conditions (clear / hazy / monsoon / thermal-prone).</div></div>
+</div>
+<div class="card"><div class="row-top"><div class="name">Processing Report (optional)</div><div class="lname">.pdf / .xml / .txt (TBC adjustment report / Emlid Studio log / RTKLIB status)</div></div>
+<div class="fld"><div class="fld-n">cors_epoch_coverage_during_flight <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Quality]</b> From processing report: CORS coverage during drone flight window.</div></div>
+<div class="fld"><div class="fld-n">time_sync_residuals <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Quality]</b> From processing report: drone-base time-sync residual statistics.</div></div>
+<div class="fld"><div class="fld-n">per_gcp_residuals <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Quality]</b> From processing report: per-GCP residuals from adjustment.</div></div>
+<div class="fld"><div class="fld-n">cors_quality_metrics <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Quality]</b> From processing report: CORS station health during obs window.</div></div>
+<div class="fld"><div class="fld-n">report_actual_settings <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Reference]</b> From processing report: settings actually used (datum, geoid, antenna, tolerances).</div></div>
+<div class="fld"><div class="fld-n">tiepoint_density <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Quality]</b> From processing report: tie-point density measurements.</div></div>
+</div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 6 — Source Files</div><div class="sec-sub">Five source files. Two artifacts (geotags + GCP/CP coord files) plus manifest plus optional report.</div></div>
+<div class="card"><div class="row-top"><div class="name">Geotagged Image Set</div>
+<div class="lname">.jpg/.tif (EXIF) + optional .csv/.txt sidecar</div><div class="wt">auto</div></div>
+<div class="meaning"><b style="color:var(--text)">Obtain:</b> Pre-processing produces geotagged images with embedded position (EXIF GPS tags or sidecar file). CBMI reads geotag position, per-image fix status, count, CRS metadata, timestamps.</div>
+<div class="meaning">Per-image artifact. Q-flag conventions are software-agnostic (Q=1 = FIXED). When sidecar accompanies image, may include per-image σ.</div></div>
+<div class="card"><div class="row-top"><div class="name">GCP Coordinate File</div>
+<div class="lname">.csv / .txt / .pos (vendor-specific)</div><div class="wt">auto</div></div>
+<div class="meaning"><b style="color:var(--text)">Obtain:</b> Pre-processing produces per-GCP coordinates with σ values. CBMI reads per-point ID, position, σ_h, σ_v.</div>
+<div class="meaning">Per-point structure. σ is the universal anchor for trust scoring.</div></div>
+<div class="card"><div class="row-top"><div class="name">Check-Point Coordinate File</div>
+<div class="lname">.csv / .txt (vendor-specific)</div><div class="wt">auto</div></div>
+<div class="meaning"><b style="color:var(--text)">Obtain:</b> Per-CP coordinates with σ values. Feeds verification_status, not pre_processing_score.</div>
+<div class="meaning">When absent (no CPs designated) → verification_status=UNVERIFIED_NO_CPS; pre_processing_score still computes from other blocks.</div></div>
+<div class="card"><div class="row-top"><div class="name">Processing Manifest</div>
+<div class="lname">.json (pp_manifest.json)</div><div class="wt">user</div></div>
+<div class="meaning"><b style="color:var(--text)">Obtain:</b> Operator declares path categories, software/version, CRS/datum/geoid/height-mode, baseline, mountpoints, antenna models, accuracy targets, customer-supplied accuracy claims. Required for declared_manifest tier indicators.</div>
+<div class="meaning">Manifest design bounds what the chain can detect. Approach 1 baked in here. Operator-declarative (not verified against actuality unless processing report present).</div></div>
+<div class="card"><div class="row-top"><div class="name">Processing Report (optional)</div>
+<div class="lname">.pdf / .xml / .txt (TBC adjustment report / Emlid Studio log / RTKLIB status)</div><div class="wt">user</div></div>
+<div class="meaning"><b style="color:var(--text)">Obtain:</b> Operator uploads optionally. When present, enables detailed_manifest_with_report tier indicators (CORS continuity, time-sync, settings consistency, GCP residuals, CORS station health). When absent, those indicators score as advisory only.</div>
+<div class="meaning">v1: TBC parser baked in. Emlid Studio and RTKLIB parsers deferred to v2. Report-absent reality: not reliably uploaded.</div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Flags & Signals</div><div class="sec-sub">Hard gates, scoring flags, advisory flags, verification status, and cross-document handoffs.</div></div><div class="card"><table><tr><th>Flag</th><th>Type</th><th>When</th><th>Sev</th><th>Covers</th><th>Meaning</th></tr>
+<tr><td class="kw">PP_WRONG_CRS_DATUM</td><td>indicator_gate</td><td>crs_match_project=False</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>#1</td><td>Declared CRS/datum does not match project requirement. Zeros pre_processing_score.</td></tr>
+<tr><td class="kw">PP_WRONG_PROJECTION</td><td>indicator_gate</td><td>projection_match_location=False</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>#7</td><td>Declared projection inconsistent with survey location. Zeros pre_processing_score.</td></tr>
+<tr><td class="kw">PP_GCP_AUTONOMOUS_PATH</td><td>indicator_gate</td><td>gcp_path_acceptable=False</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>#17</td><td>GCP processing path declared as AUTONOMOUS — unfit for survey-grade control. Zeros pre_processing_score via gcp_coord_trust_score=0.</td></tr>
+<tr><td class="kw">PP_GEOID_MISMATCH</td><td>indicator</td><td>geoid_match_project=False</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>#2</td><td>Geoid model mismatch with project or inconsistent across artifacts.</td></tr>
+<tr><td class="kw">PP_HEIGHT_MODE_INCONSISTENT</td><td>indicator</td><td>height_mode inconsistent across artifacts</td><td class="sev-CRITICAL">CRITICAL</td><td>#3</td><td>Height mode declarations disagree across artifacts.</td></tr>
+<tr><td class="kw">PP_HEIGHT_MODE_WRONG</td><td>indicator</td><td>height_mode mismatch with project requirement</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>#3</td><td>Height mode mismatch with project.</td></tr>
+<tr><td class="kw">PP_OUTPUT_CRS_MISSING</td><td>indicator</td><td>crs_in_artifact metadata absent</td><td class="sev-CRITICAL">CRITICAL</td><td>#6</td><td>Output artifact missing CRS metadata.</td></tr>
+<tr><td class="kw">PP_OUTPUT_CRS_MISMATCH</td><td>indicator</td><td>crs_in_artifact != declared_crs</td><td class="sev-CRITICAL">CRITICAL</td><td>#6</td><td>Output artifact CRS metadata disagrees with declared CRS.</td></tr>
+<tr><td class="kw">PP_UNITS_MISMATCH</td><td>indicator</td><td>units mismatch</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>#8</td><td>Declared units mismatch with project or inconsistent.</td></tr>
+<tr><td class="kw">PP_CUSTOMER_COORDS_NO_CRS</td><td>indicator</td><td>customer_supplied_coord_crs absent</td><td class="sev-CRITICAL">CRITICAL</td><td>#4</td><td>Customer-supplied GCP coordinates without CRS declaration.</td></tr>
+<tr><td class="kw">PP_CUSTOMER_COORDS_WRONG_CRS</td><td>indicator</td><td>customer_supplied_coord_crs mismatch</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>#4</td><td>Customer-supplied GCPs declared in wrong CRS.</td></tr>
+<tr><td class="kw">PP_LOCALIZATION_UNDISCLOSED</td><td>indicator</td><td>localization_disclosed=False</td><td class="sev-HIGH">HIGH</td><td>#5</td><td>Site localization disclosure missing from manifest.</td></tr>
+<tr><td class="kw">PP_MIXED_PROVENANCE</td><td>indicator</td><td>provenance_realization_consistent=False</td><td class="sev-MEDIUM">MEDIUM</td><td>#42</td><td>Control sources use different ITRF realizations or epochs.</td></tr>
+<tr><td class="kw">PP_SETTINGS_DECLARED_ACTUAL_MISMATCH</td><td>indicator</td><td>manifest-declared settings != report-actual settings</td><td class="sev-HIGH">HIGH</td><td>#36</td><td>Approach 2 check: manifest declarations contradict processing-report actuals. Report-dependent.</td></tr>
+<tr><td class="kw">PP_WRONG_BASE_PAIRED</td><td>indicator</td><td>drone_session not within base window OR base_file_id mismatch</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>#33</td><td>Wrong base RINEX paired with drone PPK — silent within-block CAT.</td></tr>
+<tr><td class="kw">PP_GEOTAG_PARTIAL_FIX</td><td>indicator</td><td>0.80 &lt;= fraction_fixed &lt; 0.95</td><td class="sev-HIGH">HIGH</td><td>#9</td><td>Partial PPK fix across geotag set.</td></tr>
+<tr><td class="kw">PP_GEOTAG_POOR_FIX</td><td>indicator</td><td>0.50 &lt;= fraction_fixed &lt; 0.80</td><td class="sev-CRITICAL">CRITICAL</td><td>#9</td><td>Poor PPK fix across geotag set.</td></tr>
+<tr><td class="kw">PP_GEOTAG_NOT_FIXED</td><td>indicator</td><td>fraction_fixed &lt; 0.50</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>#9</td><td>Less than half of geotags achieved FIXED solution.</td></tr>
+<tr><td class="kw">PP_GEOTAGS_INCOMPLETE</td><td>indicator</td><td>0.80 &lt;= completeness &lt; 0.95</td><td class="sev-HIGH">HIGH</td><td>#10</td><td>Geotag count below captured image count.</td></tr>
+<tr><td class="kw">PP_GEOTAGS_SEVERELY_INCOMPLETE</td><td>indicator</td><td>completeness &lt; 0.80</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>#10</td><td>Severe geotag gap — many images without position.</td></tr>
+<tr><td class="kw">PP_LONG_BASELINE</td><td>indicator</td><td>baseline 10-20 km</td><td class="sev-HIGH">HIGH</td><td>#11</td><td>Distance-dependent error baked into geotags.</td></tr>
+<tr><td class="kw">PP_EXCESSIVE_BASELINE</td><td>indicator</td><td>baseline &gt; 20 km</td><td class="sev-CRITICAL">CRITICAL</td><td>#11</td><td>Excessive baseline — accuracy claim should be downgraded.</td></tr>
+<tr><td class="kw">PP_PARTIAL_BASE_OVERLAP</td><td>indicator</td><td>0.80 &lt;= session_overlap &lt; 0.95</td><td class="sev-HIGH">HIGH</td><td>#13</td><td>Partial overlap between drone flight and base recording.</td></tr>
+<tr><td class="kw">PP_INSUFFICIENT_OVERLAP</td><td>indicator</td><td>session_overlap &lt; 0.80</td><td class="sev-CRITICAL">CRITICAL</td><td>#13</td><td>Drone flight largely outside base recording window.</td></tr>
+<tr><td class="kw">PP_SPARSE_TIEPOINTS_RISK</td><td>indicator</td><td>planned_overlap below threshold</td><td class="sev-HIGH">HIGH</td><td>#37</td><td>Overlap insufficient for low-texture terrain — mining-specific.</td></tr>
+<tr><td class="kw">PP_ANTENNA_PCO_MISMATCH</td><td>indicator</td><td>antenna_pco_match=False</td><td class="sev-HIGH">HIGH</td><td>#14</td><td>Declared antenna model mismatches device-actual.</td></tr>
+<tr><td class="kw">PP_SENSOR_METADATA_MISMATCH</td><td>indicator</td><td>sensor_metadata_consistent=False</td><td class="sev-HIGH">HIGH</td><td>#34</td><td>EXIF / manifest / flight-log camera disagreement.</td></tr>
+<tr><td class="kw">PP_CORS_MINOR_GAP</td><td>indicator</td><td>minor CORS epoch gaps</td><td class="sev-HIGH">HIGH</td><td>#12</td><td>CORS data has minor gaps during flight (report-dependent).</td></tr>
+<tr><td class="kw">PP_CORS_MAJOR_GAP</td><td>indicator</td><td>major CORS epoch gaps</td><td class="sev-CRITICAL">CRITICAL</td><td>#12</td><td>CORS data has major gaps during flight (report-dependent).</td></tr>
+<tr><td class="kw">PP_TIME_SYNC_DRIFT</td><td>indicator</td><td>100ms-1s time-sync residual</td><td class="sev-HIGH">HIGH</td><td>#15</td><td>Time-sync drift detected (report-dependent).</td></tr>
+<tr><td class="kw">PP_TIME_SYNC_SEVERE</td><td>indicator</td><td>&gt;1s time-sync residual</td><td class="sev-CRITICAL">CRITICAL</td><td>#15</td><td>Severe time-sync drift (report-dependent).</td></tr>
+<tr><td class="kw">PP_FLIGHT_CONDITION_RISK</td><td>advisory</td><td>flight_conditions_declared=adverse</td><td class="sev-HIGH">HIGH (advisory)</td><td>#41</td><td>Declared adverse flight conditions; cross-handoff to drone chain.</td></tr>
+<tr><td class="kw">PP_GCP_SIGMA_MARGINAL</td><td>indicator</td><td>σ_h 1-2× target</td><td class="sev-HIGH">HIGH</td><td>#16</td><td>GCP σ at 1-2× target.</td></tr>
+<tr><td class="kw">PP_GCP_SIGMA_HIGH</td><td>indicator</td><td>σ_h 2-5× target</td><td class="sev-CRITICAL">CRITICAL</td><td>#16</td><td>GCP σ at 2-5× target.</td></tr>
+<tr><td class="kw">PP_GCP_SIGMA_REJECT</td><td>indicator</td><td>σ_h &gt; 5× target</td><td class="sev-CRITICAL">CRITICAL</td><td>#16</td><td>GCP σ catastrophically high — point not usable as control.</td></tr>
+<tr><td class="kw">PP_GCP_CUSTOMER_INADEQUATE</td><td>indicator</td><td>customer_accuracy_claim &lt; target</td><td class="sev-CRITICAL">CRITICAL</td><td>#18</td><td>Customer-declared GCP accuracy claim inadequate for project.</td></tr>
+<tr><td class="kw">PP_GCP_CUSTOMER_NO_ACCURACY_CLAIM</td><td>indicator (reviewer-blocking)</td><td>customer_accuracy_claim absent</td><td class="sev-CRITICAL">CRITICAL</td><td>#18</td><td>Customer-supplied GCPs without accuracy claim — reviewer-blocking.</td></tr>
+<tr><td class="kw">PP_GCP_ID_PARTIAL_MISMATCH</td><td>indicator</td><td>minor ID mismatches between coord file and form</td><td class="sev-HIGH">HIGH</td><td>#19</td><td>Some GCP IDs disagree between coord file and form.</td></tr>
+<tr><td class="kw">PP_GCP_ID_MISMATCH</td><td>indicator</td><td>major ID mismatches</td><td class="sev-HIGH">HIGH</td><td>#19</td><td>GCP ID disagreement is major — provenance integrity questioned.</td></tr>
+<tr><td class="kw">PP_GCP_COORDS_AGED</td><td>indicator</td><td>GCP coords 180-365 days old</td><td class="sev-HIGH">HIGH</td><td>#21</td><td>Customer-supplied GCP coordinates aging — marks may have moved.</td></tr>
+<tr><td class="kw">PP_GCP_COORDS_STALE</td><td>indicator</td><td>GCP coords &gt; 365 days old</td><td class="sev-HIGH">HIGH</td><td>#21</td><td>Customer-supplied GCP coordinates stale.</td></tr>
+<tr><td class="kw">PP_COORD_MISPARSE</td><td>indicator</td><td>parsed coords outside declared bounding box</td><td class="sev-HIGH">HIGH</td><td>#40</td><td>Axis-swap or decimal misparse detected via bounding-box sanity.</td></tr>
+<tr><td class="kw">PP_GCP_RESIDUAL_OUTLIERS</td><td>indicator</td><td>some GCP residuals exceed tolerance (report-dependent)</td><td class="sev-HIGH">HIGH</td><td>#20</td><td>GCP residual outliers in processing report.</td></tr>
+<tr><td class="kw">PP_GCP_RESIDUAL_FAILURES</td><td>indicator</td><td>many GCP residuals exceed tolerance (report-dependent)</td><td class="sev-CRITICAL">CRITICAL</td><td>#20</td><td>Multiple GCP residual failures.</td></tr>
+<tr><td class="kw">PP_CORS_STATION_DEGRADED</td><td>indicator</td><td>CORS quality metrics degraded</td><td class="sev-HIGH">HIGH</td><td>#22</td><td>CORS station had degraded performance during obs window.</td></tr>
+<tr><td class="kw">PP_CORS_STATION_UNHEALTHY</td><td>indicator</td><td>CORS quality metrics poor</td><td class="sev-CRITICAL">CRITICAL</td><td>#22</td><td>CORS station unhealthy during obs window.</td></tr>
+<tr><td class="kw">PP_GCP_COUNT_MARGINAL</td><td>indicator</td><td>GCP count marginal for extent</td><td class="sev-HIGH">HIGH</td><td>#27</td><td>GCP count is borderline for site extent.</td></tr>
+<tr><td class="kw">PP_GCP_COUNT_INSUFFICIENT</td><td>indicator</td><td>GCP count insufficient for extent</td><td class="sev-CRITICAL">CRITICAL</td><td>#27</td><td>GCP count insufficient for site extent.</td></tr>
+<tr><td class="kw">PP_GCP_CLUSTERED</td><td>indicator</td><td>GCP distribution partial</td><td class="sev-HIGH">HIGH</td><td>#28</td><td>GCPs not well-distributed across reconstruction extent.</td></tr>
+<tr><td class="kw">PP_GCP_SEVERELY_CLUSTERED</td><td>indicator</td><td>GCP distribution severely clustered</td><td class="sev-CRITICAL">CRITICAL</td><td>#28</td><td>GCPs severely clustered.</td></tr>
+<tr><td class="kw">PP_TARGET_MARGINAL</td><td>indicator</td><td>target 2-3 px at GSD</td><td class="sev-HIGH">HIGH</td><td>#31</td><td>Target borderline visible at planned GSD.</td></tr>
+<tr><td class="kw">PP_TARGET_INVISIBLE</td><td>indicator</td><td>target &lt; 2 px at GSD</td><td class="sev-CRITICAL">CRITICAL</td><td>#31</td><td>Target too small at planned GSD — likely undetectable.</td></tr>
+<tr><td class="kw">PP_VEG_DTM_UNRELIABLE</td><td>advisory</td><td>vegetated + DTM-claimed</td><td class="sev-HIGH">HIGH (advisory)</td><td>#38</td><td>Vegetated site with DTM in deliverables — DTM is canopy, not terrain.</td></tr>
+<tr><td class="kw">PP_BUGGY_SOFTWARE_VERSION</td><td>advisory</td><td>software in known-buggy list (v2)</td><td class="sev-MEDIUM">MEDIUM (advisory, zero weight in v1)</td><td>#35</td><td>Software version with known bugs (v1: catalogued only; v2: scored).</td></tr>
+<tr><td class="kw">PP_NO_INDEPENDENT_VERIFICATION</td><td>informational</td><td>verification_status != VERIFIED</td><td class="sev-CRITICAL">CRITICAL (informational)</td><td>#26</td><td>Survey was not independently verified. Score still valid but unverified — see verification_status field.</td></tr>
+<tr><td class="kw">PP_STAGE2_TARGET_DETECTION_FAILURE</td><td>handoff</td><td>OWNED_BY_PROCESSING</td><td class="sev-HIGH">HIGH</td><td>#32</td><td>Target washed away — detected at processing stage via ODM. Documented as known limitation.</td></tr>
+<tr><td class="kw">PP_STOCKPILE_BOUNDARY_DISPUTE</td><td>handoff</td><td>OWNED_BY_ANALYTICS</td><td class="sev-HIGH">HIGH</td><td>#39</td><td>Stockpile toe/base-plane ambiguity. Cross-handoff to volume analytics.</td></tr>
+</table></div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Problem Coverage Matrix</div><div class="sec-sub">All 42 catalogued pre-processing problems — every one with explicit home, limitations stated.</div></div><div class="card"><table><tr><th>#</th><th>Problem</th><th>Severity</th><th>Frequency</th><th>Disposition</th><th>Covered by</th></tr>
+<tr><td class="kw">1</td><td>Wrong CRS / Datum Declared</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>COMMON</td><td><span class="disp disp-OWNED">OWNED</span></td><td>ref_frame_declared_score + PP_WRONG_CRS_DATUM gate</td></tr>
+<tr><td class="kw">2</td><td>Geoid Model Mismatch</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>COMMON</td><td><span class="disp disp-OWNED">OWNED</span></td><td>geoid_model_declared_score + PP_GEOID_MISMATCH</td></tr>
+<tr><td class="kw">3</td><td>Height Mode Confusion</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>COMMON</td><td><span class="disp disp-OWNED">OWNED</span></td><td>height_mode_declared_score</td></tr>
+<tr><td class="kw">4</td><td>Pre-Surveyed GCP in Wrong CRS</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>customer_coord_crs_declared_score (CUSTOMER_SUPPLIED path only)</td></tr>
+<tr><td class="kw">5</td><td>Site Calibration Applied Without Disclosure</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL (COMMON for construction)</td><td><span class="disp disp-OWNED">OWNED</span></td><td>localization_disclosed_score — fires on undisclosed only</td></tr>
+<tr><td class="kw">6</td><td>Output CRS Metadata Missing or Wrong</td><td class="sev-CRITICAL">CRITICAL</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>output_crs_metadata_score</td></tr>
+<tr><td class="kw">7</td><td>Wrong UTM Zone / Projection</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>projection_declared_score + PP_WRONG_PROJECTION gate</td></tr>
+<tr><td class="kw">8</td><td>Units Confusion (Meters vs Feet)</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>RARE</td><td><span class="disp disp-OWNED">OWNED</span></td><td>units_declared_score</td></tr>
+<tr><td class="kw">9</td><td>PPK Solution Did Not Converge</td><td class="sev-CRITICAL">CRITICAL</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>geotag_solution_quality_score</td></tr>
+<tr><td class="kw">10</td><td>Geotag Count != Captured Image Count</td><td class="sev-CRITICAL">CRITICAL</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>geotag_completeness_score</td></tr>
+<tr><td class="kw">11</td><td>Excessive Baseline (PPK)</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON (India)</td><td><span class="disp disp-OWNED">OWNED</span></td><td>geotag_baseline_score</td></tr>
+<tr><td class="kw">12</td><td>CORS Data Gap During Flight</td><td class="sev-CRITICAL">CRITICAL</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED (advisory when report absent)</span></td><td>cors_data_continuity_score (report-dependent)</td></tr>
+<tr><td class="kw">13</td><td>Drone Session Times Don&#x27;t Align with Base</td><td class="sev-CRITICAL">CRITICAL</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>session_overlap_score</td></tr>
+<tr><td class="kw">14</td><td>Wrong Antenna PCO in PPK</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>antenna_pco_score (declared_manifest evidence tier)</td></tr>
+<tr><td class="kw">15</td><td>Time-Sync Drift Drone/Base</td><td class="sev-CRITICAL">CRITICAL</td><td>RARE</td><td><span class="disp disp-OWNED">OWNED (advisory when report absent)</span></td><td>time_sync_residual_score (report-dependent)</td></tr>
+<tr><td class="kw">16</td><td>GCP Sigma Exceeds Target</td><td class="sev-CRITICAL">CRITICAL</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>gcp_sigma_score (per-point primary + mean − k·worst)</td></tr>
+<tr><td class="kw">17</td><td>GCP Processing Path Autonomous</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>gcp_processing_path_score + PP_GCP_AUTONOMOUS_PATH gate</td></tr>
+<tr><td class="kw">18</td><td>GCP Accuracy Undeclared</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td><span class="disp disp-OWNED">OWNED</span></td><td>gcp_customer_accuracy_declared_score (reviewer-blocking)</td></tr>
+<tr><td class="kw">19</td><td>GCP IDs Don&#x27;t Match Form</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>gcp_id_reconciliation_score</td></tr>
+<tr><td class="kw">20</td><td>GCP Residuals Exceed Tolerance</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED (advisory when report absent)</span></td><td>gcp_residual_score (report-dependent)</td></tr>
+<tr><td class="kw">21</td><td>Stale GCP Coords Reused</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL (COMMON for mining)</td><td><span class="disp disp-OWNED">OWNED</span></td><td>gcp_coord_age_score (CUSTOMER_SUPPLIED path)</td></tr>
+<tr><td class="kw">22</td><td>CORS Station Health Poor</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED (advisory when report absent)</span></td><td>cors_station_health_score (report-dependent)</td></tr>
+<tr><td class="kw">23</td><td>CP Sigma Exceeds Target</td><td class="sev-CRITICAL">CRITICAL</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED_BY_VERIFICATION_STATUS">OWNED_BY_VERIFICATION_STATUS</span></td><td>Feeds verification_status, not pre_processing_score</td></tr>
+<tr><td class="kw">24</td><td>CP Coord File Format Inconsistency</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED_BY_VERIFICATION_STATUS">OWNED_BY_VERIFICATION_STATUS</span></td><td>Feeds verification_status</td></tr>
+<tr><td class="kw">25</td><td>CP Not Spatially Independent from GCPs</td><td class="sev-HIGH">HIGH</td><td>COMMON</td><td><span class="disp disp-OWNED_BY_VERIFICATION_STATUS">OWNED_BY_VERIFICATION_STATUS</span></td><td>UNVERIFIED_CP_NOT_INDEPENDENT</td></tr>
+<tr><td class="kw">26</td><td>No Check Points Designated</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>VERY COMMON</td><td><span class="disp disp-OWNED_BY_VERIFICATION_STATUS">OWNED_BY_VERIFICATION_STATUS</span></td><td>UNVERIFIED_NO_CPS + PP_NO_INDEPENDENT_VERIFICATION flag</td></tr>
+<tr><td class="kw">27</td><td>Insufficient GCP Count</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td><span class="disp disp-OWNED">OWNED</span></td><td>gcp_count_score</td></tr>
+<tr><td class="kw">28</td><td>GCPs Clustered</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td><span class="disp disp-OWNED">OWNED</span></td><td>gcp_distribution_score</td></tr>
+<tr><td class="kw">29</td><td>Too Few Check Points</td><td class="sev-HIGH">HIGH</td><td>COMMON</td><td><span class="disp disp-OWNED_BY_VERIFICATION_STATUS">OWNED_BY_VERIFICATION_STATUS</span></td><td>UNVERIFIED_INSUFFICIENT_CPS</td></tr>
+<tr><td class="kw">30</td><td>CPs Clustered</td><td class="sev-HIGH">HIGH</td><td>COMMON</td><td><span class="disp disp-OWNED_BY_VERIFICATION_STATUS">OWNED_BY_VERIFICATION_STATUS</span></td><td>UNVERIFIED_CP_CLUSTERED</td></tr>
+<tr><td class="kw">31</td><td>Target Not Visible at GSD</td><td class="sev-HIGH">HIGH</td><td>COMMON</td><td><span class="disp disp-OWNED">OWNED</span></td><td>target_visibility_score</td></tr>
+<tr><td class="kw">32</td><td>Stage-2 Target Detection Failure</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED_BY_PROCESSING">OWNED_BY_PROCESSING</span></td><td>Future processing_score. PP_STAGE2_TARGET_DETECTION_FAILURE handoff flag.</td></tr>
+<tr><td class="kw">33</td><td>Wrong Base File Paired with Drone PPK</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>base_pairing_score (silent CAT inside Geotag Integrity)</td></tr>
+<tr><td class="kw">34</td><td>Sensor Metadata Mismatch</td><td class="sev-HIGH">HIGH</td><td>RARE</td><td><span class="disp disp-OWNED">OWNED</span></td><td>sensor_metadata_consistency_score</td></tr>
+<tr><td class="kw">35</td><td>Buggy Software Version</td><td class="sev-MEDIUM">MEDIUM</td><td>RARE</td><td><span class="disp disp-OWNED">OWNED (advisory only in v1)</span></td><td>software_version_score (v1 advisory; v2 real scoring)</td></tr>
+<tr><td class="kw">36</td><td>Software Settings Declared vs Actual Mismatch</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED (advisory when report absent)</span></td><td>settings_consistency_score + PP_SETTINGS_DECLARED_ACTUAL_MISMATCH (Approach 2; report-dependent; advisory when report absent)</td></tr>
+<tr><td class="kw">37</td><td>Sparse Tie Points / Low-Texture Terrain</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON (mining)</td><td><span class="disp disp-OWNED">OWNED</span></td><td>overlap_texture_score</td></tr>
+<tr><td class="kw">38</td><td>Vegetation DTM Unreliable</td><td class="sev-HIGH">HIGH</td><td>COMMON (infra)</td><td><span class="disp disp-OWNED">OWNED</span></td><td>vegetation_dtm_declared_score (advisory)</td></tr>
+<tr><td class="kw">39</td><td>Stockpile Toe / Base-Plane Ambiguity</td><td class="sev-HIGH">HIGH</td><td>VERY COMMON (mining)</td><td><span class="disp disp-OWNED_BY_ANALYTICS">OWNED_BY_ANALYTICS</span></td><td>Future volume analytics. PP_STOCKPILE_BOUNDARY_DISPUTE handoff flag.</td></tr>
+<tr><td class="kw">40</td><td>Coordinate File Misparse</td><td class="sev-HIGH">HIGH</td><td>COMMON</td><td><span class="disp disp-OWNED">OWNED</span></td><td>coord_parse_sanity_score</td></tr>
+<tr><td class="kw">41</td><td>Monsoon / Thermal Flight Artifacts</td><td class="sev-HIGH">HIGH</td><td>COMMON (seasonal)</td><td><span class="disp disp-OWNED">OWNED (cross-handoff to drone)</span></td><td>monsoon_flight_artifact_score (declared advisory)</td></tr>
+<tr><td class="kw">42</td><td>Mixed Source GCP/CP Provenance</td><td class="sev-MEDIUM">MEDIUM</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>provenance_consistency_score</td></tr>
+</table></div>
+<div class="note"><b>Known limitations (stated, not hidden):</b><br>False fix / antenna PCO errors that do not manifest in σ are NOT detectable from artifact evidence alone — caught downstream at processing-stage check-point residuals. Processing-report-dependent indicators (cors_data_continuity, time_sync_residual, gcp_residual, cors_station_health) score as advisory only when report is not uploaded — operational reality is that reports are not reliably uploaded. Settings-actuality validation requires uploaded processing report (Approach 2). Without report, chain validates declared settings only (Approach 1) — operator-declarative misrepresentation not detectable. Approach 3 (independent project-type validation against expected settings) deferred to v2 — requires CBMI to maintain expected-settings reference per project type. Software-version scoring deferred to v2 (SD5) — v1 carries known-buggy-versions flag as advisory only with zero scoring weight; real scoring when CBMI maintains buggy-version list. Approximately 6 of the 42 catalogued problems are NOT detected by pre_processing_score: target washed away (handed to processing_score), stockpile toe ambiguity (handed to volume analytics), monsoon flight artifacts (cross-handoff to drone chain), and others. Documented in problem_coverage_map. Vegetation DTM unreliability is an inherent photogrammetry limitation — chain documents but cannot remove. Undisclosed site localization not detectable from artifact evidence — only detectable when operator addresses it in manifest (declared-only). CRS/projection sanity checks compare against survey bounding box for plausibility; cannot verify absolute correctness when bounding box itself is in wrong frame.</div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Per-Artifact Views (v1.1 additive)</div><div class="sec-sub">Three diagnostic views over the same indicator layer. Parallel to pre_processing_score, not in series. Each view consumes a subset of the 34 v1.0 indicators (plus 4 new CP-numeric indicators for the CP view) with view-specific weights summing to 1.0.</div></div>
+<div class="card" style="border-color:rgba(155,111,224,.35)">
+<div class="row-top">
+<div class="name" style="color:var(--purple)">geotag_artifact_score</div>
+<div class="lname">Geotag Artifact Fitness Score</div>
+<div class="wt">20 indicators · sum 1.0</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Is the geotagged image set fit as a pre-processing output (clean inputs for photogrammetry)?</div>
+<div class="meaning"><b style="color:var(--text)">Inherits global gates:</b> <span style="font-family:var(--mono);color:var(--orange)">PP_WRONG_CRS_DATUM, PP_WRONG_PROJECTION</span></div>
+<table><tr><th>#</th><th>Indicator</th><th>v1.0 Block</th><th style="text-align:right">Weight</th></tr>
+<tr><td>1</td><td class="kw">ref_frame_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.08</td></tr>
+<tr><td>2</td><td class="kw">geoid_model_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.04</td></tr>
+<tr><td>3</td><td class="kw">height_mode_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.03</td></tr>
+<tr><td>4</td><td class="kw">projection_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.03</td></tr>
+<tr><td>5</td><td class="kw">output_crs_metadata_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.04</td></tr>
+<tr><td>6</td><td class="kw">units_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+<tr><td>7</td><td class="kw">localization_disclosed_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+<tr><td>8</td><td class="kw">settings_consistency_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+<tr><td>9</td><td class="kw">base_pairing_score</td><td>GEO</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.18</td></tr>
+<tr><td>10</td><td class="kw">geotag_solution_quality_score</td><td>GEO</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.14</td></tr>
+<tr><td>11</td><td class="kw">geotag_completeness_score</td><td>GEO</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.11</td></tr>
+<tr><td>12</td><td class="kw">geotag_baseline_score</td><td>GEO</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.07</td></tr>
+<tr><td>13</td><td class="kw">session_overlap_score</td><td>GEO</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.07</td></tr>
+<tr><td>14</td><td class="kw">overlap_texture_score</td><td>GEO</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.06</td></tr>
+<tr><td>15</td><td class="kw">antenna_pco_score</td><td>GEO</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.04</td></tr>
+<tr><td>16</td><td class="kw">sensor_metadata_consistency_score</td><td>GEO</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.02</td></tr>
+<tr><td>17</td><td class="kw">cors_data_continuity_score</td><td>GEO</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.02</td></tr>
+<tr><td>18</td><td class="kw">time_sync_residual_score</td><td>GEO</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.02</td></tr>
+<tr><td>19</td><td class="kw">monsoon_flight_artifact_score</td><td>GEO</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+<tr><td>20</td><td class="kw">software_version_score</td><td>SD</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+</table></div>
+<div class="card" style="border-color:rgba(155,111,224,.35)">
+<div class="row-top">
+<div class="name" style="color:var(--purple)">gcp_coord_artifact_score</div>
+<div class="lname">GCP Coordinate Artifact Fitness Score</div>
+<div class="wt">23 indicators · sum 1.0</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Is the GCP coordinate file fit as a pre-processing output (clean control input for photogrammetry)?</div>
+<div class="meaning"><b style="color:var(--text)">Inherits global gates:</b> <span style="font-family:var(--mono);color:var(--orange)">PP_WRONG_CRS_DATUM, PP_WRONG_PROJECTION, PP_GCP_AUTONOMOUS_PATH</span></div>
+<table><tr><th>#</th><th>Indicator</th><th>v1.0 Block</th><th style="text-align:right">Weight</th></tr>
+<tr><td>1</td><td class="kw">ref_frame_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.07</td></tr>
+<tr><td>2</td><td class="kw">geoid_model_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.04</td></tr>
+<tr><td>3</td><td class="kw">height_mode_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.03</td></tr>
+<tr><td>4</td><td class="kw">projection_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.02</td></tr>
+<tr><td>5</td><td class="kw">output_crs_metadata_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.02</td></tr>
+<tr><td>6</td><td class="kw">units_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+<tr><td>7</td><td class="kw">customer_coord_crs_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+<tr><td>8</td><td class="kw">localization_disclosed_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+<tr><td>9</td><td class="kw">provenance_consistency_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+<tr><td>10</td><td class="kw">gcp_sigma_score</td><td>GCT</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.19</td></tr>
+<tr><td>11</td><td class="kw">gcp_processing_path_score</td><td>GCT</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.14</td></tr>
+<tr><td>12</td><td class="kw">gcp_customer_accuracy_declared_score</td><td>GCT</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.05</td></tr>
+<tr><td>13</td><td class="kw">gcp_id_reconciliation_score</td><td>GCT</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.05</td></tr>
+<tr><td>14</td><td class="kw">gcp_coord_age_score</td><td>GCT</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.04</td></tr>
+<tr><td>15</td><td class="kw">coord_parse_sanity_score</td><td>GCT</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.03</td></tr>
+<tr><td>16</td><td class="kw">gcp_residual_score</td><td>GCT</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.02</td></tr>
+<tr><td>17</td><td class="kw">cors_station_health_score</td><td>GCT</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+<tr><td>18</td><td class="kw">gcp_count_score</td><td>SD</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.09</td></tr>
+<tr><td>19</td><td class="kw">gcp_distribution_score</td><td>SD</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.08</td></tr>
+<tr><td>20</td><td class="kw">target_visibility_score</td><td>SD</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.05</td></tr>
+<tr><td>21</td><td class="kw">cors_data_continuity_score</td><td>GEO</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+<tr><td>22</td><td class="kw">settings_consistency_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+<tr><td>23</td><td class="kw">software_version_score</td><td>SD</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+</table></div>
+<div class="card" style="border-color:rgba(155,111,224,.35)">
+<div class="row-top">
+<div class="name" style="color:var(--purple)">cp_coord_artifact_score</div>
+<div class="lname">CP Coordinate Artifact Fitness Score</div>
+<div class="wt">12 indicators · sum 1.0</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Is the check-point coordinate file fit as a pre-processing output (independent verification artifact)?</div>
+<div class="meaning"><b style="color:var(--text)">Inherits global gates:</b> <span style="font-family:var(--mono);color:var(--orange)">PP_WRONG_CRS_DATUM, PP_WRONG_PROJECTION</span></div>
+<div class="meaning"><b style="color:var(--text)">Null handling:</b> When cp_designated_count = 0, cp_coord_artifact_score = null. Verification_status reports UNVERIFIED_NO_CPS. The pre_processing_score is unaffected (already locked).</div>
+<table><tr><th>#</th><th>Indicator</th><th>v1.0 Block</th><th style="text-align:right">Weight</th></tr>
+<tr><td>1</td><td class="kw">ref_frame_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.10</td></tr>
+<tr><td>2</td><td class="kw">geoid_model_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.06</td></tr>
+<tr><td>3</td><td class="kw">height_mode_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.05</td></tr>
+<tr><td>4</td><td class="kw">projection_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.03</td></tr>
+<tr><td>5</td><td class="kw">output_crs_metadata_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.03</td></tr>
+<tr><td>6</td><td class="kw">units_declared_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+<tr><td>7</td><td class="kw">localization_disclosed_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+<tr><td>8</td><td class="kw">provenance_consistency_score</td><td>REF</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.01</td></tr>
+<tr><td>9</td><td class="kw">cp_sigma_score</td><td>VIEW_ONLY (new)</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.30</td></tr>
+<tr><td>10</td><td class="kw">cp_count_score</td><td>VIEW_ONLY (new)</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.18</td></tr>
+<tr><td>11</td><td class="kw">cp_distribution_score</td><td>VIEW_ONLY (new)</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.13</td></tr>
+<tr><td>12</td><td class="kw">cp_gcp_independence_score</td><td>VIEW_ONLY (new)</td><td class="wcol" style="font-family:var(--mono);color:var(--teal);text-align:right">0.09</td></tr>
+</table></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">View-Only Indicators (v1.1 additive)</div><div class="sec-sub">Four new CP-numeric indicators added for cp_coord_artifact_score. No building_block_id (not in any v1.0 block). Also serve as numeric inputs to verification_status alongside its categorical logic.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cp_sigma_score</div>
+<div class="lname">CP Coordinate Sigma vs Target</div></div>
+<div class="meaning">covers <span class="pill">#23</span></div>
+<div class="formula">← cp_sigma_relative_to_target
+threshold: per-CP: σ_h ≤ accuracy_target → 100; 1-2× → 70 + FLAG: PP_CP_SIGMA_MARGINAL; 2-5× → 30 + FLAG: PP_CP_SIGMA_HIGH; &gt;5× → 0 + FLAG: PP_CP_SIGMA_REJECT. Aggregated mean − 0.25 × (100 − min) across all CPs.</div>
+<div class="meaning"><b style="color:var(--text)">Used by:</b> cp_coord_artifact_score · also exposed to verification_status</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cp_count_score</div>
+<div class="lname">CP Designated Count Adequacy</div></div>
+<div class="meaning">covers <span class="pill">#29</span></div>
+<div class="formula">← cp_designated_count
+threshold: cp_count ≥20 → 100; 10-19 → 80; 5-9 → 60 + FLAG: PP_CP_COUNT_STATISTICAL_WEAK; 1-4 → 30 + FLAG: PP_CP_COUNT_INSUFFICIENT; 0 → 0 + FLAG: PP_NO_CHECK_POINTS.</div>
+<div class="meaning"><b style="color:var(--text)">Used by:</b> cp_coord_artifact_score · also exposed to verification_status</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cp_distribution_score</div>
+<div class="lname">CP Spatial Distribution</div></div>
+<div class="meaning">covers <span class="pill">#30</span></div>
+<div class="formula">← cp_distribution_coverage
+threshold: CP coverage ≥80% of extent → 100; 60-80% → 70 + FLAG: PP_CP_CLUSTERED; &lt;60% → 30 + FLAG: PP_CP_SEVERELY_CLUSTERED.</div>
+<div class="meaning"><b style="color:var(--text)">Used by:</b> cp_coord_artifact_score · also exposed to verification_status</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cp_gcp_independence_score</div>
+<div class="lname">CP-GCP Spatial Independence</div></div>
+<div class="meaning">covers <span class="pill">#25</span></div>
+<div class="formula">← cp_gcp_spatial_independence
+threshold: min CP-GCP distance ≥50m → 100; 10-50m → 70 + FLAG: PP_CP_GCP_TOO_CLOSE; &lt;10m → 30 + FLAG: PP_CP_GCP_OVERLAPPING.</div>
+<div class="meaning"><b style="color:var(--text)">Used by:</b> cp_coord_artifact_score · also exposed to verification_status</div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Pre-Processing Closure</div></div>
+<div class="note">
+<b>Pre-processing now produces five deliverables:</b><br>
+1. pre_processing_score — single survey-level confidence scalar (v1.0 locked)<br>
+2. verification_status — categorical CP-verification status (v1.0 locked)<br>
+3. geotag_artifact_score — per-artifact diagnostic view (v1.1)<br>
+4. gcp_coord_artifact_score — per-artifact diagnostic view (v1.1)<br>
+5. cp_coord_artifact_score — per-artifact diagnostic view (v1.1)<br><br>
+<b>Per-downstream-deliverable views</b> (fitness-for-ortho, fitness-for-DTM, etc.) are deferred to a future delivery layer that reads pre-processing's existing indicator values together with processing and analytics indicator values — no further pre-processing changes required.
+</div></div>
+</body></html>

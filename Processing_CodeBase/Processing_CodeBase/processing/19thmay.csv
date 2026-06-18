@@ -1,0 +1,2 @@
+survey_id,subsystem,spec_version,generated_at,processing_score,verification_status,is_null,global_gate_triggered,total_flags,unique_flags,critical_flags,high_flags,medium_flags,informational_flags
+sample_data,processing,1.1.1,2026-06-05T06:34:58.124631Z,84.7,UNVERIFIED_INSUFFICIENT_CPS,False,False,10,9,5,2,2,1

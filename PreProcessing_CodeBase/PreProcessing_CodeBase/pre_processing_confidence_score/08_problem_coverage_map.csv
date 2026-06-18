@@ -1,0 +1,43 @@
+problem_no,problem,severity,frequency,disposition,covered_by
+1,Wrong CRS / Datum Declared,CATASTROPHIC,COMMON,OWNED,ref_frame_declared_score + PP_WRONG_CRS_DATUM gate
+2,Geoid Model Mismatch,CATASTROPHIC,COMMON,OWNED,geoid_model_declared_score + PP_GEOID_MISMATCH
+3,Height Mode Confusion,CATASTROPHIC,COMMON,OWNED,height_mode_declared_score
+4,Pre-Surveyed GCP in Wrong CRS,CATASTROPHIC,OCCASIONAL,OWNED,customer_coord_crs_declared_score (CUSTOMER_SUPPLIED path only)
+5,Site Calibration Applied Without Disclosure,HIGH,OCCASIONAL (COMMON for construction),OWNED,localization_disclosed_score — fires on undisclosed only
+6,Output CRS Metadata Missing or Wrong,CRITICAL,OCCASIONAL,OWNED,output_crs_metadata_score
+7,Wrong UTM Zone / Projection,CATASTROPHIC,OCCASIONAL,OWNED,projection_declared_score + PP_WRONG_PROJECTION gate
+8,Units Confusion (Meters vs Feet),CATASTROPHIC,RARE,OWNED,units_declared_score
+9,PPK Solution Did Not Converge,CRITICAL,OCCASIONAL,OWNED,geotag_solution_quality_score
+10,Geotag Count != Captured Image Count,CRITICAL,OCCASIONAL,OWNED,geotag_completeness_score
+11,Excessive Baseline (PPK),CRITICAL,COMMON (India),OWNED,geotag_baseline_score
+12,CORS Data Gap During Flight,CRITICAL,OCCASIONAL,OWNED (advisory when report absent),cors_data_continuity_score (report-dependent)
+13,Drone Session Times Don't Align with Base,CRITICAL,OCCASIONAL,OWNED,session_overlap_score
+14,Wrong Antenna PCO in PPK,HIGH,OCCASIONAL,OWNED,antenna_pco_score (declared_manifest evidence tier)
+15,Time-Sync Drift Drone/Base,CRITICAL,RARE,OWNED (advisory when report absent),time_sync_residual_score (report-dependent)
+16,GCP Sigma Exceeds Target,CRITICAL,OCCASIONAL,OWNED,gcp_sigma_score (per-point primary + mean − k·worst)
+17,GCP Processing Path Autonomous,CATASTROPHIC,OCCASIONAL,OWNED,gcp_processing_path_score + PP_GCP_AUTONOMOUS_PATH gate
+18,GCP Accuracy Undeclared,CRITICAL,COMMON,OWNED,gcp_customer_accuracy_declared_score (reviewer-blocking)
+19,GCP IDs Don't Match Form,HIGH,OCCASIONAL,OWNED,gcp_id_reconciliation_score
+20,GCP Residuals Exceed Tolerance,HIGH,OCCASIONAL,OWNED (advisory when report absent),gcp_residual_score (report-dependent)
+21,Stale GCP Coords Reused,HIGH,OCCASIONAL (COMMON for mining),OWNED,gcp_coord_age_score (CUSTOMER_SUPPLIED path)
+22,CORS Station Health Poor,HIGH,OCCASIONAL,OWNED (advisory when report absent),cors_station_health_score (report-dependent)
+23,CP Sigma Exceeds Target,CRITICAL,OCCASIONAL,OWNED_BY_VERIFICATION_STATUS,"Feeds verification_status, not pre_processing_score"
+24,CP Coord File Format Inconsistency,HIGH,OCCASIONAL,OWNED_BY_VERIFICATION_STATUS,Feeds verification_status
+25,CP Not Spatially Independent from GCPs,HIGH,COMMON,OWNED_BY_VERIFICATION_STATUS,UNVERIFIED_CP_NOT_INDEPENDENT
+26,No Check Points Designated,CATASTROPHIC,VERY COMMON,OWNED_BY_VERIFICATION_STATUS,UNVERIFIED_NO_CPS + PP_NO_INDEPENDENT_VERIFICATION flag
+27,Insufficient GCP Count,CRITICAL,COMMON,OWNED,gcp_count_score
+28,GCPs Clustered,CRITICAL,COMMON,OWNED,gcp_distribution_score
+29,Too Few Check Points,HIGH,COMMON,OWNED_BY_VERIFICATION_STATUS,UNVERIFIED_INSUFFICIENT_CPS
+30,CPs Clustered,HIGH,COMMON,OWNED_BY_VERIFICATION_STATUS,UNVERIFIED_CP_CLUSTERED
+31,Target Not Visible at GSD,HIGH,COMMON,OWNED,target_visibility_score
+32,Stage-2 Target Detection Failure,HIGH,OCCASIONAL,OWNED_BY_PROCESSING,Future processing_score. PP_STAGE2_TARGET_DETECTION_FAILURE handoff flag.
+33,Wrong Base File Paired with Drone PPK,CATASTROPHIC,OCCASIONAL,OWNED,base_pairing_score (silent CAT inside Geotag Integrity)
+34,Sensor Metadata Mismatch,HIGH,RARE,OWNED,sensor_metadata_consistency_score
+35,Buggy Software Version,MEDIUM,RARE,OWNED (advisory only in v1),software_version_score (v1 advisory; v2 real scoring)
+36,Software Settings Declared vs Actual Mismatch,HIGH,OCCASIONAL,OWNED (advisory when report absent),settings_consistency_score + PP_SETTINGS_DECLARED_ACTUAL_MISMATCH (Approach 2; report-dependent; advisory when report absent)
+37,Sparse Tie Points / Low-Texture Terrain,CRITICAL,COMMON (mining),OWNED,overlap_texture_score
+38,Vegetation DTM Unreliable,HIGH,COMMON (infra),OWNED,vegetation_dtm_declared_score (advisory)
+39,Stockpile Toe / Base-Plane Ambiguity,HIGH,VERY COMMON (mining),OWNED_BY_ANALYTICS,Future volume analytics. PP_STOCKPILE_BOUNDARY_DISPUTE handoff flag.
+40,Coordinate File Misparse,HIGH,COMMON,OWNED,coord_parse_sanity_score
+41,Monsoon / Thermal Flight Artifacts,HIGH,COMMON (seasonal),OWNED (cross-handoff to drone),monsoon_flight_artifact_score (declared advisory)
+42,Mixed Source GCP/CP Provenance,MEDIUM,OCCASIONAL,OWNED,provenance_consistency_score

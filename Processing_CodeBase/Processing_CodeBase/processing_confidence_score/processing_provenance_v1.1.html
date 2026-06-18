@@ -1,0 +1,281 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CB Capture — Processing Confidence Score (v1.1)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--accent:#4A8BBF;--accent2:#5fa3d8;--gold:#c9a84c;--green:#3dba78;--teal:#3dd8c0;
+--orange:#e08c3a;--purple:#9b6fe0;--red:#e05555;--navy:#0d1b2a;--navy2:#112236;--navy3:#162d44;
+--navy4:#1a3350;--text:#d6e4f0;--textdim:#7a9bb5;--textfaint:#4a6a80;--border:rgba(122,155,181,.18);
+--border2:rgba(122,155,181,.30);--mono:'SF Mono',ui-monospace,Menlo,monospace;
+--sans:-apple-system,Segoe UI,Roboto,sans-serif}
+body{background:var(--navy);color:var(--text);font-family:var(--sans);line-height:1.55;padding:40px 32px 80px;max-width:1180px;margin:0 auto}
+.hdr-eye{font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin-bottom:6px}
+.hdr-title{font-size:30px;font-weight:700;letter-spacing:-.5px}
+.hdr-title span{color:var(--accent2);font-weight:400}
+.hdr-sub{font-size:13px;color:var(--textdim);margin-top:8px;line-height:1.65;max-width:880px}
+.flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:22px 0 8px;font-family:var(--mono);font-size:11px}
+.flow span{padding:5px 11px;border-radius:5px;background:var(--navy3);border:1px solid var(--border2);color:var(--textdim)}
+.flow b{color:var(--gold)}
+.sec{margin:38px 0 0}
+.sec-bar{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border2);padding-bottom:8px;margin-bottom:16px}
+.sec-name{font-size:18px;font-weight:700;color:var(--accent2)}
+.sec-sub{font-size:12px;color:var(--textdim)}
+.card{background:var(--navy2);border:1px solid var(--border);border-radius:9px;padding:18px 20px;margin-bottom:14px}
+.card.gate{border-color:rgba(224,140,58,.35)}
+.card.view{border-color:rgba(155,111,224,.35);background:linear-gradient(180deg,var(--navy2) 0%,rgba(155,111,224,.04) 100%)}
+.row-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.name{font-family:var(--mono);font-size:14px;color:var(--gold);font-weight:600}
+.name.view{color:var(--purple)}
+.lname{font-size:13px;color:var(--text)}
+.wt{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--teal)}
+.pill{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:3px;border:1px solid var(--border2);color:var(--textdim)}
+.pill.view{color:var(--purple);border-color:rgba(155,111,224,.4)}
+.meaning{font-size:12.5px;color:var(--textdim);margin:4px 0}
+.formula{font-family:var(--mono);font-size:12px;color:var(--text);background:var(--navy);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin:8px 0;white-space:pre-wrap;line-height:1.7}
+.thr{font-size:11.5px;color:var(--textdim);background:var(--navy);border-left:2px solid var(--accent);padding:7px 10px;border-radius:0 5px 5px 0;margin-top:8px;font-family:var(--mono);line-height:1.6}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+th{text-align:left;color:var(--gold);font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--border2)}
+td{padding:7px 10px;border-bottom:1px solid var(--border);color:var(--textdim);vertical-align:top}
+td.kw{font-family:var(--mono);color:var(--text)}
+td.wt-cell{font-family:var(--mono);color:var(--teal);text-align:right;font-weight:600}
+.note{font-size:12px;color:var(--textdim);background:var(--navy3);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-top:14px;line-height:1.7}
+.note b{color:var(--gold)}
+.pressure-table th{color:var(--purple)}
+.pressure-table td.kw{color:var(--purple)}
+</style></head><body>
+<div class="hdr-eye">CrystalBall Infinity — CB Capture Universe</div>
+<div class="hdr-title">Processing Confidence Score <span>v1.1 · v1.0 + 5 Per-Deliverable Views</span></div>
+<div class="hdr-sub">Four-block evidence-based processing confidence chain. Single scalar processing_score per survey. Owns check-point residual analysis as the moment-of-truth survey accuracy measurement. Agisoft Metashape v1 engine; other engines (ODM, Pix4D, RealityCapture) deferred to v2+. Processing report REQUIRED (Option A locked) — processing_score=null when absent because the report IS the evidence base (unlike pre_processing where it is supplementary). verification_status field separates verification-result from quality-score, mirroring pre_processing pattern.</div>
+<div class="hdr-sub" style="margin-top:10px;color:var(--purple)"><b style="color:var(--text)">v1.1 additions:</b> STRICTLY ADDITIVE extension over v1.0. Adds 5 per-deliverable views (ortho_score, dsm_score, dtm_score, point_cloud_score, mesh_3d_score) as configurations over locked v1.0 indicator layer. No changes to v1.0 indicators, weights, blocks, or scoring. Each view is a diagnostic readout answering &quot;what is the quality story for THIS specific deliverable?&quot; — not a separate score. When a deliverable file is absent, the corresponding view returns null with file_missing reason; processing_score itself remains unaffected.</div>
+<div class="hdr-sub" style="margin-top:10px;color:var(--gold)">Computed entirely from Agisoft processing report + processing manifest + deliverable files + pre_processing handoff data (source artifacts only — NOT pre_processing_score output). Does not read drone_score, base_station_score, gcp_score, check_point_score, or pre_processing_score outputs at runtime.</div>
+<div class="flow">
+<span><b>Agisoft Report</b></span>→<span>+ Manifest</span>→<span>+ Deliverables</span>→<span>+ PP Handoff</span>→<span>Indicators</span>→<span>Building Blocks</span>→<span><b>processing_score</b></span>
+</div>
+<div class="flow">
+<span style="background:rgba(155,111,224,.1);border-color:rgba(155,111,224,.35);color:var(--purple)">v1.1: same indicators →</span>
+<span style="color:var(--purple)">+ <b>ortho_score</b></span>
+<span style="color:var(--purple)">+ <b>dsm_score</b></span>
+<span style="color:var(--purple)">+ <b>dtm_score</b></span>
+<span style="color:var(--purple)">+ <b>point_cloud_score</b></span>
+<span style="color:var(--purple)">+ <b>mesh_3d_score</b></span>
+</div>
+
+<div class="sec"><div class="sec-bar"><div class="sec-name">Core — processing_score (v1.0, unchanged)</div>
+<div class="sec-sub">Single scalar moment-of-truth score. v1.1 additions do NOT modify this.</div></div>
+<div class="card gate"><div class="row-top"><div class="name">processing_score</div><div class="lname">Processing Confidence Score</div></div>
+<div class="formula">0.30*ba_quality_score + 0.30*image_matching_score + 0.25*control_verification_score + 0.15*deliverable_output_score</div>
+<div class="meaning">Deep-diagnostic chain for processing-stage failures. CBMI does NOT run Agisoft — this chain evaluates the Agisoft processing report + deliverable files + processing manifest. Owns the moment-of-truth check-point residual analysis. Runtime-independent of upstream chains — uses pre_processing source artifacts and manifest (NOT pre_processing_score outputs) for cross-source comparisons. Cross-subsystem coupling deferred to future capture_score integration layer.</div></div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name" style="color:var(--purple)">v1.1 — Per-Deliverable Views</div><div class="sec-sub">Diagnostic READOUTS, not separate scores. Each view answers: "What is the quality story for THIS specific deliverable?" Same v1.0 indicators, recombined with view-specific weights.</div></div>
+<div class="card view">
+<div class="row-top"><div class="name view">ortho_score</div>
+<div class="lname">Orthomosaic Confidence Score</div>
+<div class="wt">15 indicators · weights sum to 1.0</div></div>
+<div class="meaning"><b style="color:var(--text)">Deliverable:</b> Orthomosaic raster (.tif/.tiff)</div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Given the same processing evidence, what is the quality story specifically for the orthomosaic?</div>
+<div class="meaning"><b style="color:var(--text)">Emphasis:</b> Horizontal positional accuracy; image matching quality; bundle adjustment integrity; output frame correctness.</div>
+<div class="meaning"><b style="color:var(--text)">Null handling:</b> <span class="pill view">when deliverable_ortho_present=FALSE</span> → returns null, reason=ortho_file_not_uploaded</div>
+<div class="formula">
+  <span style="color:var(--teal)">0.15</span>  <span style="color:var(--gold)">cp_rmse_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.10</span>  <span style="color:var(--gold)">ba_reprojection_score</span>  <span style="color:var(--textfaint);font-size:10px">[ba_quality_score]</span>
+
+  <span style="color:var(--teal)">0.10</span>  <span style="color:var(--gold)">camera_alignment_score</span>  <span style="color:var(--textfaint);font-size:10px">[ba_quality_score]</span>
+
+  <span style="color:var(--teal)">0.10</span>  <span style="color:var(--gold)">output_crs_project_match_score</span>  <span style="color:var(--textfaint);font-size:10px">[deliverable_output_score]</span>
+
+  <span style="color:var(--teal)">0.08</span>  <span style="color:var(--gold)">alignment_accuracy_setting_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.07</span>  <span style="color:var(--gold)">camera_position_ensemble_score</span>  <span style="color:var(--textfaint);font-size:10px">[ba_quality_score]</span>
+
+  <span style="color:var(--teal)">0.07</span>  <span style="color:var(--gold)">tiepoint_density_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.07</span>  <span style="color:var(--gold)">gcp_rmse_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">tiepoint_multiplicity_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">per_cp_outlier_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">output_crs_projection_score</span>  <span style="color:var(--textfaint);font-size:10px">[deliverable_output_score]</span>
+
+  <span style="color:var(--teal)">0.03</span>  <span style="color:var(--gold)">self_calibration_quality_score</span>  <span style="color:var(--textfaint);font-size:10px">[ba_quality_score]</span>
+
+  <span style="color:var(--teal)">0.03</span>  <span style="color:var(--gold)">marker_role_consistency_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.03</span>  <span style="color:var(--gold)">internal_transform_consistency_score</span>  <span style="color:var(--textfaint);font-size:10px">[deliverable_output_score]</span>
+
+  <span style="color:var(--teal)">0.02</span>  <span style="color:var(--gold)">gcp_coord_consistency_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+</div></div>
+<div class="card view">
+<div class="row-top"><div class="name view">dsm_score</div>
+<div class="lname">Digital Surface Model Confidence Score</div>
+<div class="wt">15 indicators · weights sum to 1.0</div></div>
+<div class="meaning"><b style="color:var(--text)">Deliverable:</b> DSM raster (.tif/.tiff)</div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Given the same processing evidence, what is the quality story specifically for the DSM?</div>
+<div class="meaning"><b style="color:var(--text)">Emphasis:</b> Vertical accuracy; depth map quality; filtering mode appropriateness; void interpolation handling.</div>
+<div class="meaning"><b style="color:var(--text)">Null handling:</b> <span class="pill view">when deliverable_dsm_present=FALSE</span> → returns null, reason=dsm_file_not_uploaded</div>
+<div class="formula">
+  <span style="color:var(--teal)">0.15</span>  <span style="color:var(--gold)">depth_quality_setting_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.12</span>  <span style="color:var(--gold)">cp_rmse_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.10</span>  <span style="color:var(--gold)">filtering_mode_appropriateness_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.08</span>  <span style="color:var(--gold)">ba_reprojection_score</span>  <span style="color:var(--textfaint);font-size:10px">[ba_quality_score]</span>
+
+  <span style="color:var(--teal)">0.08</span>  <span style="color:var(--gold)">output_crs_project_match_score</span>  <span style="color:var(--textfaint);font-size:10px">[deliverable_output_score]</span>
+
+  <span style="color:var(--teal)">0.07</span>  <span style="color:var(--gold)">localized_reconstruction_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">camera_alignment_score</span>  <span style="color:var(--textfaint);font-size:10px">[ba_quality_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">camera_position_ensemble_score</span>  <span style="color:var(--textfaint);font-size:10px">[ba_quality_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">tiepoint_density_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">z_xy_residual_ratio_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">gcp_rmse_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">per_cp_outlier_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">dem_void_interpolation_score</span>  <span style="color:var(--textfaint);font-size:10px">[deliverable_output_score]</span>
+
+  <span style="color:var(--teal)">0.03</span>  <span style="color:var(--gold)">gcp_vertical_coverage_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.02</span>  <span style="color:var(--gold)">dem_resolution_score</span>  <span style="color:var(--textfaint);font-size:10px">[deliverable_output_score]</span>
+
+</div></div>
+<div class="card view">
+<div class="row-top"><div class="name view">dtm_score</div>
+<div class="lname">Digital Terrain Model Confidence Score</div>
+<div class="wt">14 indicators · weights sum to 1.0</div></div>
+<div class="meaning"><b style="color:var(--text)">Deliverable:</b> DTM raster (.tif/.tiff)</div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Given the same processing evidence, what is the quality story specifically for the DTM (ground-only terrain)?</div>
+<div class="meaning"><b style="color:var(--text)">Emphasis:</b> Ground classification ran; filtering mode for vegetation; vertical accuracy; void interpolation.</div>
+<div class="meaning"><b style="color:var(--text)">Null handling:</b> <span class="pill view">when deliverable_dtm_present=FALSE</span> → returns null, reason=dtm_file_not_uploaded</div>
+<div class="formula">
+  <span style="color:var(--teal)">0.20</span>  <span style="color:var(--gold)">dtm_classification_score</span>  <span style="color:var(--textfaint);font-size:10px">[deliverable_output_score]</span>
+
+  <span style="color:var(--teal)">0.12</span>  <span style="color:var(--gold)">filtering_mode_appropriateness_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.10</span>  <span style="color:var(--gold)">depth_quality_setting_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.10</span>  <span style="color:var(--gold)">cp_rmse_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.07</span>  <span style="color:var(--gold)">output_crs_project_match_score</span>  <span style="color:var(--textfaint);font-size:10px">[deliverable_output_score]</span>
+
+  <span style="color:var(--teal)">0.06</span>  <span style="color:var(--gold)">ba_reprojection_score</span>  <span style="color:var(--textfaint);font-size:10px">[ba_quality_score]</span>
+
+  <span style="color:var(--teal)">0.06</span>  <span style="color:var(--gold)">z_xy_residual_ratio_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">localized_reconstruction_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">gcp_rmse_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">dem_void_interpolation_score</span>  <span style="color:var(--textfaint);font-size:10px">[deliverable_output_score]</span>
+
+  <span style="color:var(--teal)">0.04</span>  <span style="color:var(--gold)">camera_alignment_score</span>  <span style="color:var(--textfaint);font-size:10px">[ba_quality_score]</span>
+
+  <span style="color:var(--teal)">0.04</span>  <span style="color:var(--gold)">gcp_vertical_coverage_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.03</span>  <span style="color:var(--gold)">per_cp_outlier_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.03</span>  <span style="color:var(--gold)">dem_resolution_score</span>  <span style="color:var(--textfaint);font-size:10px">[deliverable_output_score]</span>
+
+</div></div>
+<div class="card view">
+<div class="row-top"><div class="name view">point_cloud_score</div>
+<div class="lname">Dense Point Cloud Confidence Score</div>
+<div class="wt">14 indicators · weights sum to 1.0</div></div>
+<div class="meaning"><b style="color:var(--text)">Deliverable:</b> Dense point cloud (.las/.laz/.ply)</div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Given the same processing evidence, what is the quality story specifically for the dense point cloud?</div>
+<div class="meaning"><b style="color:var(--text)">Emphasis:</b> Point density (depth quality drives this); filtering; tie point integrity; 3D positional accuracy.</div>
+<div class="meaning"><b style="color:var(--text)">Null handling:</b> <span class="pill view">when deliverable_point_cloud_present=FALSE</span> → returns null, reason=point_cloud_file_not_uploaded</div>
+<div class="formula">
+  <span style="color:var(--teal)">0.18</span>  <span style="color:var(--gold)">depth_quality_setting_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.12</span>  <span style="color:var(--gold)">cp_rmse_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.08</span>  <span style="color:var(--gold)">ba_reprojection_score</span>  <span style="color:var(--textfaint);font-size:10px">[ba_quality_score]</span>
+
+  <span style="color:var(--teal)">0.08</span>  <span style="color:var(--gold)">filtering_mode_appropriateness_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.08</span>  <span style="color:var(--gold)">tiepoint_density_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.08</span>  <span style="color:var(--gold)">output_crs_project_match_score</span>  <span style="color:var(--textfaint);font-size:10px">[deliverable_output_score]</span>
+
+  <span style="color:var(--teal)">0.07</span>  <span style="color:var(--gold)">camera_alignment_score</span>  <span style="color:var(--textfaint);font-size:10px">[ba_quality_score]</span>
+
+  <span style="color:var(--teal)">0.06</span>  <span style="color:var(--gold)">tiepoint_multiplicity_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">camera_position_ensemble_score</span>  <span style="color:var(--textfaint);font-size:10px">[ba_quality_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">gcp_rmse_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.04</span>  <span style="color:var(--gold)">localized_reconstruction_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.04</span>  <span style="color:var(--gold)">per_cp_outlier_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.04</span>  <span style="color:var(--gold)">output_crs_projection_score</span>  <span style="color:var(--textfaint);font-size:10px">[deliverable_output_score]</span>
+
+  <span style="color:var(--teal)">0.03</span>  <span style="color:var(--gold)">z_xy_residual_ratio_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+</div></div>
+<div class="card view">
+<div class="row-top"><div class="name view">mesh_3d_score</div>
+<div class="lname">3D Textured Mesh Confidence Score</div>
+<div class="wt">14 indicators · weights sum to 1.0</div></div>
+<div class="meaning"><b style="color:var(--text)">Deliverable:</b> 3D mesh model (.obj/.ply/.fbx)</div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Given the same processing evidence, what is the quality story specifically for the 3D mesh?</div>
+<div class="meaning"><b style="color:var(--text)">Emphasis:</b> Surface completeness; depth quality; tie point multi-view; camera alignment continuity.</div>
+<div class="meaning"><b style="color:var(--text)">Null handling:</b> <span class="pill view">when deliverable_mesh_3d_present=FALSE</span> → returns null, reason=mesh_3d_file_not_uploaded</div>
+<div class="formula">
+  <span style="color:var(--teal)">0.15</span>  <span style="color:var(--gold)">depth_quality_setting_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.10</span>  <span style="color:var(--gold)">camera_alignment_score</span>  <span style="color:var(--textfaint);font-size:10px">[ba_quality_score]</span>
+
+  <span style="color:var(--teal)">0.10</span>  <span style="color:var(--gold)">cp_rmse_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.08</span>  <span style="color:var(--gold)">ba_reprojection_score</span>  <span style="color:var(--textfaint);font-size:10px">[ba_quality_score]</span>
+
+  <span style="color:var(--teal)">0.08</span>  <span style="color:var(--gold)">tiepoint_density_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.08</span>  <span style="color:var(--gold)">tiepoint_multiplicity_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.08</span>  <span style="color:var(--gold)">output_crs_project_match_score</span>  <span style="color:var(--textfaint);font-size:10px">[deliverable_output_score]</span>
+
+  <span style="color:var(--teal)">0.06</span>  <span style="color:var(--gold)">filtering_mode_appropriateness_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">camera_position_ensemble_score</span>  <span style="color:var(--textfaint);font-size:10px">[ba_quality_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">localized_reconstruction_score</span>  <span style="color:var(--textfaint);font-size:10px">[image_matching_score]</span>
+
+  <span style="color:var(--teal)">0.05</span>  <span style="color:var(--gold)">gcp_rmse_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.04</span>  <span style="color:var(--gold)">per_cp_outlier_score</span>  <span style="color:var(--textfaint);font-size:10px">[control_verification_score]</span>
+
+  <span style="color:var(--teal)">0.04</span>  <span style="color:var(--gold)">output_crs_projection_score</span>  <span style="color:var(--textfaint);font-size:10px">[deliverable_output_score]</span>
+
+  <span style="color:var(--teal)">0.04</span>  <span style="color:var(--gold)">dem_void_interpolation_score</span>  <span style="color:var(--textfaint);font-size:10px">[deliverable_output_score]</span>
+
+</div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">v1.1 Pressure-Test</div>
+<div class="sec-sub">5 views × 3 reference reports = 15 score computations. Rank ordering A ≤ B ≤ C must hold for each view.</div></div>
+<div class="card"><table class="pressure-table">
+<tr><th>View</th><th style="text-align:right">Report A (3 CPs, 0 GCPs)</th><th style="text-align:right">Report B (8 CPs, 0 GCPs)</th><th style="text-align:right">Report C (3 GCPs + 5 CPs)</th><th>Rank A ≤ B ≤ C</th></tr>
+<tr><td class="kw">ortho_score</td><td class="wt-cell">85.9</td><td class="wt-cell">85.9</td><td class="wt-cell">86.9</td><td style="color:var(--green)">✓</td></tr>
+<tr><td class="kw">dsm_score</td><td class="wt-cell">82.7</td><td class="wt-cell">82.7</td><td class="wt-cell">83.5</td><td style="color:var(--green)">✓</td></tr>
+<tr><td class="kw">dtm_score</td><td class="wt-cell">87.6</td><td class="wt-cell">87.6</td><td class="wt-cell">87.9</td><td style="color:var(--green)">✓</td></tr>
+<tr><td class="kw">point_cloud_score</td><td class="wt-cell">81.6</td><td class="wt-cell">81.6</td><td class="wt-cell">82.5</td><td style="color:var(--green)">✓</td></tr>
+<tr><td class="kw">mesh_3d_score</td><td class="wt-cell">82.4</td><td class="wt-cell">82.4</td><td class="wt-cell">83.3</td><td style="color:var(--green)">✓</td></tr>
+</table>
+<div class="note" style="margin-top:14px">
+<b>Honest observations on the results:</b><br>
+1. Reports A and B score identically on 4 of 5 views — correct behavior. They produce nearly identical deliverable quality at the per-artifact level; the differentiation (A vs B in chain-level score) comes from statistical sufficiency (CV6) which per-deliverable views deliberately don't emphasize.<br>
+2. DTM scores highest because DTM classification (DO4) gets 100 in test setup (DTM not claimed → N/A → 100) and has heavy weight 0.20. If DTM were claimed but unclassified, dtm_score drops sharply.<br>
+3. Point cloud and DSM score lowest — depth quality (IM2 at 0.18 / 0.15) drives these views down because reference reports use Medium depth quality.<br>
+4. Per-deliverable views correctly capture different concerns for different output types.
+</div></div></div>
+</body></html>

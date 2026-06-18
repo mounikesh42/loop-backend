@@ -1,0 +1,29 @@
+{
+  "survey_id": "sample_data",
+  "spec_version": "1.1.2",
+  "spec_file": "drone_provenance_ppk/drone_provenance_ppk.json",
+  "cb_library_file": "drone_provenance_ppk/cb_camera_library.json",
+  "inputs": {
+    "images_folder": "sample_data/images/",
+    "rinex_folder": "sample_data/rover_rinex/",
+    "bin_folder": "sample_data/telemetry/",
+    "user_input_file": "sample_data/user_input/form.json",
+    "user_hardware_file": "sample_data/user_input/hardware.json"
+  },
+  "outputs": {
+    "stage1_inventory": "outputs/01_inventory.json",
+    "stage2_source_fields": "outputs/02_source_fields.json",
+    "stage3_derived": "outputs/03_derived_fields.json",
+    "stage3_indicators": "outputs/04_indicators.json",
+    "stage3_building_blocks": "outputs/05_building_blocks.json",
+    "stage3_cal_conf": "outputs/05b_cal_conf.json",
+    "stage3_drone_score": "outputs/06_drone_score.json"
+  },
+  "options": {
+    "openmeteo_cache_dir": "cache/openmeteo/",
+    "openmeteo_timeout_sec": 30,
+    "calibration_lookup_order": ["CB_LIBRARY", "ODM_DATABASE", "SELF_CALIBRATED"],
+    "fail_fast": true,
+    "log_level": "INFO"
+  }
+}

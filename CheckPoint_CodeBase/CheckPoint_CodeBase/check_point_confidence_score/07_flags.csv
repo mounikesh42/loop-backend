@@ -1,0 +1,31 @@
+flag_id,flag_name,raised_by_type,condition,severity,covers_problems,meaning,raised_at_stage
+FLG_CP_001,CP_CRITICAL_FAILURE,score,every CP point has cp_fix_type_score=0 OR cp_position_sigma_score=0,CRITICAL,system view,No usable check-point captures across the survey — check_point_score = 0. Parallels DRONE_CRITICAL_FAILURE / BASE_CRITICAL_FAILURE / GCP_CRITICAL_FAILURE structurally; defined independently.,global_gate
+FLG_CP_002,NO_DESIGNATED_CHECK_POINTS,score,no points with device_role=CHECK_POINT,CRITICAL,system view,No designated check points in this survey. check_point_score = null. Pre-processing handles survey-design implication.,null_handler
+FLG_CP_003,CP_POINT_ANTENNA_HEIGHT_MISSING,indicator_gate,antenna_height_m absent AND antenna_height_auto_known=False,CATASTROPHIC,#10,Per-point antenna height not entered for a non-factory-known device — per_point_setup_confidence = 0.,internal_gate
+FLG_CP_004,CP_FLOAT_ACCEPTED_AS_FIXED,indicator_gate,fix_type_at_capture = FLOAT,CRITICAL,#1,Rover was in FLOAT (decimetre-level) at capture moment — per_point_completeness = 0. Severity escalates to CATASTROPHIC when effective_check_point_count < 5.,internal_gate
+FLG_CP_005,CP_AUTONOMOUS_ACCEPTED,indicator_gate,fix_type_at_capture = AUTONOMOUS,CRITICAL,#1,Rover was in AUTONOMOUS (metre-level) at capture — per_point_completeness = 0.,internal_gate
+FLG_CP_006,CP_SIGMA_MARGINAL,indicator,sigma_relative_to_target 1-2×,HIGH,#30,Receiver-estimated sigma at 1-2× survey accuracy target — marginal.,threshold
+FLG_CP_007,CP_SIGMA_HIGH,indicator,sigma_relative_to_target 2-5×,HIGH,#30,Receiver-estimated sigma at 2-5× accuracy target — degraded.,threshold
+FLG_CP_008,CP_SIGMA_REJECT,indicator,sigma_relative_to_target > 5×,CRITICAL,#30,Receiver-estimated sigma at >5× accuracy target — point not usable.,threshold
+FLG_CP_009,CP_SIGMA_NOT_EXPORTED,indicator,sigma_expected_for_device=True AND sigma_available=False,HIGH,#30,Sigma should be in export for this device type but is missing — user can re-export with precision columns enabled.,threshold
+FLG_CP_010,CP_STALE_CORRECTION,indicator,correction_age_at_capture_sec 5-30s,HIGH,#3,RTK correction stream was stale at capture — accuracy degraded.,threshold
+FLG_CP_011,CP_CORRECTION_LOST,indicator,correction_age_at_capture_sec > 30s,CRITICAL,#3,RTK correction stream effectively lost at capture moment.,threshold
+FLG_CP_012,CP_LONG_BASELINE,indicator,baseline_length_km 10-20,HIGH,#9,Baseline to base/CORS is long enough to introduce distance-dependent error.,threshold
+FLG_CP_013,CP_EXCESSIVE_BASELINE,indicator,baseline_length_km > 20,HIGH,#9,Baseline excessive — accuracy claim should be downgraded.,threshold
+FLG_CP_014,CP_HIGH_TILT,indicator,tilt_logged_deg > 4 on tilt-comp device,HIGH,#25,Verified pole tilt exceeds threshold — horizontal accuracy degraded by pole-length × sin(tilt).,threshold
+FLG_CP_015,CP_NO_REPEATABILITY_CHECK,advisory_flag,every single-occupation point (always fires in v1),ADVISORY,#8,Single occupation cannot detect false fix. Advisory only — zero scoring weight. Roadmap: dual-occupation workflow enables repeatability_check_score.,composite
+FLG_CP_016,CP_DEVICE_ID_MISMATCH,indicator (reviewer-blocking),form device_id != device-reported device_id,MEDIUM (provenance),#12,"Per-point form/device ID disagreement — provenance concern, reviewer-blocking.",threshold
+FLG_CP_017,CP_HIGH_MULTIPATH,indicator,obstruction_score low (sats <7 OR CN0 <30),HIGH,#21,Obstruction-prone capture environment.,threshold
+FLG_CP_018,CP_IONO_RISK,indicator,kp_index ≥ 7 AND single-frequency,HIGH,#22,Ionospheric disturbance likely degraded accuracy. Documented limit: Kp under-detects equatorial scintillation.,threshold
+FLG_CP_019,CP_HIGH_PDOP,indicator,pdop_at_capture > 6,MEDIUM,#28,Poor satellite geometry at the capture epoch.,threshold
+FLG_CP_020,CP_SHORT_FIX_HOLD,indicator,fix_hold_duration_sec 1-4,HIGH,#2,Fix held briefly before capture — accuracy may reflect transient state.,threshold
+FLG_CP_021,CP_NO_FIX_HOLD,indicator,fix_hold_duration_sec < 1,HIGH,#2,Single-epoch capture without held fix — accuracy may reflect transient state.,threshold
+FLG_CP_022,CP_UNEXPECTED_MOUNTPOINT,indicator,ntrip_mountpoint != expected_mountpoint,HIGH,#27,NTRIP mountpoint differs from project-declared expected — corrections may be in different reference frame.,threshold
+FLG_CP_023,CP_DELAYED_CAPTURE,indicator,capture_to_flight_delay_hours 24-168,HIGH,#13,Check-point captured >24 hours after drone flight — mark may have been disturbed.,threshold
+FLG_CP_024,CP_STALE_CAPTURE,indicator,capture_to_flight_delay_hours > 168,HIGH,#13,Check-point captured >7 days after drone flight — likelihood of mark disturbance significant.,threshold
+FLG_CP_025,CP_CAPTURED_BEFORE_FLIGHT,indicator,capture_utc < flight_start_utc,HIGH,#19,Check-point captured before drone flight — site conditions may have changed.,threshold
+FLG_CP_026,CP_CAPTURED_DURING_FLIGHT,indicator,flight_start_utc <= capture_utc <= flight_end_utc,LOW (workflow),#20,"Check-point captured during drone flight window — workflow advisory only, not an accuracy concern.",threshold
+FLG_CP_027,CP_LOG_DOWNLOAD_UNCONFIRMED,indicator,raw_log_download_confirmed = False,HIGH,#23,Session log not confirmed downloaded.,threshold
+FLG_CP_028,CP_LOG_TAMPERED,indicator,raw_log_signature_valid = False,HIGH,#24,Session log signature failed validation — possible manual edit.,threshold
+FLG_CP_029,CP_NO_MARK_PHOTO,advisory_flag,mark_photo_captured = False,MEDIUM (advisory),"#26, #14",No photo of the mark and surroundings — cannot retroactively investigate questionable points.,threshold
+FLG_CP_030,CP_ANTENNA_TYPE_MISMATCH,indicator,antenna_type_match = False,MEDIUM,#11,Form vs device antenna type mismatch — sub-cm to cm vertical impact.,threshold

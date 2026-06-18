@@ -1,0 +1,4 @@
+block_id,weight_in_ppk,notes
+BB_IMG_CAPTURE,0.4,"Image capture is foundational — if images fail, nothing downstream can recover."
+BB_ROVER_GNSS,0.35,PPK PRIMARY — raw GNSS observations are the raw material for PPK post-processing.
+BB_MISSION_EXEC,0.25,Mission fidelity — did the drone fly what was planned?

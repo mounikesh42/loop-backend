@@ -1,0 +1,31 @@
+{
+  "survey_id": "sample_data",
+  "subsystem": "pre_processing",
+  "spec_version": "1.1.0",
+  "spec_file": "pre_processing_confidence_score/pre_processing_confidence_score.json",
+  "inputs": {
+    "geotags_dir": "sample_data/geotags",
+    "geotag_image_extensions": [".jpg", ".jpeg", ".tif", ".tiff"],
+    "geotag_sidecar_extensions": [".csv", ".txt"],
+    "gcp_coords_file": "sample_data/gcp_coords.csv",
+    "cp_coords_file": "sample_data/cp_coords.csv",
+    "manifest_file": "sample_data/pp_manifest.json",
+    "report_file": "sample_data/processing_report.json",
+    "coord_file_min_bytes": 32
+  },
+  "outputs": {
+    "stage1_inventory": "outputs/01_inventory.json",
+    "stage2_source_fields": "outputs/02_source_fields.json",
+    "stage3_derived": "outputs/03_derived_fields.json",
+    "stage3_indicators": "outputs/04_indicators.json",
+    "stage3_building_blocks": "outputs/05_building_blocks.json",
+    "stage3_per_artifact_views": "outputs/05b_per_artifact_views.json",
+    "stage3_pre_processing_score": "outputs/06_pre_processing_score.json"
+  },
+  "options": {
+    "aggregator_k": 0.25,
+    "report_optional": true,
+    "fail_fast": true,
+    "log_level": "INFO"
+  }
+}

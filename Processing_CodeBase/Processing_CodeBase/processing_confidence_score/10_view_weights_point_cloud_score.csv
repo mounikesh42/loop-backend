@@ -1,0 +1,15 @@
+view_id,view_name,indicator_name,indicator_id,v10_block,v10_block_weight,view_weight
+VIEW_POINT_CLOUD,point_cloud_score,ba_reprojection_score,L3I_PROC_001,ba_quality_score,0.2,0.08
+VIEW_POINT_CLOUD,point_cloud_score,camera_alignment_score,L3I_PROC_002,ba_quality_score,0.2,0.07
+VIEW_POINT_CLOUD,point_cloud_score,camera_position_ensemble_score,L3I_PROC_003,ba_quality_score,0.15,0.05
+VIEW_POINT_CLOUD,point_cloud_score,depth_quality_setting_score,L3I_PROC_010,image_matching_score,0.2,0.18
+VIEW_POINT_CLOUD,point_cloud_score,filtering_mode_appropriateness_score,L3I_PROC_013,image_matching_score,0.1,0.08
+VIEW_POINT_CLOUD,point_cloud_score,tiepoint_density_score,L3I_PROC_011,image_matching_score,0.15,0.08
+VIEW_POINT_CLOUD,point_cloud_score,tiepoint_multiplicity_score,L3I_PROC_012,image_matching_score,0.1,0.06
+VIEW_POINT_CLOUD,point_cloud_score,localized_reconstruction_score,L3I_PROC_015,image_matching_score,0.1,0.04
+VIEW_POINT_CLOUD,point_cloud_score,cp_rmse_score,L3I_PROC_017,control_verification_score,0.35,0.12
+VIEW_POINT_CLOUD,point_cloud_score,gcp_rmse_score,L3I_PROC_018,control_verification_score,0.15,0.05
+VIEW_POINT_CLOUD,point_cloud_score,per_cp_outlier_score,L3I_PROC_019,control_verification_score,0.1,0.04
+VIEW_POINT_CLOUD,point_cloud_score,z_xy_residual_ratio_score,L3I_PROC_026,control_verification_score,0.03,0.03
+VIEW_POINT_CLOUD,point_cloud_score,output_crs_project_match_score,L3I_PROC_031,deliverable_output_score,0.3,0.08
+VIEW_POINT_CLOUD,point_cloud_score,output_crs_projection_score,L3I_PROC_032,deliverable_output_score,0.2,0.04

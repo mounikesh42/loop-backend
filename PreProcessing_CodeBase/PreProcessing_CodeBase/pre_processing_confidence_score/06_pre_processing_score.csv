@@ -1,0 +1,5 @@
+block_id,block_name,weight
+BB_PP_REF,reference_frame_score,0.35
+BB_PP_GEO,geotag_integrity_score,0.3
+BB_PP_GCT,gcp_coord_trust_score,0.25
+BB_PP_SD,survey_design_score,0.1

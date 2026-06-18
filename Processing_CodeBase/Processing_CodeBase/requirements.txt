@@ -1,0 +1,15 @@
+# Processing confidence pipeline - Python dependencies
+#
+# Heaviest data-layer dep is the PDF report parser; geospatial libs are used
+# ONLY for CRS metadata + file presence in v1 (no deep raster/cloud analysis).
+#
+# numpy is pinned <2.0: the environment's numba / contourpy / pywavelets require
+# numpy<2, so rasterio is pinned to the 1.3.x line (the last that supports
+# numpy 1.x). rasterio 1.4+ requires numpy>=2 and would break that ecosystem.
+
+pdfplumber>=0.11        # SRC_PROC_REPORT: Agisoft Metashape PDF report, section-header-keyed extraction
+rasterio>=1.3,<1.4      # SRC_PROC_DELIVERABLES: GeoTIFF CRS metadata (ortho / dsm / dtm) - header read, lazy
+laspy>=2.5,<3           # SRC_PROC_DELIVERABLES: LAS/LAZ point-cloud CRS metadata
+pyproj>=3.4             # CRS read/write for laspy (LAS GeoKeys -> EPSG) + stub generation
+numpy>=1.26,<2.0        # derived-field statistics (pinned <2.0 for env compatibility)
+openpyxl>=3.1           # Step 12: read CBMI Processing Problems .xlsx for Pass-2 scenarios

@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cbmi.capture/schemas/base_station_operation_log.json",
+  "title": "Base Station Operation Log",
+  "description": "Completeness and power certification for a base station recording session. Consumed by base_station_score -> Data Completeness & Integrity building block (Stage 1, PPK workflow). Captures ONLY what RINEX cannot self-report: clean termination, power state, and an end-time cross-check. Does NOT duplicate RINEX timestamps, gaps, epoch counts, or signal quality.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "session_completed_normally",
+    "unexpected_shutdown_count",
+    "battery_start_pct",
+    "battery_end_pct",
+    "battery_min_pct",
+    "session_end_utc"
+  ],
+  "properties": {
+    "session_completed_normally": {
+      "type": ["boolean", "null"],
+      "description": "true only if recording was stopped by deliberate operator action (stop button / normal shutdown). false if it ended any other way. null = device did not report (scored as unconfirmed, not failed). Single most important field.",
+      "x-drives": "integrity sub-score",
+      "x-on-false": "Major penalty + FLAG: BASE_SESSION_INTERRUPTED",
+      "x-on-null": "Degrade to unconfirmed (partial), not fail"
+    },
+    "unexpected_shutdown_count": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Count of unexpected shutdowns/resets DURING the session (recommended: mid-session only, not the final fatal shutdown). 0 = healthy. >=1 drives a flag. null = unreported.",
+      "x-drives": "integrity sub-score",
+      "x-on-ge-1": "Penalty scaled by count + flag (problem #17)"
+    },
+    "battery_start_pct": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Battery level at session start (0-100). null for mains/solar units with no internal battery (scored not-applicable).",
+      "x-drives": "integrity sub-score"
+    },
+    "battery_end_pct": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Battery level at session end (0-100). null for mains/solar units or if device died before writing.",
+      "x-drives": "integrity sub-score"
+    },
+    "battery_min_pct": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Lowest battery level reached during the session (0-100). More important than the endpoints: a session that dipped to 3% mid-flight was at risk even if it recovered. null = not applicable/unreported.",
+      "x-drives": "integrity sub-score",
+      "x-on-low": "Threshold ~<=10% -> risk penalty even if session completed"
+    },
+    "session_end_utc": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of when the DEVICE believes the session ended. Used as a cross-check only against the RINEX last-observation time, never as a primary timestamp. null = unreported.",
+      "x-drives": "truncation cross-check",
+      "x-cross-check": "Compared to RINEX last epoch; disagreement beyond tolerance -> FLAG: BASE_RINEX_TRUNCATED"
+    },
+    "raw_log_download_confirmed": {
+      "type": ["boolean", "null"],
+      "description": "OPTIONAL but recommended. true once the raw observation (RINEX) file has actually been transferred off the device. Closes problem #8 (log stranded on device). Do not block the required fields on this.",
+      "x-drives": "completeness",
+      "x-on-false-or-null": "FLAG: BASE_LOG_DOWNLOAD_UNCONFIRMED (advisory)"
+    }
+  },
+  "x-nullability-rule": "All fields are nullable. null means 'device did not report this' and is scored as UNCONFIRMED, which is deliberately distinct from a bad value. Never substitute a default (do not write 0 or 100 for unknown battery). This lets the score distinguish known-bad from unknown.",
+  "x-scope-discipline": "Capture ONLY completeness and power certification. Do not add recording start/end as primary timestamps, gap detection, epoch counts, satellite counts, or signal quality. If a proposed field can be answered from RINEX, it does not belong here.",
+  "x-edge-cases": {
+    "abrupt_total_power_loss": "Define whether session_completed_normally is written false, or the entire file is absent. Both acceptable; we must know which.",
+    "shutdown_count_scope": "Recommend counting only mid-session recoverable events; let session_completed_normally=false carry the 'ended badly' signal.",
+    "mains_or_solar_unit": "All three battery fields must be null (not 0, not 100) so the score reads battery not-applicable."
+  },
+  "examples": [
+    {
+      "_label": "Healthy session",
+      "session_completed_normally": true,
+      "unexpected_shutdown_count": 0,
+      "battery_start_pct": 98,
+      "battery_end_pct": 71,
+      "battery_min_pct": 71,
+      "session_end_utc": "2026-05-28T14:32:07Z",
+      "raw_log_download_confirmed": true
+    },
+    {
+      "_label": "Power interruption during session (finished, but at risk)",
+      "session_completed_normally": true,
+      "unexpected_shutdown_count": 2,
+      "battery_start_pct": 64,
+      "battery_end_pct": 22,
+      "battery_min_pct": 4,
+      "session_end_utc": "2026-05-28T13:58:41Z",
+      "raw_log_download_confirmed": true
+    },
+    {
+      "_label": "Silent truncation (device died, file written by recovery path)",
+      "session_completed_normally": false,
+      "unexpected_shutdown_count": 1,
+      "battery_start_pct": 40,
+      "battery_end_pct": null,
+      "battery_min_pct": 2,
+      "session_end_utc": "2026-05-28T12:11:00Z",
+      "raw_log_download_confirmed": false
+    },
+    {
+      "_label": "Solar/mains unit (battery not applicable)",
+      "session_completed_normally": true,
+      "unexpected_shutdown_count": 0,
+      "battery_start_pct": null,
+      "battery_end_pct": null,
+      "battery_min_pct": null,
+      "session_end_utc": "2026-05-29T17:45:12Z",
+      "raw_log_download_confirmed": true
+    }
+  ]
+}

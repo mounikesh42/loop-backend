@@ -1,0 +1,2 @@
+generated_at,survey_id,spec_version,stage,drone_score,raw_weighted_sum,global_gate_triggered,img_capture_score,img_capture_contribution,rover_gnss_score,rover_gnss_contribution,mission_exec_score,mission_exec_contribution,cal_conf_score,total_flags,flags_critical,flags_high,flags_medium,flags_low,flags_list
+2026-06-02T17:33:44Z,sample_data,1.1.2,stage3d_drone_score,79.9,79.91,False,75.7,30.28,82.8,28.98,82.6,20.65,100.0,1,0,0,1,0,CAM_COUNT_MISMATCH

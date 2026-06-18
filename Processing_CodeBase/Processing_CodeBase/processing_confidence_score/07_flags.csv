@@ -1,0 +1,65 @@
+flag_id,flag_name,raised_by_type,condition,severity,covers_problems,meaning,raised_at_stage
+FLG_PROC_001,PROC_OUTPUT_CRS_MISMATCH,indicator_gate,output_crs_project_match=False,CATASTROPHIC,#31,Output CRS does not match project requirement. Zeros processing_score via deliverable_output_score=0.,global_gate
+FLG_PROC_002,PROC_NO_MARKERS_AT_ALL,indicator (flag-only),reportGCP_total_markers_count=0,CATASTROPHIC,#16,"Zero markers — no ground truth at all. Bundle PPK-anchored only. Flag-only, not score gate per user decision.",threshold
+FLG_PROC_003,PROC_NO_GCPS_USED,indicator (flag-only),reportGCP_control_points_count=0,CRITICAL,#17,Markers exist but all as check points; zero GCPs in bundle. PPK-anchored. Flag-only.,threshold
+FLG_PROC_004,PROC_BA_REPROJ_ELEVATED,indicator,1.5 < reprojection_error ≤ 2.5,HIGH,#1,Bundle adjustment reprojection error elevated.,threshold
+FLG_PROC_005,PROC_BA_REPROJ_HIGH,indicator,2.5 < reprojection_error ≤ 3.5,CRITICAL,#1,Bundle adjustment reprojection error high.,threshold
+FLG_PROC_006,PROC_BA_CONVERGENCE_FAIL,indicator,reprojection_error > 3.5,CATASTROPHIC,#1,Bundle adjustment did not converge.,threshold
+FLG_PROC_007,PROC_CAMERAS_PARTIAL_ALIGN,indicator,0.95 ≤ alignment_fraction < 0.98,HIGH,#2,Some cameras failed to align.,threshold
+FLG_PROC_008,PROC_CAMERAS_POOR_ALIGN,indicator,0.90 ≤ alignment_fraction < 0.95,CRITICAL,#2,Many cameras failed to align.,threshold
+FLG_PROC_009,PROC_CAMERAS_SEVERE_ALIGN_FAIL,indicator,alignment_fraction < 0.90,CATASTROPHIC,#2,Severe camera alignment failure.,threshold
+FLG_PROC_010,PROC_CAMERA_POS_ELEVATED,indicator,camera_pos / GSD 2-4×,HIGH,#8,Camera position error elevated vs GSD.,threshold
+FLG_PROC_011,PROC_CAMERA_POS_SEVERE,indicator,camera_pos / GSD > 8×,CRITICAL,#8,Severe camera position error.,threshold
+FLG_PROC_012,PROC_OPTIMIZATION_INCOMPLETE,indicator,b1/b2 missing from optimization parameters,LOW (advisory),#6,BA optimization parameter set missing b1/b2 (affinity/skew correction). Minor optimization preference per v1.0 pressure-test diagnostic — softened from MEDIUM.,threshold
+FLG_PROC_013,PROC_PRECALIB_NOT_LOADED,indicator,"manifest expected precalib loaded, report shows No",HIGH,#4,Operator did not load precalibration when expected.,threshold
+FLG_PROC_014,PROC_CAMERA_MODEL_MISMATCH,indicator,manifest camera model ≠ report camera model,HIGH,#5,Camera model declared in manifest does not match Agisoft report.,threshold
+FLG_PROC_015,PROC_SELF_CALIB_ILL_CONDITIONED,indicator (compound),precalibrated=No AND |K1-K2 corr| > 0.95 AND degraded reprojection/CP residuals,MEDIUM (advisory),#3,Self-calibration ill-conditioned and showing consequences. v0.2 reviewer: compound condition to avoid universal false-positive flagging.,threshold
+FLG_PROC_016,PROC_REPROJ_OUTLIERS,indicator (advisory),10 < max/rms ratio ≤ 20,MEDIUM (advisory),#7,Reprojection outliers present (typical in practice).,threshold
+FLG_PROC_017,PROC_REPROJ_SEVERE_OUTLIERS,indicator (advisory),max/rms ratio > 50,MEDIUM (advisory),#7,Reprojection outliers severe.,threshold
+FLG_PROC_018,PROC_ALIGNMENT_ACCURACY_LOW,indicator,alignment_accuracy = Medium,CRITICAL,#11,Alignment accuracy setting below recommended.,threshold
+FLG_PROC_019,PROC_ALIGNMENT_ACCURACY_CRITICAL,indicator,alignment_accuracy = Low/Lowest,CATASTROPHIC,#11,Alignment accuracy setting catastrophically low.,threshold
+FLG_PROC_020,PROC_DEPTH_QUALITY_MEDIUM,indicator (advisory),depth_quality = Medium,MEDIUM (advisory),#12,Depth map quality Medium — common operator choice; advisory.,threshold
+FLG_PROC_021,PROC_DEPTH_QUALITY_LOW,indicator,depth_quality = Low/Lowest,CRITICAL,#12,Depth map quality very low.,threshold
+FLG_PROC_022,PROC_SPARSE_TIEPOINTS,indicator,tie_density 1-3M/km²,HIGH,#9,Tie point density sparse.,threshold
+FLG_PROC_023,PROC_VERY_SPARSE_TIEPOINTS,indicator,tie_density <1M/km²,CRITICAL,#9,Tie point density very sparse.,threshold
+FLG_PROC_024,PROC_LOW_MULTIPLICITY,indicator,multiplicity 3-4,HIGH,#10,Tie point multiplicity low.,threshold
+FLG_PROC_025,PROC_VERY_LOW_MULTIPLICITY,indicator,multiplicity <3,CRITICAL,#10,Tie point multiplicity very low.,threshold
+FLG_PROC_026,PROC_FILTERING_INSUFFICIENT,indicator,filtering=Mild + site=vegetated,HIGH,#13,Depth filtering insufficient for site type.,threshold
+FLG_PROC_027,PROC_FILTERING_OVERSMOOTHED,indicator,filtering=Aggressive + site=flat-structured,HIGH,#13,Depth filtering over-smoothed for site type.,threshold
+FLG_PROC_028,PROC_MARKER_WEAK,indicator,3-4 images per marker,HIGH,#14,Marker visible in too few images for robust triangulation.,threshold
+FLG_PROC_029,PROC_MARKER_INSUFFICIENT_IMAGES,indicator,<3 images per marker,CRITICAL,#14,Marker insufficient images for triangulation.,threshold
+FLG_PROC_030,PROC_LOCALIZED_RECON_COLLAPSE,indicator (v1 advisory),tie_density <1M/km² OR DEM has visible voids,HIGH (advisory in v1),#37,Localized reconstruction collapse suspected. v1 partial via global proxies; v2 full via density-map visual analysis.,threshold
+FLG_PROC_031,PROC_ATMOSPHERIC_ARTIFACT_SUSPECTED,advisory (cross-handoff),composite of reprojection + tie density + camera pos,HIGH (advisory),#15,Atmospheric artifact suspected. Cross-handoff to drone chain.,threshold
+FLG_PROC_032,PROC_CP_RMSE_MARGINAL,indicator,CP_RMSE 1-2× target,HIGH,#20,Check-point residuals marginal — accuracy claim weakened.,threshold
+FLG_PROC_033,PROC_CP_RMSE_FAIL,indicator,CP_RMSE > 2× target,CRITICAL,#20,Check-point residuals fail accuracy target — survey accuracy claim broken.,threshold
+FLG_PROC_034,PROC_GCP_RMSE_MARGINAL,indicator,GCP_RMSE 1-2× target,HIGH,#19,GCP residuals marginal.,threshold
+FLG_PROC_035,PROC_GCP_RMSE_HIGH,indicator,GCP_RMSE 2-5× target,CRITICAL,#19,GCP residuals high.,threshold
+FLG_PROC_036,PROC_GCP_RMSE_REJECT,indicator,GCP_RMSE > 5× target,CRITICAL,#19,GCP control unusable.,threshold
+FLG_PROC_037,PROC_CP_OUTLIER_MILD,indicator,per-CP residual 1.5-2× ensemble mean,HIGH,#22,Individual CP outlier.,threshold
+FLG_PROC_038,PROC_CP_OUTLIER_SEVERE,indicator,per-CP residual 2-3× ensemble mean,CRITICAL,#22,Individual CP severely off.,threshold
+FLG_PROC_039,PROC_CP_OUTLIER_REJECT,indicator,per-CP residual > 3× ensemble mean,CRITICAL,#22,Individual CP unusable.,threshold
+FLG_PROC_040,PROC_ROLE_MISMATCH,indicator,manifest marker_roles ≠ report marker_roles,CRITICAL,#25,Marker roles differ between declaration and Agisoft (covers CP→GCP and GCP→CP swaps).,threshold
+FLG_PROC_041,PROC_GCP_TYPO,indicator,report GCP coords ≠ pre_processing GCP coord file,CRITICAL,#26,GCP coordinate entered in Agisoft differs from pre_processing source — likely typo.,threshold
+FLG_PROC_042,PROC_CP_COUNT_STATISTICAL_WEAK,indicator,5 ≤ CP count < 10,HIGH,#24,CP count below statistical sufficiency.,threshold
+FLG_PROC_043,PROC_CP_COUNT_INSUFFICIENT,indicator,CP count < 5,CRITICAL,#24,CP count insufficient for statistical claim.,threshold
+FLG_PROC_044,PROC_GCP_COUNT_MARGINAL,indicator,GCP count 3-4,HIGH,#18,GCP count marginal for site extent.,threshold
+FLG_PROC_045,PROC_GCP_COUNT_INSUFFICIENT,indicator,GCP count < 3,CRITICAL,#18,GCP count insufficient.,threshold
+FLG_PROC_046,PROC_GCPS_CLUSTERED_IN_BUNDLE,indicator,GCP spatial coverage 60-80%,HIGH,#27,GCPs in bundle partially clustered.,threshold
+FLG_PROC_047,PROC_GCPS_SEVERELY_CLUSTERED,indicator,GCP spatial coverage < 60%,CRITICAL,#27,GCPs in bundle severely clustered.,threshold
+FLG_PROC_048,PROC_GCPS_NO_VERTICAL_COVERAGE_MARGINAL,indicator,GCP z_spread / terrain z_range 0.3-0.6,HIGH,#28,GCP vertical coverage marginal.,threshold
+FLG_PROC_049,PROC_GCPS_NO_VERTICAL_COVERAGE,indicator,GCP z_spread / terrain z_range < 0.3,HIGH,#28,GCPs do not cover terrain vertical extent.,threshold
+FLG_PROC_050,PROC_Z_XY_HIGH,indicator,z/xy residual ratio 1.5-2,HIGH,#21,Vertical residual elevated relative to horizontal.,threshold
+FLG_PROC_051,PROC_Z_XY_SEVERE,indicator,z/xy residual ratio > 2,HIGH,#21,Vertical residual severely elevated.,threshold
+FLG_PROC_052,PROC_MARKER_PIX_HIGH,indicator,per-marker pix_err / ensemble 1.5-2,HIGH,#23,Marker image pixel residual elevated.,threshold
+FLG_PROC_053,PROC_MARKER_PIX_SEVERE,indicator,per-marker pix_err / ensemble > 2,HIGH,#23,Marker image pixel residual severely elevated.,threshold
+FLG_PROC_054,PROC_RECONSTRUCTION_DRIFT,indicator (composite),adequate GCPs + good GCP RMSE + bad CP RMSE,HIGH,#29,Reconstruction drift composite diagnostic — terrain/coverage/atmospheric issue suspected.,threshold
+FLG_PROC_055,PROC_OUTPUT_CRS_GEOGRAPHIC,indicator,"output_crs is geographic (e.g., EPSG:4326)",CRITICAL,#30,Output CRS geographic not projected — linear measurements unreliable.,threshold
+FLG_PROC_056,PROC_INTERNAL_TRANSFORM_WRONG,indicator,report transform settings ≠ capture frame,CRITICAL,#36,"Internal georeferencing transform inconsistent with capture frame — silent-invisible failure (label correct, transform wrong).",threshold
+FLG_PROC_057,PROC_DSM_LABELLED_DTM,indicator,DTM claimed + no ground classification ran,HIGH,#39,DSM delivered as DTM (no ground classification).,threshold
+FLG_PROC_058,PROC_DEM_INTERPOLATED_VOIDS,indicator,high DEM void interpolation fraction,HIGH,#38,DEM holes interpolated over voids — fabricated terrain in gap regions.,threshold
+FLG_PROC_059,PROC_DEM_RES_COARSE,indicator,dem_resolution / GSD 3-5×,MEDIUM,#32,DEM coarser than image GSD warrants.,threshold
+FLG_PROC_060,PROC_DEM_RES_VERY_COARSE,indicator,dem_resolution / GSD 5-10×,HIGH,#32,DEM very coarse vs GSD.,threshold
+FLG_PROC_061,PROC_DELIVERABLE_FILE_MISSING,indicator,manifest declares deliverable but file not uploaded,HIGH,#34,Declared deliverable file not uploaded — v1.1 per-deliverable view returns null for that deliverable.,threshold
+FLG_PROC_062,PROC_SOFTWARE_VERSION_BUGGY,advisory (v1),software version in known-buggy list (v2 maintained),"MEDIUM (advisory, zero scoring weight in v1)",#33,Software version with known issues — v1: catalogued only; v2: scored when CBMI maintains list.,threshold
+FLG_PROC_063,PROC_TARGET_DETECTION_FAILURE,handoff,OWNED_BY_PROC via CV3,HIGH,#32 (PP),Target washed away/displaced — detected here via per-CP outlier residuals (CV3). Inherited from PP#32.,handoff
+FLG_PROC_064,PROC_PER_DELIVERABLE_FITNESS,handoff,OWNED_BY_DELIVERY_LAYER,INFORMATIONAL,#35,Per-deliverable fitness for customer use case — future delivery layer concern.,handoff

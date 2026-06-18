@@ -1,0 +1,172 @@
+indicator_id,indicator_name,pseudocode
+L3I_IMG_001,image_validity_score,"ratio = valid_images / total_images
+if ratio >= 0.99: return 100
+elif ratio >= 0.97: return 88
+elif ratio >= 0.94: return 72
+elif ratio >= 0.90: return 55
+else:
+    raise_flag(""CRITICAL_IMAGE_FAILURE"")
+    return 20"
+L3I_IMG_002,image_geotag_score,"ratio = geotagged_images / total_images
+if ratio >= 0.99: return 100
+elif ratio >= 0.97: return 88
+elif ratio >= 0.93: return 72
+elif ratio >= 0.88: return 55
+else: return 20"
+L3I_IMG_003,image_overlap_score,"m = min(image_computed_overlap_fwd_pct, image_computed_overlap_lat_pct)
+if m >= 70: return 100
+elif m >= 60: return 88
+elif m >= 50: return 72
+elif m >= 40: return 50
+else:
+    raise_flag(""INSUFFICIENT_OVERLAP"")
+    return 20"
+L3I_IMG_004,image_format_score,"if image_format in ('DNG','RAW'): return 100
+elif image_format == 'JPG': return 75
+else:
+    raise_flag('MIXED_IMAGE_FORMAT')
+    return 55"
+L3I_IMG_005,image_exposure_consistency_score,"cv = std_dev(EXIF.ExposureTime_list) / mean(EXIF.ExposureTime_list)
+if cv < 0.05: return 100
+elif cv < 0.10: return 88
+elif cv < 0.20: return 72
+elif cv < 0.35: return 50
+else:
+    raise_flag(""HIGH_EXPOSURE_VARIATION"")
+    return 25"
+L3I_IMG_006,calibration_match_score,"if not calibration_file_present: return 40
+if camera_make_match and camera_model_match: return 100
+elif camera_make_match: return 60
+else: return 20"
+L3I_IMG_007,calibration_source_score,"if calibration_source == 'CB_LIBRARY': return 100
+elif calibration_source == 'ODM_DATABASE': return 80
+elif calibration_source == 'SELF_CALIBRATED': return 55
+else: return 30"
+L3I_GNSS_001,rover_coverage_score,"r = rinex_coverage_ratio
+if r >= 1.10 and pre_buffer_sec >= 120 and post_buffer_sec >= 60: return 100
+elif r >= 1.00 and pre_buffer_sec >= 60: return 88
+elif r >= 0.95: return 72
+elif r >= 0.85: return 50
+else: return 20"
+L3I_GNSS_002,rover_signal_score,"if cn0_mean_dbhz >= 35 and cycle_slip_count < 5: return 100
+elif cn0_mean_dbhz >= 32 and cycle_slip_count < 10: return 85
+elif cn0_mean_dbhz >= 28 or cycle_slip_count < 20: return 65
+else: return 35"
+L3I_GNSS_003,rover_frequency_score,return 100 if dual_freq_available else 55
+L3I_GNSS_004,rover_continuity_score,"# HARD RULE
+if critical_gap_present:
+    raise_flag(""RINEX_CRITICAL_GAP"")
+    return 0
+return 100"
+L3I_GNSS_005,rover_acquisition_score,"t = rover_acquisition_time_sec
+if t < 60: return 100
+elif t < 120: return 88
+elif t < 300: return 65
+else:
+    raise_flag(""SLOW_ROVER_ACQUISITION"")
+    return 30"
+L3I_GNSS_006,rover_pdop_score,"m, x = mean_pdop_during_flight, max_pdop_during_flight
+if m < 1.5 and x < 2.5: return 100
+elif m < 2.0 and x < 3.5: return 88
+elif m < 3.0 and x < 5.0: return 65
+elif m < 6.0 or x < 8.0: return 35
+else:
+    raise_flag(""POOR_SKY_VIEW_DURING_FLIGHT"")
+    return 10
+# Flight window now derived from BIN ARM/DISARM events (no GCS telemetry needed)."
+L3I_FC_001,mission_coverage_score,"r = area_coverage_ratio   # actual_coverage_pct (derived L2D_FC_004) / 100
+if r >= 0.99: return 100
+elif r >= 0.97: return 88
+elif r >= 0.93: return 72
+elif r >= 0.88: return 50
+else:
+    raise_flag(""COVERAGE_GAP"")
+    return 20"
+L3I_FC_002,mission_gsd_score,"r = gsd_execution_ratio   # actual_gsd_cm (L2D_FC_003) / planned_gsd_cm (L2D_FC_002)
+if 0.92 <= r <= 1.05: return 100
+elif 0.85 <= r <= 1.10: return 85
+elif 0.78 <= r <= 1.18: return 68
+else: return 40"
+L3I_FC_003,mission_overlap_score,"r_fwd = image_computed_overlap_fwd_pct / planned_overlap_fwd_pct   # planned from SRC_UI_01
+r_lat = image_computed_overlap_lat_pct / planned_overlap_lat_pct
+r = min(r_fwd, r_lat)
+if 0.95 <= r <= 1.10: return 100
+elif 0.88 <= r <= 1.15: return 85
+elif 0.80 <= r <= 1.20: return 68
+else: return 35"
+L3I_FC_004,mission_altitude_score,"r = actual_altitude_mean_m / planned_altitude_m   # both from BIN
+if 0.95 <= r <= 1.05: return 100
+elif 0.88 <= r <= 1.10: return 85
+elif 0.80 <= r <= 1.18: return 65
+else: return 35"
+L3I_FC_005,wind_condition_score,"# Primary: Open-Meteo API
+try:
+    w = fetch_open_meteo(takeoff_lat, takeoff_lng, flight_start_utc, flight_end_utc).mean_wind_10m
+    if w < 5: return 100
+    elif w < 8: return 85
+    elif w < 10: return 65
+    elif w < 12: return 45
+    else:
+        raise_flag(""HIGH_WIND_SURVEY"")
+        return 20
+except ApiUnavailable:
+    # Fallback: BIN ATT proxy
+    combined_stdev = sqrt(roll_variance_deg + pitch_variance_deg)
+    if combined_stdev < 2.0: return 85    # likely calm
+    elif combined_stdev < 5.0: return 60  # moderate
+    else:
+        raise_flag(""WIND_API_FALLBACK"")
+        return 30"
+L3I_FC_006,mission_altitude_consistency_score,"v = altitude_variance_m   # std_dev(CTUN.Alt during cruise)
+if v < 2: return 100
+elif v < 5: return 88
+elif v < 10: return 65
+elif v < 20: return 40
+else:
+    raise_flag(""HIGH_ALTITUDE_VARIANCE"")
+    return 20"
+L3I_FC_007,mission_completion_score,"r = waypoints_completed / planned_waypoint_count   # both from BIN
+if r == 1.00: return 100
+elif r >= 0.97: return 85
+elif r >= 0.93: return 65
+else: return 30"
+L3I_CAL_001,calibration_source_score (CAL_CONF),"# CAL_CONF version raises additional flags vs L3I_IMG_007
+if calibration_source == 'CB_LIBRARY': return 100
+elif calibration_source == 'ODM_DATABASE': return 80
+elif calibration_source == 'SELF_CALIBRATED':
+    raise_flag('SELF_CALIBRATED_LENS')
+    return 55
+else:
+    raise_flag('NO_CALIBRATION_FILE')
+    return 30"
+L3I_CAL_002,calibration_match_score (CAL_CONF),"# CAL_CONF version: 3 bands, harder penalty for mismatch
+if camera_make_match and camera_model_match: return 100
+elif camera_make_match: return 65
+else:
+    raise_flag(""CALIBRATION_CAMERA_MISMATCH"")
+    return 15"
+L3I_CAL_003,calibration_age_score,"if calibration_date is None:
+    raise_flag('CALIBRATION_DATE_UNKNOWN')
+    return 50
+m = months_between(calibration_date, survey_date)   # survey_date from BIN first CAM record
+if m < 6: return 100
+elif m < 12: return 88
+elif m < 24: return 72
+elif m < 36: return 55
+else:
+    raise_flag('CALIBRATION_POTENTIALLY_OUTDATED')
+    return 30"
+drone_score,rollup_pseudocode,"# drone_score (PPK workflow) — post BIN-consolidation
+# 1. Parse the 3 pilot files: images (SD card), Rover RINEX, ArduPilot .BIN
+# 2. Load the 2-field JSON metadata form (SRC_UI_01)
+# 3. Derive BIN-level facts: CAM records, CMD waypoints, ARM/DISARM UTC, CTUN altitudes, BAT, MODE, VIBE, ATT, MISE
+# 4. Compute all L2D_* derived fields
+# 5. Fetch wind from Open-Meteo API using BIN-derived takeoff lat/lng + flight_start/end_utc
+#    (fall back to ATT-proxy if API unavailable)
+# 6. Compute all indicators (sheet 04) using thresholds (sheet 05)
+# 7. Apply hard-rule gates: L3I_GNSS_004 (critical gap) and L3I_IMG_001 (validity < 30)
+# 8. Compute building blocks (sheet 06) using composition weights (sheet 07)
+# 9. If image_capture_score == 0 -> drone_score = 0, raise DRONE_CRITICAL_FAILURE, stop
+# 10. drone_score = 0.40*image_capture_score + 0.35*rover_gnss_score + 0.25*mission_execution_score
+# 11. CAL_CONF computed in parallel (sheet 06 BB_CAL_CONF). Travels with calibration file to Processing Universe.
+"

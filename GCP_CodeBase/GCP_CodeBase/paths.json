@@ -1,0 +1,32 @@
+{
+  "survey_id": "sample_data",
+  "subsystem": "gcp_ppk",
+  "spec_version": "2.0.0",
+  "spec_file": "gcp_confidence_score/gcp_confidence_score.json",
+  "inputs": {
+    "points_root": "sample_data",
+    "point_folder_glob": "gcp_rinex_point_*",
+    "rinex_obs_extensions": [".26O", ".25o", ".21o", ".obs", ".O"],
+    "rinex_nav_extensions": [".26P", ".26N", ".25p", ".21p", ".nav", ".P", ".N"],
+    "oplog_filename": "oplog.json",
+    "form_filename": "user_input.json",
+    "hardware_filename": "hardware.json"
+  },
+  "outputs": {
+    "stage1_inventory": "outputs/01_inventory.json",
+    "stage2_source_fields": "outputs/02_source_fields.json",
+    "stage3_derived": "outputs/03_derived_fields.json",
+    "stage3_indicators": "outputs/04_indicators.json",
+    "stage3_building_blocks": "outputs/05_building_blocks.json",
+    "stage3_gcp_score": "outputs/06_gcp_score.json"
+  },
+  "options": {
+    "noaa_swpc_cache_dir": "cache/noaa_swpc",
+    "noaa_swpc_timeout_sec": 30,
+    "pdop_elevation_mask_deg": 10,
+    "pdop_sample_cadence_sec": 30,
+    "aggregator_k": 0.25,
+    "fail_fast": true,
+    "log_level": "INFO"
+  }
+}

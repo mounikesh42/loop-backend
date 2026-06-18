@@ -1,0 +1,23 @@
+Gap #,Problem,Gap Category,Severity (Impact),Frequency (How Common),Coverage Note
+6,GCP Antenna Height Blunder (Pole-Mounted),Fully Covered,CATASTROPHIC,COMMON,gcp_antenna_height_documented_score (L3I_GCP_005) + hard gate. Antenna type match (L3I_GCP_007) backs it up.
+8,Device Battery / Solar Failure Mid-Session,Fully Covered,CRITICAL,OCCASIONAL,occupation_coverage_score (L3I_GCP_001) + occupation_integrity_score (L3I_GCP_002) per-point catch mid-session failure.
+9,GCP Device Deployed in Multipath Environment,Fully Covered,HIGH,COMMON,gcp_multipath_score (L3I_GCP_008) per point.
+14,Device_ID Mismatch — RINEX Orphaned,Fully Covered,HIGH,OCCASIONAL,gcp_device_id_match_score (L3I_GCP_006). Reviewer-blocking — RINEX orphans detected.
+18,RINEX Recording Starts After Drone Takeoff,Fully Covered,CRITICAL,COMMON,gcp_acquisition_score (L3I_GCP_009). Compares RINEX start to drone takeoff timing.
+15,X/AeroPoint Moved During Flight,Partial / Field Gap,HIGH,OCCASIONAL,GCP_POINT_DISTURBANCE composite (flag-only) — no dedicated scoring indicator. README notes: BLIND to slow settling that produces no gap/slip signal.
+10,Traditional Mark Disturbed Before Drone Flight,Partial / Field Gap,HIGH,OCCASIONAL,SPLIT coverage: CB_X / AeroPoint case detectable via per-point continuity (L3I_GCP_004) + disturbance composite. Traditional physical marks → Stage 2 ODM only.
+16,X/AeroPoint on Uneven Surface,Hard Gap,MEDIUM,OCCASIONAL,"Hardware limitation: GCP devices have no inclinometer. No field, no indicator, no flag possible at any stage. Mitigation is procedural."
+17,Physical Target Washed Away / Blown Over,Hard Gap,HIGH,OCCASIONAL,Stage 2 ODM target-detection only. No Stage-1 GCP-side signal exists when a physical target disappears between deployment and overflight.
+1,No Check Points — All Targets Used as GCPs,Disabled / Aspirational,CATASTROPHIC,VERY COMMON,Future check_point_score (not yet built). Survey-design flag also planned in pre_processing_score.
+20,Too Many Check Points — Insufficient GCP Control,Disabled / Aspirational,MEDIUM,OCCASIONAL,Future check_point_score (role-allocation logic). Same future component as #1.
+2,Check Points Not Spatially Independent,Out of Scope (Pre-Processing),CATASTROPHIC,VERY COMMON,pre_processing_score owns spatial-independence check.
+3,Insufficient GCP Count for Site Extent,Out of Scope (Pre-Processing),CRITICAL,COMMON,pre_processing_score owns count gate (requires site area input).
+4,GCPs Clustered Near Access Roads,Out of Scope (Pre-Processing),CRITICAL,VERY COMMON,pre_processing_score owns spatial distribution check (requires reconstruction extent).
+5,GCPs Not Covering Terrain Extremes (Vertical),Out of Scope (Learning Engine),CRITICAL,COMMON,Learning Engine owns vertical-extremes coverage (requires DTM).
+7,GCP Coordinate Accuracy Unknown / Handheld GPS,Out of Scope (Pre-Processing),CATASTROPHIC,COMMON,pre_processing_score Stage 2 owns coordinate-accuracy verification.
+11,Target Not Visible from Flight Altitude,Out of Scope (Pre-Processing),HIGH,COMMON,pre_processing_score owns target-visibility check (cross-doc with drone planned_gsd_cm).
+13,Pre-Surveyed Coordinates in Wrong CRS / Datum,Out of Scope (Pre-Processing),CATASTROPHIC,OCCASIONAL,pre_processing_score owns CRS/datum verification.
+19,GCP Coordinate Processing Method Too Weak,Out of Scope (Pre-Processing),CRITICAL,COMMON,pre_processing_score Stage 2 owns processing-method assessment.
+22,GCP Count Adequate but Reconstruction Still Drifts,Out of Scope (Learning Engine),HIGH,OCCASIONAL,Learning Engine owns drift detection (downstream consequence of #5).
+12,Wrong Coordinate Entered in ODM (Typo),Out of Scope (Outside CBMI),HIGH,OCCASIONAL,Manual ODM coordinate entry. Outside CBMI scope.
+21,Mixed GCP and Check Point Roles Reversed,Out of Scope (Outside CBMI),HIGH,OCCASIONAL,Third-party ODM software input. Outside CBMI scope.

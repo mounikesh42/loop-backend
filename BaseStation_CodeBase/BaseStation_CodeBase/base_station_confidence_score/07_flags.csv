@@ -1,0 +1,18 @@
+flag_id,flag_name,raised_by_type,condition,severity,covers_problems,meaning,raised_at_stage
+FLG_BASE_001,BASE_CRITICAL_FAILURE,score,base_completeness_integrity_score == 0,CRITICAL,#6/#10,Foundational base data unusable — base_station_score = 0. Parallels DRONE_CRITICAL_FAILURE.,global_gate
+FLG_BASE_002,ANTENNA_HEIGHT_MISSING,indicator_gate,antenna_height_m absent,CRITICAL,#1,No antenna height documented — setup block = 0. The catastrophic-case guard.,internal_gate
+FLG_BASE_003,BASE_RINEX_FLIGHT_GAP,indicator_gate,base_flight_coverage_ratio < 1.0,CRITICAL,#6,Base RINEX does not cover the full flight; PPK will have gaps.,internal_gate
+FLG_BASE_004,BASE_SESSION_INTERRUPTED,indicator,unexpected_shutdown_count >= 1 OR session_completed_normally == False,HIGH,#17,Recording session was interrupted by power/shutdown event.,threshold
+FLG_BASE_005,BASE_LOG_DOWNLOAD_UNCONFIRMED,indicator,raw_log_download_confirmed != True,MEDIUM,#8,Raw log transfer off the device not confirmed (advisory).,threshold
+FLG_BASE_006,BASE_RINEX_VERSION_UNSUPPORTED,indicator,rinex_version not in supported set,HIGH,#10,RINEX version may not be accepted / may degrade in the PPK pipeline.,threshold
+FLG_BASE_007,BASE_MULTIPATH_RISK,indicator,multipath_risk_level high,HIGH,#14,Elevated multipath risk from the placement environment.,threshold
+FLG_BASE_008,BASE_IONO_RISK,indicator,kp_index high AND single-frequency,HIGH,#20,Ionospheric disturbance likely degraded single-frequency accuracy.,threshold
+FLG_BASE_009,SLOW_BASE_ACQUISITION,indicator,base_acquisition_time_sec > 300,MEDIUM,(general),Base took unusually long to reach a stable solution.,threshold
+FLG_BASE_010,BASE_POSITION_DISCONTINUITY,composite,gap + cycle-slip + CN0-variance co-occur,HIGH,#7,Likely physical base disturbance. FLAG-ONLY (no weight). Blind to slow settling.,composite
+FLG_BASE_011,BASE_FLIGHT_LOG_MISMATCH,composite,flight window not inside base obs window,HIGH,#15,Possible wrong base-log/flight match. FLAG-ONLY.,composite
+FLG_BASE_012,BASE_RINEX_TRUNCATED,composite,session_end_utc vs obs_end_utc disagree,HIGH,#17,Device end-time and observation end-time disagree — silent truncation.,composite
+FLG_BASE_013,BASE_AUTONOMOUS_SEED,handoff,approx_position is autonomous,MEDIUM,#3,Base position is an autonomous seed. NON-scoring; judgement deferred to pre-processing.,handoff
+FLG_BASE_014,BASE_BENCHMARK_UNVERIFIED,handoff,reused monument without verification,MEDIUM,"#2,#13",Benchmark may be unstable/unverified. NON-scoring warning + monument_id handoff to Learning Engine.,handoff
+FLG_BASE_015,BASE_TIME_OFFSET_CROSSDOC,handoff,base time vs drone flight log time offset,HIGH,#18,UTC/local offset between base and flight logs. Cross-document — not Stage-1-closeable.,handoff_crossdoc
+FLG_BASE_016,BASE_CONSTELLATION_CROSSDOC,handoff,base vs rover constellation mismatch,HIGH,#16,Base-side constellations captured; comparison needs the rover document.,handoff_crossdoc
+FLG_BASE_017,BASE_FIRMWARE_CROSSDOC,handoff,base vs rover firmware mismatch,HIGH,#19,Base-side firmware captured; comparison needs the rover document.,handoff_crossdoc

@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LOOP Upload</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+      background: #101317;
+      color: #f3f0e8;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 24px;
+      background: #101317;
+    }
+    main {
+      width: min(980px, 100%);
+      margin: 0 auto;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      font-weight: 720;
+      letter-spacing: 0;
+    }
+    p {
+      margin: 0 0 22px;
+      color: rgba(243, 240, 232, .68);
+      line-height: 1.5;
+    }
+    form {
+      border: 1px solid rgba(243, 240, 232, .16);
+      background: rgba(255, 255, 255, .035);
+      border-radius: 8px;
+      padding: 22px;
+    }
+    label {
+      display: block;
+      margin: 0 0 8px;
+      color: rgba(243, 240, 232, .82);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    select,
+    input[type="file"] {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      color: rgba(243, 240, 232, .84);
+      background: rgba(0, 0, 0, .18);
+      border: 1px solid rgba(243, 240, 232, .22);
+      border-radius: 6px;
+      padding: 12px;
+    }
+    input[type="file"] {
+      border-style: dashed;
+    }
+    .target-row {
+      max-width: 360px;
+      margin-bottom: 18px;
+    }
+    .groups {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .group {
+      border: 1px solid rgba(243, 240, 232, .13);
+      border-radius: 8px;
+      padding: 14px;
+      background: rgba(255, 255, 255, .024);
+    }
+    .group small {
+      display: block;
+      min-height: 34px;
+      margin: 8px 0 0;
+      color: rgba(243, 240, 232, .52);
+      line-height: 1.35;
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 0;
+      border-radius: 6px;
+      background: #8bd8bd;
+      color: #101317;
+      font-weight: 720;
+      padding: 12px 18px;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: .55;
+      cursor: wait;
+    }
+    .status {
+      color: rgba(243, 240, 232, .58);
+      font-size: 13px;
+    }
+    pre {
+      margin: 18px 0 0;
+      min-height: 220px;
+      max-height: 420px;
+      overflow: auto;
+      white-space: pre-wrap;
+      border: 1px solid rgba(243, 240, 232, .12);
+      border-radius: 8px;
+      padding: 16px;
+      background: #07090b;
+      color: rgba(243, 240, 232, .78);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    [hidden] {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>LOOP Pipeline Upload</h1>
+    <p>Upload the required file groups, run the selected validation pipeline, and watch the backend job until the database is refreshed.</p>
+
+    <form id="uploadForm">
+      <div class="target-row">
+        <label for="target">Pipeline target</label>
+        <select id="target" name="target">
+          <option value="check_point">Check Point</option>
+          <option value="gcp">GCP</option>
+          <option value="base_station">Base Station</option>
+          <option value="drone">Drone</option>
+          <option value="all">All Modules</option>
+        </select>
+      </div>
+
+      <div class="groups">
+        <div class="group" data-targets="base_station all">
+          <label for="base_rinex">Base RINEX</label>
+          <input id="base_rinex" name="base_rinex" type="file" multiple>
+          <small>Observation and navigation files from the base station.</small>
+        </div>
+
+        <div class="group" data-targets="base_station all">
+          <label for="anchor_session">Base Operator Log</label>
+          <input id="anchor_session" name="anchor_session" type="file" multiple>
+          <small>Anchor session, operation log, and related base metadata.</small>
+        </div>
+
+        <div class="group" data-targets="base_station all">
+          <label for="ant_setup">Base Antenna Setup</label>
+          <input id="ant_setup" name="ant_setup" type="file" multiple>
+          <small>User input and antenna setup files for the base station run.</small>
+        </div>
+
+        <div class="group" data-targets="drone all">
+          <label for="raw_images">Drone Images</label>
+          <input id="raw_images" name="raw_images" type="file" multiple webkitdirectory directory>
+          <small>Choose the image folder so relative paths are preserved.</small>
+        </div>
+
+        <div class="group" data-targets="drone all">
+          <label for="rover_rinex">Drone Rover RINEX</label>
+          <input id="rover_rinex" name="rover_rinex" type="file" multiple>
+          <small>Rover GNSS observation and navigation files.</small>
+        </div>
+
+        <div class="group" data-targets="drone all">
+          <label for="mrk">Drone Telemetry</label>
+          <input id="mrk" name="mrk" type="file" multiple>
+          <small>MRK, BIN, or telemetry files used by the drone parser.</small>
+        </div>
+
+        <div class="group" data-targets="drone all">
+          <label for="drone_user_input">Drone User Form</label>
+          <input id="drone_user_input" name="drone_user_input" type="file" accept=".json,application/json">
+          <small>The drone user input form JSON.</small>
+        </div>
+
+        <div class="group" data-targets="drone all">
+          <label for="cam_calib">Drone Hardware/Calibration</label>
+          <input id="cam_calib" name="cam_calib" type="file" accept=".json,application/json">
+          <small>The drone hardware or camera calibration JSON.</small>
+        </div>
+
+        <div class="group" data-targets="gcp all">
+          <label for="gcp_rinex">GCP Point Root</label>
+          <input id="gcp_rinex" name="gcp_rinex" type="file" multiple webkitdirectory directory>
+          <small>Choose the folder containing GCP point subfolders and point metadata.</small>
+        </div>
+
+        <div class="group" data-targets="check_point all">
+          <label for="checkpoint_points">Check Point Root</label>
+          <input id="checkpoint_points" name="checkpoint_points" type="file" multiple webkitdirectory directory>
+          <small>Choose the folder containing check point subfolders and exports.</small>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="submitBtn" type="submit">Upload and Run Pipeline</button>
+        <span id="status" class="status">Waiting for files...</span>
+      </div>
+    </form>
+
+    <pre id="log">Waiting for files...</pre>
+  </main>
+
+  <script>
+    window.LOOP_API_ORIGIN = window.LOOP_API_ORIGIN || "";
+  </script>
+  <script src="/web/upload.js"></script>
+</body>
+</html>

@@ -1,0 +1,329 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CB Capture — GCP Confidence Score (v2, PPK)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--accent:#4A8BBF;--accent2:#5fa3d8;--gold:#c9a84c;--green:#3dba78;--teal:#3dd8c0;
+--orange:#e08c3a;--purple:#9b6fe0;--red:#e05555;--navy:#0d1b2a;--navy2:#112236;--navy3:#162d44;
+--navy4:#1a3350;--text:#d6e4f0;--textdim:#7a9bb5;--textfaint:#4a6a80;--border:rgba(122,155,181,.18);
+--border2:rgba(122,155,181,.30);--mono:'SF Mono',ui-monospace,Menlo,monospace;
+--sans:-apple-system,Segoe UI,Roboto,sans-serif}
+body{background:var(--navy);color:var(--text);font-family:var(--sans);line-height:1.55;padding:40px 32px 80px;max-width:1180px;margin:0 auto}
+.hdr-eye{font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin-bottom:6px}
+.hdr-title{font-size:30px;font-weight:700;letter-spacing:-.5px}
+.hdr-title span{color:var(--accent2);font-weight:400}
+.hdr-sub{font-size:13px;color:var(--textdim);margin-top:8px;line-height:1.65;max-width:880px}
+.flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:22px 0 8px;font-family:var(--mono);font-size:11px}
+.flow span{padding:5px 11px;border-radius:5px;background:var(--navy3);border:1px solid var(--border2);color:var(--textdim)}
+.flow b{color:var(--gold)}
+.sec{margin:38px 0 0}
+.sec-bar{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border2);padding-bottom:8px;margin-bottom:16px}
+.sec-name{font-size:18px;font-weight:700;color:var(--accent2)}
+.sec-sub{font-size:12px;color:var(--textdim)}
+.card{background:var(--navy2);border:1px solid var(--border);border-radius:9px;padding:18px 20px;margin-bottom:14px}
+.card.gate{border-color:rgba(224,140,58,.35)}
+.row-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.name{font-family:var(--mono);font-size:14px;color:var(--gold);font-weight:600}
+.lname{font-size:13px;color:var(--text)}
+.wt{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--teal)}
+.pill{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:3px;border:1px solid var(--border2);color:var(--textdim)}
+.pill.cov{color:var(--purple);border-color:rgba(155,111,224,.4)}
+.pill.auto{color:var(--teal);border-color:rgba(61,216,192,.35)}
+.pill.user{color:var(--orange);border-color:rgba(224,140,58,.4)}
+.pill.flag{color:var(--red);border-color:rgba(224,85,85,.4)}
+.pill.warn{color:var(--gold);border-color:rgba(201,168,76,.4)}
+.meaning{font-size:12.5px;color:var(--textdim);margin:4px 0}
+.formula{font-family:var(--mono);font-size:12px;color:var(--text);background:var(--navy);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin:8px 0;white-space:pre-wrap;line-height:1.7}
+.src{font-family:var(--mono);font-size:11px;color:var(--accent);margin-top:4px}
+.thr{font-size:11.5px;color:var(--textdim);background:var(--navy);border-left:2px solid var(--accent);padding:7px 10px;border-radius:0 5px 5px 0;margin-top:8px;font-family:var(--mono);line-height:1.6}
+.gatetag{font-size:11px;color:var(--orange);background:rgba(224,140,58,.08);border:1px solid rgba(224,140,58,.25);border-radius:5px;padding:7px 10px;margin-top:8px;font-family:var(--mono)}
+.fld{display:grid;grid-template-columns:230px 1fr;gap:14px;padding:7px 0;border-bottom:1px solid var(--border)}
+.fld:last-child{border:0}
+.fld-n{font-family:var(--mono);font-size:12px;color:var(--text)}
+.fld-m{font-size:12px;color:var(--textdim)}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+th{text-align:left;color:var(--gold);font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--border2)}
+td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--textdim);vertical-align:top}
+td.kw{font-family:var(--mono);color:var(--text)}
+.sev-CATASTROPHIC{color:var(--red);font-weight:600}
+.sev-CRITICAL{color:var(--orange);font-weight:600}
+.sev-HIGH{color:var(--gold)}
+.sev-MEDIUM{color:var(--textdim)}
+.disp{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:3px}
+.disp-OWNED{color:var(--green);border:1px solid rgba(61,186,120,.4)}
+.disp-SPLIT{color:var(--teal);border:1px solid rgba(61,216,192,.4)}
+.disp-PRE-PROC,.disp-STAGE2{color:var(--textfaint);border:1px solid var(--border2)}
+.disp-OUT,.disp-OUT-FUTURE{color:var(--textfaint);border:1px solid var(--border2)}
+.disp-LE{color:var(--purple);border:1px solid rgba(155,111,224,.4)}
+.note{font-size:12px;color:var(--textdim);background:var(--navy3);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-top:14px;line-height:1.7}
+.note b{color:var(--gold)}
+</style></head><body>
+<div class="hdr-eye">CrystalBall Infinity — CB Capture Universe</div>
+<div class="hdr-title">GCP Confidence Score <span>v2 · PPK · Single-Phase</span></div>
+<div class="hdr-sub">PPK-only single-phase single-scalar redesign. Capture-confidence only — survey-design adequacy (counts, role allocation, target visibility, check-point independence, coordinate accuracy, datum) owned by pre_processing_score. Per-point scoring as primary; device-level rollup as diagnostic context when devices captured multiple points. mean − k·worst aggregation (k=0.25) across GCP-role points. Three building blocks structurally parallel to base_station_score (independently specified).</div>
+<div class="hdr-sub" style="margin-top:10px;color:var(--gold)">Computed entirely from GCP device files + flight timing context + external NOAA Kp API. Does not read from base_station_score, drone_score, or pre_processing_score data at runtime.</div>
+<div class="flow">
+<span><b>Source Files (×N per point)</b></span>→<span>Source Fields</span>→<span>Derived Fields</span>→<span>Indicators</span>→<span>Per-point Score</span>→<span>Building Blocks (aggregate)</span>→<span><b>gcp_score</b></span>
+</div>
+
+<div class="sec"><div class="sec-bar"><div class="sec-name">Core — gcp_score</div>
+<div class="sec-sub">Single scalar. PPK only. Capture-confidence only. Survey-design adequacy lives in pre_processing_score.</div></div>
+<div class="card gate"><div class="row-top"><div class="name">gcp_score</div><div class="lname">GCP Confidence Score</div></div>
+<div class="formula">0.45*gcp_capture_completeness_score + 0.35*gcp_setup_confidence_score + 0.20*gcp_observation_environment_score</div>
+<div class="formula" style="background:var(--navy2)">per-point:  0.45*per_point_completeness + 0.35*per_point_setup_confidence + 0.20*per_point_environment
+aggregator:  mean − 0.25 × (100 − min) within each role-block, applied across all GCP-role points</div>
+<div class="gatetag">⊘ GLOBAL GATE: Sets gcp_score = 0. Raises FLAG: GCP_CRITICAL_FAILURE.</div>
+<div class="gatetag" style="background:rgba(155,111,224,.08);border-color:rgba(155,111,224,.25);color:var(--purple)">∅ NULL: Zero points with device_role=GCP → gcp_score = null (not 0). FLAG: NO_DESIGNATED_GCPS. Pre-processing handles the survey-design implication.</div>
+<div class="meaning" style="margin-top:10px">Hardware-derived capture-confidence score. PPK only. Independent at runtime of base_station_score — requires only GCP device files + flight timing context + NOAA Kp API. Survey-design adequacy (counts, role allocation, check-point independence, target visibility, coordinate accuracy, datum) is owned by pre_processing_score. Check-point scoring is a future deliverable (check_point_score).</div>
+<div class="meaning"><b style="color:var(--text)">Supported device types:</b> CB_X / AEROPOINT / DGPS / OTHER</div></div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 1 — Building Blocks</div><div class="sec-sub">Three blocks aggregating per-point category scores across all GCP-role points.</div></div>
+<div class="card gate">
+<div class="row-top"><div class="name" style="color:var(--accent2)">gcp_capture_completeness_score</div>
+<div class="lname">Capture Completeness &amp; Integrity</div><div class="wt">weight 0.45 in gcp_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Are the per-point captures present, complete, and usable? &nbsp;·&nbsp; <b style="color:var(--text)">Owner:</b> Per-point recording / hardware &nbsp;·&nbsp; <b style="color:var(--text)">If low:</b> May need to re-occupy affected points</div>
+<div class="formula">aggregator: mean − k × (100 − min) across GCP-role per_point_completeness, k=0.25
+indicators:  occupation_coverage_score(0.35), occupation_integrity_score(0.30), occupation_format_score(0.20), occupation_continuity_score(0.15)</div><div class="gatetag">⊘ Triggers GCP_CRITICAL_FAILURE at gcp_score level.</div></div>
+<div class="card gate">
+<div class="row-top"><div class="name" style="color:var(--orange)">gcp_setup_confidence_score</div>
+<div class="lname">Per-point Setup &amp; Documentation Confidence</div><div class="wt">weight 0.35 in gcp_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Is the per-point operator metadata trustworthy? &nbsp;·&nbsp; <b style="color:var(--text)">Owner:</b> Operator (per-point setup) &nbsp;·&nbsp; <b style="color:var(--text)">If low:</b> Re-measure / re-enter / select correct device on form</div>
+<div class="formula">aggregator: mean − k × (100 − min) across GCP-role per_point_setup_confidence, k=0.25
+indicators:  gcp_antenna_height_documented_score(0.55), gcp_device_id_match_score(0.30), gcp_antenna_type_match_score(0.15)</div><div class="gatetag">⊘ That point per_point_setup_confidence = 0. FLAG: GCP_POINT_ANTENNA_HEIGHT_MISSING.</div></div>
+<div class="card">
+<div class="row-top"><div class="name" style="color:var(--teal)">gcp_observation_environment_score</div>
+<div class="lname">Per-point Observation Environment</div><div class="wt">weight 0.2 in gcp_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Was the sky/site environment good at each point? &nbsp;·&nbsp; <b style="color:var(--text)">Owner:</b> Site / sky conditions &nbsp;·&nbsp; <b style="color:var(--text)">If low:</b> Relocate next time; accept noise</div>
+<div class="formula">aggregator: mean − k × (100 − min) across GCP-role per_point_environment, k=0.25
+indicators:  gcp_multipath_score(0.50), gcp_acquisition_score(0.30), gcp_ionospheric_risk_score(0.20)</div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 2 — Per-point Computation</div>
+<div class="sec-sub">Each GCP-role point gets its own score using base-v2-shaped formula. Hard gates at per-point level.</div></div>
+<div class="card"><div class="formula">per_point_score = 0.45 × per_point_completeness
+                + 0.35 × per_point_setup_confidence
+                + 0.20 × per_point_environment
+
+Per-point hard gates:
+  • occupation_coverage_ratio &lt; 1.0  →  this point's completeness sub-score = 0
+                                       (flag: GCP_POINT_FLIGHT_GAP)
+  • antenna_height_m missing AND device_type ∉ {CB_X, AEROPOINT}
+                                       →  this point's setup sub-score = 0
+                                       (flag: GCP_POINT_ANTENNA_HEIGHT_MISSING)</div>
+<div class="meaning" style="margin-top:8px">Per-point scores are then aggregated by the building blocks using <span style="font-family:var(--mono);color:var(--accent)">mean − 0.25 × (100 − min)</span> across all GCP-role points.</div></div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 3 — Per-point Indicators</div><div class="sec-sub">10 indicators applied identically to every GCP-role point. Each scored 0–100 against a threshold table.</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--accent2);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for gcp_capture_completeness_score</div>
+<div class="card gate">
+<div class="row-top"><div class="name">occupation_coverage_score</div><div class="lname">Per-point Flight Coverage &amp; Buffer</div>
+<div class="wt">weight 0.35 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#8</span></div>
+<div class="src">← occupation_coverage_ratio;pre_flight_buffer_sec;post_flight_buffer_sec</div>
+<div class="thr">coverage_ratio=1.0 AND pre&gt;=120s AND post&gt;=60s -&gt; 100; coverage=1.0 AND pre&gt;=60s -&gt; 88; coverage=1.0 AND pre&lt;60s -&gt; 72; coverage&lt;1.0 -&gt; 0 + gate.</div><div class="gatetag">⊘ HARD: occupation_coverage_ratio &lt; 1.0 → Sets this point completeness sub-score = 0. FLAG: GCP_POINT_FLIGHT_GAP.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">occupation_integrity_score</div><div class="lname">Per-point Session &amp; Power Integrity</div>
+<div class="wt">weight 0.3 · SHEET+OPLOG</div></div>
+<div class="meaning">covers <span class="pill cov">#8</span></div>
+<div class="src">← session_integrity_ok;raw_log_download_confirmed;device_type</div>
+<div class="thr">device_type=DGPS: completed_normally AND 0 shutdowns AND battery_min&gt;=20% -&gt; 100; shutdown&gt;=1 -&gt; 30; oplog absent/null -&gt; 60 (unconfirmed); download not confirmed -&gt; advisory flag.  device_type in {CB_X, AEROPOINT, OTHER}: oplog expected-absent, no penalty for absence; score based on RINEX signals (any_gap_gt_60s=False -&gt; 100; else 40).</div></div>
+<div class="card">
+<div class="row-top"><div class="name">occupation_format_score</div><div class="lname">Per-point RINEX Format &amp; Compatibility</div>
+<div class="wt">weight 0.2 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#10</span></div>
+<div class="src">← rinex_version_supported;header_completeness;dual_freq_available;constellation_count</div>
+<div class="thr">version supported AND header complete AND dual-freq -&gt; 100; single-freq -&gt; 70; version unsupported -&gt; 35 (FLAG: GCP_POINT_RINEX_VERSION_UNSUPPORTED); header incomplete -&gt; 40.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">occupation_continuity_score</div><div class="lname">Per-point Recording Continuity</div>
+<div class="wt">weight 0.15 · RINEX</div></div>
+<div class="meaning">covers <span class="pill cov">#15</span></div>
+<div class="src">← cycle_slip_count;gap_gt_5s_count;any_gap_gt_60s</div>
+<div class="thr">no gaps AND &lt;5 slips -&gt; 100; minor gaps OR 5-20 slips -&gt; 75; any_gap_gt_60s OR &gt;20 slips -&gt; 40. Feeds disturbance composite.</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for gcp_setup_confidence_score</div>
+<div class="card gate">
+<div class="row-top"><div class="name">gcp_antenna_height_documented_score</div><div class="lname">Per-point Antenna Height Documentation</div>
+<div class="wt">weight 0.55 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#6</span></div>
+<div class="src">← antenna_height_auto_known;antenna_measurement_type;measured_to_reference;height_measured_count;antenna_height_agreement</div>
+<div class="thr">antenna_height_auto_known=True (CB_X / AEROPOINT) -&gt; 100 by definition (factory-known).  device_type=DGPS: VERTICAL AND measured_to=ARP AND count&gt;=3 AND RINEX agreement -&gt; 100; single VERTICAL -&gt; 88; SLANT -&gt; 72; height entered but RINEX delta_h disagrees -&gt; 55 (review).  No height entered (DGPS / OTHER) -&gt; 0 + gate.</div><div class="gatetag">⊘ HARD: antenna_height_m absent AND antenna_height_auto_known=False → Sets this point setup sub-score = 0. FLAG: GCP_POINT_ANTENNA_HEIGHT_MISSING.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_device_id_match_score</div><div class="lname">Per-point Device ID Match</div>
+<div class="wt">weight 0.3 · SHEET (gap-add)</div></div>
+<div class="meaning">covers <span class="pill cov">#14</span></div>
+<div class="src">← device_id_match</div>
+<div class="thr">Match -&gt; 100; mismatch -&gt; 50 + FLAG: GCP_POINT_DEVICE_ID_MISMATCH (HIGH, reviewer-blocking); either side missing -&gt; 60 (unconfirmed).</div></div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_antenna_type_match_score</div><div class="lname">Per-point Antenna Type Consistency</div>
+<div class="wt">weight 0.15 · RINEX</div></div>
+<div class="meaning">covers <span class="pill cov">#6 supporting</span></div>
+<div class="src">← antenna_type_match</div>
+<div class="thr">Match -&gt; 100; mismatch -&gt; 40 + FLAG. Type-string consistency only, NOT a true ANTEX calibration check (that is Stage 2).</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--teal);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for gcp_observation_environment_score</div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_multipath_score</div><div class="lname">Per-point Multipath Environment</div>
+<div class="wt">weight 0.5 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#9</span></div>
+<div class="src">← multipath_risk_level;cn0_mean_dbhz</div>
+<div class="thr">multipath_risk_level low (&lt;=2.5 dB-Hz) -&gt; 100; moderate (2.5-4.0) -&gt; 65; high (&gt;4.0) -&gt; 35 + FLAG: GCP_POINT_HIGH_MULTIPATH. Risk proxy, not error magnitude.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_acquisition_score</div><div class="lname">Per-point Satellite Acquisition</div>
+<div class="wt">weight 0.3 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#18</span></div>
+<div class="src">← device_acquisition_time_sec</div>
+<div class="thr">acquisition &lt;60s -&gt; 100; 60-119s -&gt; 88; 120-299s -&gt; 65; &gt;=300s -&gt; 30 + FLAG: GCP_POINT_SLOW_ACQUISITION.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_ionospheric_risk_score</div><div class="lname">Per-point Ionospheric Risk</div>
+<div class="wt">weight 0.2 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#20</span></div>
+<div class="src">← kp_index;dual_freq_available</div>
+<div class="thr">Kp &lt;= 4 OR dual-freq available -&gt; 100; Kp 5-6 AND single-freq -&gt; 60; Kp &gt;= 7 AND single-freq -&gt; 40 + FLAG: GCP_POINT_IONO_RISK. External NOAA SWPC dependency.</div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 4 — Derived Fields</div><div class="sec-sub">Per-point derivations. Flag-only composites raise warnings; composite-scoring fields feed indicators directly.</div></div><div class="card">
+<div class="fld"><div class="fld-n">occupation_coverage_ratio </div>
+<div class="fld-m">Fraction of the drone flight covered by this GCP&#x27;s observations. Must equal 1.0; less means PPK gaps for this point.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= overlap(obs window, flight window) / duration(flight window)</span></div></div>
+<div class="fld"><div class="fld-n">pre_flight_buffer_sec </div>
+<div class="fld-m">Seconds the GCP device was recording before flight start. Threshold &gt;= 120s ideal, &gt;= 60s acceptable.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= flight_start_utc - obs_start_utc</span></div></div>
+<div class="fld"><div class="fld-n">post_flight_buffer_sec </div>
+<div class="fld-m">Seconds the GCP device kept recording after flight end. Threshold &gt;= 60s.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= obs_end_utc - flight_end_utc</span></div></div>
+<div class="fld"><div class="fld-n">dual_freq_available </div>
+<div class="fld-m">Whether dual-frequency observations are available.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= dual_freq_present == True</span></div></div>
+<div class="fld"><div class="fld-n">cycle_slip_count </div>
+<div class="fld-m">Total cycle slips. Elevated = obstruction/disturbance/multipath.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= count of cycle_slip_markers</span></div></div>
+<div class="fld"><div class="fld-n">gap_gt_5s_count </div>
+<div class="fld-m">Short recording gaps within the occupation.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= count of inter-epoch gaps &gt; 5s</span></div></div>
+<div class="fld"><div class="fld-n">any_gap_gt_60s </div>
+<div class="fld-m">Any major recording gap.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= max inter-epoch gap &gt; 60s</span></div></div>
+<div class="fld"><div class="fld-n">cn0_mean_dbhz </div>
+<div class="fld-m">Mean signal strength across the occupation.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= mean of cn0_per_sat</span></div></div>
+<div class="fld"><div class="fld-n">multipath_risk_level </div>
+<div class="fld-m">Proxy for multipath risk from a fixed reflector geometry. Risk indicator, not error magnitude. Numeric thresholds: low &lt;= 2.5 dB-Hz; moderate 2.5–4.0; high &gt; 4.0.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= std-dev of cn0_per_sat across sats at equal elevation</span></div></div>
+<div class="fld"><div class="fld-n">mean_pdop </div>
+<div class="fld-m">Average sky-geometry quality. Thresholds: &lt;2 = 100; 2-4 = 80; 4-6 = 55; &gt;6 = 30.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= mean of pdop_per_epoch during occupation</span></div></div>
+<div class="fld"><div class="fld-n">max_pdop </div>
+<div class="fld-m">Worst-case geometry during occupation.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= max of pdop_per_epoch during occupation</span></div></div>
+<div class="fld"><div class="fld-n">device_acquisition_time_sec </div>
+<div class="fld-m">How quickly the device reached a stable solution after power-on. Thresholds: &lt;60s = 100; 60-119s = 88; 120-299s = 65; &gt;=300s = 30.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= time from power-on to stable sat_count (&gt;=6 sats with low PDOP)</span></div></div>
+<div class="fld"><div class="fld-n">rinex_version_supported </div>
+<div class="fld-m">Whether RINEX version is accepted by the PPK pipeline.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= rinex_version in {2.10, 2.11, 3.02, 3.03, 3.04, 3.05}</span></div></div>
+<div class="fld"><div class="fld-n">header_completeness </div>
+<div class="fld-m">Whether required header records are present.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= antenna_type AND receiver_type AND approx_position_xyz all present</span></div></div>
+<div class="fld"><div class="fld-n">constellation_count </div>
+<div class="fld-m">Number of constellations tracked.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= count of constellation_set</span></div></div>
+<div class="fld"><div class="fld-n">session_integrity_ok <span class="pill warn">composite-scoring</span></div>
+<div class="fld-m">Whether the occupation terminated cleanly with adequate power. Device-type aware.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= device_type-aware: for DGPS, requires completed_normally AND shutdowns==0 AND battery_min &gt;= 20%; for CB_X / AEROPOINT / OTHER, oplog expected-absent, evaluates as TRUE if RINEX-side signals are clean (no gap_gt_60s)</span></div></div>
+<div class="fld"><div class="fld-n">antenna_type_match </div>
+<div class="fld-m">Form vs RINEX antenna type consistency. NOT ANTEX calibration (Stage 2).<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= antenna_model (form) == antenna_type (RINEX), normalised</span></div></div>
+<div class="fld"><div class="fld-n">antenna_height_agreement </div>
+<div class="fld-m">Form-height vs RINEX-recorded-height cross-check. Agreement raises confidence; conflict flags the wrong-reference blunder.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= |antenna_height_m (form) - antenna_delta_h (RINEX)| within tolerance (when delta_h != 0)</span></div></div>
+<div class="fld"><div class="fld-n">device_id_match </div>
+<div class="fld-m">Form vs RINEX device ID match. Uniform threshold: match=100; mismatch=50 + reviewer-blocking flag (HIGH severity).<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= device_id (form) == device_id (RINEX), normalised</span></div></div>
+<div class="fld"><div class="fld-n">kp_index </div>
+<div class="fld-m">Geomagnetic activity index. External NOAA SWPC API dependency.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= NOAA SWPC Kp at obs_start_utc</span></div></div>
+<div class="fld"><div class="fld-n">antenna_height_auto_known </div>
+<div class="fld-m">Whether antenna height is factory-known for this device type. When true, antenna_height_documented_score = 100 by definition.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= device_type in {CB_X, AEROPOINT}</span></div></div>
+<div class="fld"><div class="fld-n">position_disturbance_signature <span class="pill flag">flag-only</span></div>
+<div class="fld-m">Correlation detector for physical disturbance during occupation (#15). FLAG-ONLY, no weight. BLIND to slow settling that produces no gap/slip.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= gap_gt_5s_count rising AND cycle_slip_count rising AND cn0 variance rising in same time window</span></div></div>
+<div class="fld"><div class="fld-n">truncation_check <span class="pill flag">flag-only</span></div>
+<div class="fld-m">Device-clock vs observation-end cross-check. Disagreement = silent truncation. Applies to DGPS only.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= |session_end_utc - obs_end_utc| within tolerance (when oplog is expected-present)</span></div></div>
+</div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 5 — Source Fields</div><div class="sec-sub">Grouped by source file. auto = machine-generated · user = operator-entered.</div></div>
+<div class="card"><div class="row-top"><div class="name">GCP Device RINEX</div><div class="lname">.obs / .nav / .21o / .25o</div></div>
+<div class="fld"><div class="fld-n">marker_name <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Header Identity]</b> Marker/point identifier from RINEX header. Basis for matching point records.</div></div>
+<div class="fld"><div class="fld-n">antenna_type <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Header Antenna]</b> Antenna model from ANT # / TYPE record. Cross-checked vs operator-entered antenna_model.</div></div>
+<div class="fld"><div class="fld-n">antenna_delta_h <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Header Antenna]</b> ARP height above marker from ANTENNA: DELTA H/E/N record, as configured in the device. Often 0.000 if unset. Second independent height source.</div></div>
+<div class="fld"><div class="fld-n">receiver_type <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Header Hardware]</b> Receiver model from REC # / TYPE / VERS header record.</div></div>
+<div class="fld"><div class="fld-n">firmware_version <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Header Hardware]</b> Receiver firmware/version from RINEX extended header where written. May be null.</div></div>
+<div class="fld"><div class="fld-n">approx_position_xyz <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Header Position]</b> Approximate ECEF position from header (autonomous seed). Used for set-spacing computation only — not scored as accuracy.</div></div>
+<div class="fld"><div class="fld-n">rinex_version <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Header Format]</b> RINEX format version (e.g. 2.11, 3.04). Drives PPK-software compatibility.</div></div>
+<div class="fld"><div class="fld-n">constellation_set <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Header Format]</b> Constellations present (GPS/GLONASS/Galileo/BeiDou).</div></div>
+<div class="fld"><div class="fld-n">obs_start_utc <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Header Timing]</b> First observation epoch time (UTC).</div></div>
+<div class="fld"><div class="fld-n">obs_end_utc <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Header Timing]</b> Last observation epoch time (UTC). Cross-checked against oplog session_end_utc when oplog is expected-present.</div></div>
+<div class="fld"><div class="fld-n">dual_freq_present <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Header Format]</b> Whether L1+L2 (or more) carrier phase is present. Single-frequency worsens iono impact.</div></div>
+<div class="fld"><div class="fld-n">device_id <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Header Identity]</b> Device serial / ID from RINEX header. Cross-checked vs operator-entered device_id.</div></div>
+<div class="fld"><div class="fld-n">epoch_interval_sec <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Body Timing]</b> Nominal logging interval between epochs.</div></div>
+<div class="fld"><div class="fld-n">total_epochs <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Body Timing]</b> Count of recorded epochs in the occupation.</div></div>
+<div class="fld"><div class="fld-n">cn0_per_sat <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Body Signal]</b> Carrier-to-noise density per satellite per epoch. Basis for signal quality and multipath risk.</div></div>
+<div class="fld"><div class="fld-n">cycle_slip_markers <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Body Signal]</b> Cycle-slip indications per satellite. Elevated counts indicate disturbance or obstruction.</div></div>
+<div class="fld"><div class="fld-n">pdop_per_epoch <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Body Geometry]</b> Position dilution of precision over time.</div></div>
+<div class="fld"><div class="fld-n">sat_count_per_epoch <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Body Geometry]</b> Tracked satellite count over time. Acquisition ramp visible at session start.</div></div>
+</div>
+<div class="card"><div class="row-top"><div class="name">GCP Device Operation Log</div><div class="lname">.json</div></div>
+<div class="fld"><div class="fld-n">session_completed_normally <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Integrity]</b> True only if recording stopped by deliberate operator action. Null = unconfirmed (DGPS) or expected-absent (CB_X / AEROPOINT / OTHER).</div></div>
+<div class="fld"><div class="fld-n">unexpected_shutdown_count <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Integrity]</b> Count of mid-session unexpected shutdowns/resets. &gt;=1 raises GCP_POINT_DEVICE_FAILURE.</div></div>
+<div class="fld"><div class="fld-n">battery_start_pct <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Power]</b> Battery level at occupation start.</div></div>
+<div class="fld"><div class="fld-n">battery_end_pct <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Power]</b> Battery level at occupation end.</div></div>
+<div class="fld"><div class="fld-n">battery_min_pct <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Power]</b> Lowest battery level reached during occupation. Adequacy line: &gt;= 20%.</div></div>
+<div class="fld"><div class="fld-n">session_end_utc <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Integrity]</b> Device-reported session end (UTC). Cross-check vs RINEX last epoch.</div></div>
+<div class="fld"><div class="fld-n">raw_log_download_confirmed <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Integrity]</b> True once the RINEX has been transferred off the device.</div></div>
+</div>
+<div class="card"><div class="row-top"><div class="name">GCP User Input (per point)</div><div class="lname">.json (gcp_user_input.json)</div></div>
+<div class="fld"><div class="fld-n">device_type <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Device Identity]</b> Enum: CB_X / AEROPOINT / DGPS / OTHER. Drives oplog branching and antenna-height auto-fill logic.</div></div>
+<div class="fld"><div class="fld-n">device_id <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Device Identity]</b> Operator-entered device ID. Cross-checked vs RINEX header device_id.</div></div>
+<div class="fld"><div class="fld-n">device_role <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Survey Role]</b> Locked to GCP for this score. CHECK_POINT points are excluded from gcp_score (future check_point_score).</div></div>
+<div class="fld"><div class="fld-n">antenna_model <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Antenna Setup]</b> Operator-selected antenna model. Cross-checked vs RINEX antenna_type.</div></div>
+<div class="fld"><div class="fld-n">antenna_height_m <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Antenna Setup]</b> Operator-entered height. For CB_X / AEROPOINT, factory-known and auto-filled (indicator = 100). For DGPS, operator-measured. Cross-checked vs RINEX antenna_delta_h when populated.</div></div>
+<div class="fld"><div class="fld-n">antenna_height_units <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Antenna Setup]</b> Explicit units (m/ft).</div></div>
+<div class="fld"><div class="fld-n">antenna_measurement_type <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Antenna Setup]</b> VERTICAL or SLANT. Only meaningful for DGPS.</div></div>
+<div class="fld"><div class="fld-n">measured_to_reference <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Antenna Setup]</b> ARP / SLANT_MARK / MOUNT_BOTTOM / OTHER. Only meaningful for DGPS.</div></div>
+<div class="fld"><div class="fld-n">height_measured_count <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Antenna Setup]</b> Number of independent measurements. Only meaningful for DGPS.</div></div>
+<div class="fld"><div class="fld-n">pole_tripod_fixed_height <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Antenna Setup]</b> Fixed pole/tripod height when applicable.</div></div>
+<div class="fld"><div class="fld-n">target_type <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Target]</b> Target physical type (printed_paper / painted / aeropoint_surface / cb_x_surface / dgps_peg / other).</div></div>
+<div class="fld"><div class="fld-n">target_size_m <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Target]</b> Target minimum linear dimension. CAPTURED HERE but consumed by pre_processing_score for #11 visibility check; not read by gcp_score.</div></div>
+<div class="fld"><div class="fld-n">target_placed_confirmed <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Target]</b> Operator confirmation that target was placed and visible at flight time. Reported as metadata; not scored in gcp_score (handed to pre-processing).</div></div>
+<div class="fld"><div class="fld-n">flight_start_utc <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Flight Context]</b> Drone flight start (UTC) from upload bundle.</div></div>
+<div class="fld"><div class="fld-n">flight_end_utc <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Flight Context]</b> Drone flight end (UTC) from upload bundle.</div></div>
+</div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 6 — Source Files</div><div class="sec-sub">Three per captured GCP-role point. Behaviour branches on device_type.</div></div>
+<div class="card"><div class="row-top"><div class="name">GCP Device RINEX</div>
+<div class="lname">.obs / .nav / .21o / .25o</div><div class="wt">auto</div></div>
+<div class="meaning"><b style="color:var(--text)">Obtain:</b> Each GCP device records raw observations during its occupation. Downloaded per point either via USB, the CB companion app, the Propeller dashboard (AeroPoint), or the receiver manufacturer&#x27;s utility (DGPS). Recording must span the drone flight window with buffer.</div>
+<div class="meaning">Per-point machine truth. One file per occupation. Antenna type and delta-H here serve as cross-checks against the user form.</div></div>
+<div class="card"><div class="row-top"><div class="name">GCP Device Operation Log</div>
+<div class="lname">.json</div><div class="wt">auto</div></div>
+<div class="meaning"><b style="color:var(--text)">Obtain:</b> Device firmware records a session log per occupation. Required for DGPS. Expected-absent for CB_X (CB_X has its own oplog dev spec — see CB_X Operation Log spec). Expected-absent for AEROPOINT (Propeller hardware does not expose one in this format). Expected-absent for OTHER (unknown hardware).</div>
+<div class="meaning">Behaviour branches on device_type. When expected-absent, the integrity indicator scores from RINEX-only signals; when expected-present and missing, integrity degrades to unconfirmed.</div></div>
+<div class="card"><div class="row-top"><div class="name">GCP User Input (per point)</div>
+<div class="lname">.json (gcp_user_input.json)</div><div class="wt">user</div></div>
+<div class="meaning"><b style="color:var(--text)">Obtain:</b> Structured field form filled per occupation. Human-entered: device_type, antenna model/height/method/reference/count, monument facts, device_id, target metadata. Target size and placement confirmation captured here but consumed by pre_processing_score, not gcp_score.</div>
+<div class="meaning">Per-point operator metadata. Form design itself is the safeguard against #6 antenna-height blunder. target_size_m is on this form but read by pre-processing, not gcp_score.</div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Flags & Signals</div><div class="sec-sub">Gates, scoring flags, flag-only composites, and advisory signals.</div></div><div class="card"><table><tr><th>Flag</th><th>Type</th><th>When</th><th>Sev</th><th>Covers</th><th>Meaning</th></tr>
+<tr><td class="kw">GCP_CRITICAL_FAILURE</td><td>score</td><td>every GCP-role point has occupation_coverage_score=0</td><td class="sev-CRITICAL">CRITICAL</td><td>#8 system view</td><td>Foundational GCP data unusable across the survey — gcp_score = 0. Parallels DRONE_CRITICAL_FAILURE and BASE_CRITICAL_FAILURE structurally; defined independently.</td></tr>
+<tr><td class="kw">GCP_POINT_ANTENNA_HEIGHT_MISSING</td><td>indicator_gate</td><td>antenna_height_m absent AND antenna_height_auto_known=False</td><td class="sev-CRITICAL">CRITICAL</td><td>#6</td><td>Per-point antenna height not entered for a non-factory-known device — per_point_setup_confidence = 0 for this point.</td></tr>
+<tr><td class="kw">GCP_POINT_FLIGHT_GAP</td><td>indicator_gate</td><td>occupation_coverage_ratio &lt; 1.0</td><td class="sev-CRITICAL">CRITICAL</td><td>#8</td><td>This GCP did not record over the full flight window; PPK will lack coverage for this point.</td></tr>
+<tr><td class="kw">GCP_POINT_DEVICE_FAILURE</td><td>indicator</td><td>unexpected_shutdown_count &gt;= 1 OR session_completed_normally = false (DGPS only)</td><td class="sev-HIGH">HIGH</td><td>#8</td><td>Per-point session interrupted by power/shutdown event.</td></tr>
+<tr><td class="kw">GCP_POINT_LOG_DOWNLOAD_UNCONFIRMED</td><td>indicator advisory</td><td>raw_log_download_confirmed != True (DGPS only)</td><td class="sev-MEDIUM">MEDIUM</td><td>#8</td><td>Raw log transfer off the device not confirmed (advisory).</td></tr>
+<tr><td class="kw">GCP_POINT_RINEX_VERSION_UNSUPPORTED</td><td>indicator</td><td>rinex_version not in supported set</td><td class="sev-HIGH">HIGH</td><td>#10</td><td>This point&#x27;s RINEX version may not be accepted by the PPK pipeline.</td></tr>
+<tr><td class="kw">GCP_POINT_HIGH_MULTIPATH</td><td>indicator</td><td>multipath_risk_level &gt; 4.0</td><td class="sev-HIGH">HIGH</td><td>#9</td><td>Elevated multipath risk at this point.</td></tr>
+<tr><td class="kw">GCP_POINT_IONO_RISK</td><td>indicator</td><td>kp_index &gt;= 7 AND single-frequency</td><td class="sev-HIGH">HIGH</td><td>#20</td><td>Ionospheric disturbance likely degraded accuracy at this point. External Kp dependency.</td></tr>
+<tr><td class="kw">GCP_POINT_SLOW_ACQUISITION</td><td>indicator</td><td>device_acquisition_time_sec &gt;= 300</td><td class="sev-MEDIUM">MEDIUM</td><td>#18</td><td>Per-point acquisition was unusually slow.</td></tr>
+<tr><td class="kw">GCP_POINT_DEVICE_ID_MISMATCH</td><td>indicator (reviewer-blocking)</td><td>form device_id != RINEX device_id</td><td class="sev-HIGH">HIGH</td><td>#14</td><td>Per-point form/RINEX device_id disagreement. Reviewer-blocking — must be resolved before survey delivery sign-off.</td></tr>
+<tr><td class="kw">GCP_POINT_DISTURBANCE</td><td>composite (flag-only)</td><td>position_disturbance_signature fires</td><td class="sev-HIGH">HIGH</td><td>#15</td><td>Composite signal of physical disturbance during this occupation. Flag-only; no weight. BLIND to slow settling.</td></tr>
+<tr><td class="kw">NO_DESIGNATED_GCPS</td><td>score advisory</td><td>no points with device_role=GCP in survey</td><td class="sev-CRITICAL">CRITICAL</td><td>system view</td><td>No designated GCPs in this survey. gcp_score = null. Pre-processing handles survey-design implication.</td></tr>
+<tr><td class="kw">UNRECOGNIZED_DEVICE_TYPE</td><td>indicator advisory</td><td>device_type = OTHER</td><td class="sev-MEDIUM">MEDIUM</td><td>operational</td><td>Unknown device hardware; oplog expectations not enforced; reviewer should verify scoring assumptions.</td></tr>
+<tr><td class="kw">GCP_POINT_RINEX_TRUNCATED</td><td>composite (DGPS only)</td><td>|session_end_utc - obs_end_utc| &gt; tolerance, with oplog expected-present</td><td class="sev-HIGH">HIGH</td><td>#8</td><td>Device end-time and RINEX observation end-time disagree — silent truncation. Applies to DGPS only.</td></tr>
+</table></div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Problem Coverage Matrix</div><div class="sec-sub">All 22 real-world GCP problems — every one with an explicit home, limitations stated.</div></div><div class="card"><table><tr><th>#</th><th>Problem</th><th>Severity</th><th>Frequency</th><th>Disposition</th><th>Covered by</th></tr>
+<tr><td class="kw">1</td><td>No Check Points</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>VERY COMMON</td><td><span class="disp disp-OUT-FUTURE">OUT-FUTURE</span></td><td>future check_point_score; survey-design — pre_processing_score also flags</td></tr>
+<tr><td class="kw">2</td><td>CP Not Spatially Independent</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>VERY COMMON</td><td><span class="disp disp-PRE-PROC">PRE-PROC</span></td><td>pre_processing_score</td></tr>
+<tr><td class="kw">3</td><td>Insufficient GCP Count</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td><span class="disp disp-PRE-PROC">PRE-PROC</span></td><td>pre_processing_score (count gate, needs site area)</td></tr>
+<tr><td class="kw">4</td><td>Clustered Near Access Roads</td><td class="sev-CRITICAL">CRITICAL</td><td>VERY COMMON</td><td><span class="disp disp-PRE-PROC">PRE-PROC</span></td><td>pre_processing_score (needs reconstruction extent)</td></tr>
+<tr><td class="kw">5</td><td>Vertical Extremes Uncovered</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td><span class="disp disp-LE">LE</span></td><td>Learning Engine (needs DTM)</td></tr>
+<tr><td class="kw">6</td><td>Antenna Height Blunder (Pole-Mounted)</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>COMMON</td><td><span class="disp disp-OWNED">OWNED</span></td><td>gcp_antenna_height_documented_score + hard gate</td></tr>
+<tr><td class="kw">7</td><td>Coordinate Accuracy Unknown</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>COMMON</td><td><span class="disp disp-PRE-PROC">PRE-PROC</span></td><td>pre_processing_score (Stage 2)</td></tr>
+<tr><td class="kw">8</td><td>Battery/Solar Failure Mid-Session</td><td class="sev-CRITICAL">CRITICAL</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>occupation_completeness + integrity per-point</td></tr>
+<tr><td class="kw">9</td><td>Multipath from Structures</td><td class="sev-HIGH">HIGH</td><td>COMMON</td><td><span class="disp disp-OWNED">OWNED</span></td><td>gcp_multipath_score per point</td></tr>
+<tr><td class="kw">10</td><td>Mark Disturbed Pre-Flight</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-SPLIT">SPLIT</span></td><td>CB_X / AeroPoint case detectable via RINEX (per-point continuity + disturbance composite); traditional marks → Stage 2 ODM detection</td></tr>
+<tr><td class="kw">11</td><td>Target Not Visible at Flight Altitude</td><td class="sev-HIGH">HIGH</td><td>COMMON</td><td><span class="disp disp-PRE-PROC">PRE-PROC</span></td><td>pre_processing_score (cross-doc with planned_gsd_cm)</td></tr>
+<tr><td class="kw">12</td><td>Wrong Coord Typo in ODM</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OUT">OUT</span></td><td>Outside CBMI (manual ODM entry)</td></tr>
+<tr><td class="kw">13</td><td>Pre-Surveyed Coords Wrong CRS</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>OCCASIONAL</td><td><span class="disp disp-PRE-PROC">PRE-PROC</span></td><td>pre_processing_score (datum)</td></tr>
+<tr><td class="kw">14</td><td>Device_ID Mismatch</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>gcp_device_id_match_score (reviewer-blocking)</td></tr>
+<tr><td class="kw">15</td><td>AeroPoint/CB_X Moved During Flight</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>GCP_POINT_DISTURBANCE composite (flag-only)</td></tr>
+<tr><td class="kw">16</td><td>Uneven Surface Tilt</td><td class="sev-MEDIUM">MEDIUM</td><td>OCCASIONAL</td><td><span class="disp disp-OUT">OUT</span></td><td>Hardware limitation (no inclinometer)</td></tr>
+<tr><td class="kw">17</td><td>Target Washed/Blown Away</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-STAGE2">STAGE2</span></td><td>Stage 2 ODM target detection</td></tr>
+<tr><td class="kw">18</td><td>Recording Starts After Takeoff</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td><span class="disp disp-OWNED">OWNED</span></td><td>gcp_acquisition_score</td></tr>
+<tr><td class="kw">19</td><td>Processing Method Too Weak</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td><span class="disp disp-PRE-PROC">PRE-PROC</span></td><td>pre_processing_score (Stage 2)</td></tr>
+<tr><td class="kw">20</td><td>Too Many Check Points, Few GCPs</td><td class="sev-MEDIUM">MEDIUM</td><td>OCCASIONAL</td><td><span class="disp disp-OUT-FUTURE">OUT-FUTURE</span></td><td>future check_point_score (and pre_processing role-allocation)</td></tr>
+<tr><td class="kw">21</td><td>Roles Reversed in ODM</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OUT">OUT</span></td><td>Outside CBMI (third-party software input)</td></tr>
+<tr><td class="kw">22</td><td>Drift Despite Good GCPs</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-LE">LE</span></td><td>Learning Engine (consequence of #5)</td></tr>
+</table></div>
+<div class="note"><b>Known limitations (stated, not hidden):</b><br>Per-point disturbance composite is BLIND to slow settling that produces no gap/slip. Antenna-height-missing gate dilutes via aggregation: one bad point in a fleet of 8 reduces gcp_score by ~11 points (vs 35 if it were a single-event score). gcp_set_min_spacing as a #4 partial signal was dropped (Path 1); #4 detection lives in pre_processing_score where the reconstruction extent is known. Operator-honesty-dependent booleans (target_placed_confirmed, etc.) report documentation rigor, not field truth.</div>
+</div>
+</body></html>

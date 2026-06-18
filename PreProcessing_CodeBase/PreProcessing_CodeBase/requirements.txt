@@ -1,0 +1,7 @@
+# Pre-Processing confidence-score pipeline - third-party dependencies.
+# Standard library covers most of the pipeline; these are needed for the
+# geotagged-image (EXIF) path and sample-data generation.
+piexif>=1.1.3      # read/write EXIF GPS IFD on geotagged JPEGs (Stage 2 parser + sample data)
+Pillow>=9.0        # JPEG container for EXIF (already present via anaconda)
+# numpy is available in the base env but the pipeline uses pure-python geometry
+# (scripts/parsers/geometry.py) to stay dependency-light and deterministic.

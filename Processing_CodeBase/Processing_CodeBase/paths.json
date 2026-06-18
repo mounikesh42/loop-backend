@@ -1,0 +1,34 @@
+{
+  "survey_id": "sample_data",
+  "subsystem": "processing",
+  "spec_version": "1.1.1",
+  "spec_file": "processing_confidence_score/processing_confidence_score_v1.1.json",
+  "inputs": {
+    "report_file": "sample_data/processing_report.pdf",
+    "manifest_file": "sample_data/proc_manifest.json",
+    "deliverables": {
+      "ortho": "sample_data/orthomosaic.tif",
+      "dsm": "sample_data/dem.tif",
+      "dtm": "sample_data/dtm.tif",
+      "point_cloud": "sample_data/point_cloud.las",
+      "mesh_3d": "sample_data/mesh.obj"
+    },
+    "pp_handoff": {
+      "gcp_coord_file": "sample_data/pp_handoff/gcp_coords.csv",
+      "pp_manifest_file": "sample_data/pp_handoff/pp_manifest.json"
+    }
+  },
+  "outputs": {
+    "stage1_inventory": "outputs/01_inventory.json",
+    "stage2_source_fields": "outputs/02_source_fields.json",
+    "stage3_derived": "outputs/03_derived_fields.json",
+    "stage3_indicators": "outputs/04_indicators.json",
+    "stage3_building_blocks": "outputs/05_building_blocks.json",
+    "stage3_per_deliverable_views": "outputs/05b_per_deliverable_views.json",
+    "stage3_processing_score": "outputs/06_processing_score.json"
+  },
+  "options": {
+    "fail_fast": true,
+    "log_level": "INFO"
+  }
+}

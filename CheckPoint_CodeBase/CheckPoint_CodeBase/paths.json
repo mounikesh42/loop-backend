@@ -1,0 +1,29 @@
+{
+  "survey_id": "sample_data",
+  "subsystem": "check_point_rtk",
+  "spec_version": "1.0.0",
+  "spec_file": "check_point_confidence_score/check_point_confidence_score.json",
+  "inputs": {
+    "points_root": "sample_data",
+    "point_folder_glob": "checkpoint_rtk_point_*",
+    "rtk_export_extensions": [".csv", ".jxl", ".pos", ".gpx"],
+    "oplog_filename": "cp_oplog.json",
+    "form_filename": "cp_user_input.json",
+    "rtk_export_min_bytes": 64
+  },
+  "outputs": {
+    "stage1_inventory": "outputs/01_inventory.json",
+    "stage2_source_fields": "outputs/02_source_fields.json",
+    "stage3_derived": "outputs/03_derived_fields.json",
+    "stage3_indicators": "outputs/04_indicators.json",
+    "stage3_building_blocks": "outputs/05_building_blocks.json",
+    "stage3_check_point_score": "outputs/06_check_point_score.json"
+  },
+  "options": {
+    "aggregator_k": 0.25,
+    "noaa_kp_cache_dir": "cache/noaa_swpc",
+    "noaa_kp_timeout_sec": 20,
+    "fail_fast": true,
+    "log_level": "INFO"
+  }
+}

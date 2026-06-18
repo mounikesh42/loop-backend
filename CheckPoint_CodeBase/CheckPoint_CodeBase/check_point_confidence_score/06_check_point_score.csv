@@ -1,0 +1,4 @@
+block_id,block_name,weight
+BB_CP_COMPLETE,cp_capture_completeness_score,0.45
+BB_CP_SETUP,cp_setup_confidence_score,0.35
+BB_CP_ENV,cp_observation_environment_score,0.2

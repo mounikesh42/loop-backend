@@ -1,0 +1,560 @@
+[
+  {
+    "device_role": "GCP",
+    "device_type": "CB_X",
+    "flags_raised_stage3b_point": [],
+    "indicator_traces": {
+      "L3I_GCP_001_occupation_coverage_score": {
+        "band_matched": "partial_coverage",
+        "building_block_id": "BB_GCP_COMPLETE",
+        "condition_evaluated": "coverage=0.75 AND pre>=120s AND post>=60s",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_001",
+        "indicator_name": "occupation_coverage_score",
+        "input_values": {
+          "occupation_coverage_ratio": 0.75,
+          "post_flight_buffer_sec": 120.0,
+          "pre_flight_buffer_sec": 180.0
+        },
+        "score": 55.0,
+        "weight_in_block": 0.35
+      },
+      "L3I_GCP_002_occupation_integrity_score": {
+        "band_matched": "minor_gap",
+        "building_block_id": "BB_GCP_COMPLETE",
+        "condition_evaluated": "device_type=CB_X: any_gap_gt_60s=True",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_002",
+        "indicator_name": "occupation_integrity_score",
+        "input_values": {
+          "any_gap_gt_60s": true,
+          "battery_min_pct": null,
+          "device_type": "CB_X",
+          "raw_log_download_confirmed": null,
+          "session_completed_normally": null,
+          "session_integrity_ok": false,
+          "unexpected_shutdown_count": null
+        },
+        "score": 45.0,
+        "weight_in_block": 0.3
+      },
+      "L3I_GCP_003_occupation_format_score": {
+        "band_matched": "format_complete_single_freq",
+        "building_block_id": "BB_GCP_COMPLETE",
+        "condition_evaluated": "version supported AND header complete AND single-freq",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_003",
+        "indicator_name": "occupation_format_score",
+        "input_values": {
+          "constellation_count": 3,
+          "dual_freq_available": false,
+          "header_complete": true,
+          "rinex_version": "3.03",
+          "rinex_version_supported": true
+        },
+        "score": 60.0,
+        "weight_in_block": 0.2
+      },
+      "L3I_GCP_004_occupation_continuity_score": {
+        "band_matched": "minor_gap_or_low_slips",
+        "building_block_id": "BB_GCP_COMPLETE",
+        "condition_evaluated": "any_gap_gt_60s=True OR cycle_slip_count=10",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_004",
+        "indicator_name": "occupation_continuity_score",
+        "input_values": {
+          "any_gap_gt_60s": true,
+          "cycle_slip_count": 10,
+          "gap_gt_5s_count": 3
+        },
+        "score": 50.0,
+        "weight_in_block": 0.15
+      },
+      "L3I_GCP_005_gcp_antenna_height_documented_score": {
+        "band_matched": "auto_known_factory",
+        "building_block_id": "BB_GCP_SETUP",
+        "condition_evaluated": "antenna_height_auto_known=True (CB_X / AEROPOINT) -> 100 by definition",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_005",
+        "indicator_name": "gcp_antenna_height_documented_score",
+        "input_values": {
+          "antenna_height_agreement": null,
+          "antenna_height_auto_known": true,
+          "antenna_height_m": 0.0,
+          "antenna_measurement_type": null,
+          "height_measured_count": null,
+          "measured_to_reference": null
+        },
+        "score": 100.0,
+        "weight_in_block": 0.55
+      },
+      "L3I_GCP_006_gcp_device_id_match_score": {
+        "band_matched": "device_id_match",
+        "building_block_id": "BB_GCP_SETUP",
+        "condition_evaluated": "form device_id == RINEX device_id",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_006",
+        "indicator_name": "gcp_device_id_match_score",
+        "input_values": {
+          "device_id_match": true
+        },
+        "score": 100.0,
+        "weight_in_block": 0.3
+      },
+      "L3I_GCP_007_gcp_antenna_type_match_score": {
+        "band_matched": "antenna_type_match",
+        "building_block_id": "BB_GCP_SETUP",
+        "condition_evaluated": "form antenna_model == RINEX antenna_type",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_007",
+        "indicator_name": "gcp_antenna_type_match_score",
+        "input_values": {
+          "antenna_type_match": true
+        },
+        "score": 100.0,
+        "weight_in_block": 0.15
+      },
+      "L3I_GCP_008_gcp_multipath_score": {
+        "band_matched": "moderate_multipath",
+        "building_block_id": "BB_GCP_ENV",
+        "condition_evaluated": "2.5 < mean_std <= 4.0 dB-Hz",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_008",
+        "indicator_name": "gcp_multipath_score",
+        "input_values": {
+          "cn0_mean_dbhz": 33.5,
+          "mean_of_per_sat_cn0_std_dbhz": 3.2,
+          "thresholds_dbhz": {
+            "high_min": 4.0,
+            "low_max": 2.5
+          }
+        },
+        "score": 55.0,
+        "weight_in_block": 0.5
+      },
+      "L3I_GCP_009_gcp_acquisition_score": {
+        "band_matched": "moderate_acquisition",
+        "building_block_id": "BB_GCP_ENV",
+        "condition_evaluated": "60s <= acquisition < 120s",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_009",
+        "indicator_name": "gcp_acquisition_score",
+        "input_values": {
+          "device_acquisition_time_sec": 90.0
+        },
+        "score": 50.0,
+        "weight_in_block": 0.3
+      },
+      "L3I_GCP_010_gcp_ionospheric_risk_score": {
+        "band_matched": "single_freq_risk",
+        "building_block_id": "BB_GCP_ENV",
+        "condition_evaluated": "dual_freq=False AND kp_index=6.0",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_010",
+        "indicator_name": "gcp_ionospheric_risk_score",
+        "input_values": {
+          "dual_freq_available": false,
+          "kp_index": 6.0,
+          "kp_status": "MODERATE_STORM",
+          "kp_storm_min": 7.0,
+          "kp_top_max": 4.0
+        },
+        "score": 45.0,
+        "weight_in_block": 0.2
+      }
+    },
+    "point_id": "gcp_rinex_point_1"
+  },
+  {
+    "device_role": "GCP",
+    "device_type": "CB_X",
+    "flags_raised_stage3b_point": [],
+    "indicator_traces": {
+      "L3I_GCP_001_occupation_coverage_score": {
+        "band_matched": "partial_coverage",
+        "building_block_id": "BB_GCP_COMPLETE",
+        "condition_evaluated": "coverage=0.5 AND pre>=60s AND post>=30s",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_001",
+        "indicator_name": "occupation_coverage_score",
+        "input_values": {
+          "occupation_coverage_ratio": 0.5,
+          "post_flight_buffer_sec": 60.0,
+          "pre_flight_buffer_sec": 90.0
+        },
+        "score": 50.0,
+        "weight_in_block": 0.35
+      },
+      "L3I_GCP_002_occupation_integrity_score": {
+        "band_matched": "minor_gap",
+        "building_block_id": "BB_GCP_COMPLETE",
+        "condition_evaluated": "device_type=CB_X: any_gap_gt_60s=True",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_002",
+        "indicator_name": "occupation_integrity_score",
+        "input_values": {
+          "any_gap_gt_60s": true,
+          "battery_min_pct": null,
+          "device_type": "CB_X",
+          "raw_log_download_confirmed": null,
+          "session_completed_normally": null,
+          "session_integrity_ok": false,
+          "unexpected_shutdown_count": null
+        },
+        "score": 45.0,
+        "weight_in_block": 0.3
+      },
+      "L3I_GCP_003_occupation_format_score": {
+        "band_matched": "format_complete_single_freq",
+        "building_block_id": "BB_GCP_COMPLETE",
+        "condition_evaluated": "version supported AND header complete AND single-freq",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_003",
+        "indicator_name": "occupation_format_score",
+        "input_values": {
+          "constellation_count": 3,
+          "dual_freq_available": false,
+          "header_complete": true,
+          "rinex_version": "3.03",
+          "rinex_version_supported": true
+        },
+        "score": 60.0,
+        "weight_in_block": 0.2
+      },
+      "L3I_GCP_004_occupation_continuity_score": {
+        "band_matched": "minor_gap_or_low_slips",
+        "building_block_id": "BB_GCP_COMPLETE",
+        "condition_evaluated": "any_gap_gt_60s=True OR cycle_slip_count=15",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_004",
+        "indicator_name": "occupation_continuity_score",
+        "input_values": {
+          "any_gap_gt_60s": true,
+          "cycle_slip_count": 15,
+          "gap_gt_5s_count": 2
+        },
+        "score": 50.0,
+        "weight_in_block": 0.15
+      },
+      "L3I_GCP_005_gcp_antenna_height_documented_score": {
+        "band_matched": "auto_known_factory",
+        "building_block_id": "BB_GCP_SETUP",
+        "condition_evaluated": "antenna_height_auto_known=True (CB_X / AEROPOINT) -> 100 by definition",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_005",
+        "indicator_name": "gcp_antenna_height_documented_score",
+        "input_values": {
+          "antenna_height_agreement": null,
+          "antenna_height_auto_known": true,
+          "antenna_height_m": 0.0,
+          "antenna_measurement_type": null,
+          "height_measured_count": null,
+          "measured_to_reference": null
+        },
+        "score": 100.0,
+        "weight_in_block": 0.55
+      },
+      "L3I_GCP_006_gcp_device_id_match_score": {
+        "band_matched": "device_id_match",
+        "building_block_id": "BB_GCP_SETUP",
+        "condition_evaluated": "form device_id == RINEX device_id",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_006",
+        "indicator_name": "gcp_device_id_match_score",
+        "input_values": {
+          "device_id_match": true
+        },
+        "score": 100.0,
+        "weight_in_block": 0.3
+      },
+      "L3I_GCP_007_gcp_antenna_type_match_score": {
+        "band_matched": "antenna_type_match",
+        "building_block_id": "BB_GCP_SETUP",
+        "condition_evaluated": "form antenna_model == RINEX antenna_type",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_007",
+        "indicator_name": "gcp_antenna_type_match_score",
+        "input_values": {
+          "antenna_type_match": true
+        },
+        "score": 100.0,
+        "weight_in_block": 0.15
+      },
+      "L3I_GCP_008_gcp_multipath_score": {
+        "band_matched": "moderate_multipath",
+        "building_block_id": "BB_GCP_ENV",
+        "condition_evaluated": "2.5 < mean_std <= 4.0 dB-Hz",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_008",
+        "indicator_name": "gcp_multipath_score",
+        "input_values": {
+          "cn0_mean_dbhz": 34.0,
+          "mean_of_per_sat_cn0_std_dbhz": 3.0,
+          "thresholds_dbhz": {
+            "high_min": 4.0,
+            "low_max": 2.5
+          }
+        },
+        "score": 55.0,
+        "weight_in_block": 0.5
+      },
+      "L3I_GCP_009_gcp_acquisition_score": {
+        "band_matched": "moderate_acquisition",
+        "building_block_id": "BB_GCP_ENV",
+        "condition_evaluated": "60s <= acquisition < 120s",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_009",
+        "indicator_name": "gcp_acquisition_score",
+        "input_values": {
+          "device_acquisition_time_sec": 100.0
+        },
+        "score": 50.0,
+        "weight_in_block": 0.3
+      },
+      "L3I_GCP_010_gcp_ionospheric_risk_score": {
+        "band_matched": "single_freq_risk",
+        "building_block_id": "BB_GCP_ENV",
+        "condition_evaluated": "dual_freq=False AND kp_index=6.0",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_010",
+        "indicator_name": "gcp_ionospheric_risk_score",
+        "input_values": {
+          "dual_freq_available": false,
+          "kp_index": 6.0,
+          "kp_status": "MODERATE_STORM",
+          "kp_storm_min": 7.0,
+          "kp_top_max": 4.0
+        },
+        "score": 45.0,
+        "weight_in_block": 0.2
+      }
+    },
+    "point_id": "gcp_rinex_point_2"
+  },
+  {
+    "device_role": "GCP",
+    "device_type": "CB_X",
+    "flags_raised_stage3b_point": [],
+    "indicator_traces": {
+      "L3I_GCP_001_occupation_coverage_score": {
+        "band_matched": "partial_coverage",
+        "building_block_id": "BB_GCP_COMPLETE",
+        "condition_evaluated": "coverage=0.6 AND pre>=90s AND post>=45s",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_001",
+        "indicator_name": "occupation_coverage_score",
+        "input_values": {
+          "occupation_coverage_ratio": 0.6,
+          "post_flight_buffer_sec": 45.0,
+          "pre_flight_buffer_sec": 90.0
+        },
+        "score": 52.0,
+        "weight_in_block": 0.35
+      },
+      "L3I_GCP_002_occupation_integrity_score": {
+        "band_matched": "minor_gap",
+        "building_block_id": "BB_GCP_COMPLETE",
+        "condition_evaluated": "device_type=CB_X: any_gap_gt_60s=False",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_002",
+        "indicator_name": "occupation_integrity_score",
+        "input_values": {
+          "any_gap_gt_60s": false,
+          "battery_min_pct": null,
+          "device_type": "CB_X",
+          "raw_log_download_confirmed": null,
+          "session_completed_normally": null,
+          "session_integrity_ok": true,
+          "unexpected_shutdown_count": null
+        },
+        "score": 58.0,
+        "weight_in_block": 0.3
+      },
+      "L3I_GCP_003_occupation_format_score": {
+        "band_matched": "format_complete_single_freq",
+        "building_block_id": "BB_GCP_COMPLETE",
+        "condition_evaluated": "version supported AND header complete AND single-freq",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_003",
+        "indicator_name": "occupation_format_score",
+        "input_values": {
+          "constellation_count": 3,
+          "dual_freq_available": false,
+          "header_complete": true,
+          "rinex_version": "3.03",
+          "rinex_version_supported": true
+        },
+        "score": 60.0,
+        "weight_in_block": 0.2
+      },
+      "L3I_GCP_004_occupation_continuity_score": {
+        "band_matched": "minor_gap_or_low_slips",
+        "building_block_id": "BB_GCP_COMPLETE",
+        "condition_evaluated": "any_gap_gt_60s=False OR cycle_slip_count=12",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_004",
+        "indicator_name": "occupation_continuity_score",
+        "input_values": {
+          "any_gap_gt_60s": false,
+          "cycle_slip_count": 12,
+          "gap_gt_5s_count": 1
+        },
+        "score": 55.0,
+        "weight_in_block": 0.15
+      },
+      "L3I_GCP_005_gcp_antenna_height_documented_score": {
+        "band_matched": "auto_known_factory",
+        "building_block_id": "BB_GCP_SETUP",
+        "condition_evaluated": "antenna_height_auto_known=True (CB_X / AEROPOINT) -> 100 by definition",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_005",
+        "indicator_name": "gcp_antenna_height_documented_score",
+        "input_values": {
+          "antenna_height_agreement": null,
+          "antenna_height_auto_known": true,
+          "antenna_height_m": 0.0,
+          "antenna_measurement_type": null,
+          "height_measured_count": null,
+          "measured_to_reference": null
+        },
+        "score": 100.0,
+        "weight_in_block": 0.55
+      },
+      "L3I_GCP_006_gcp_device_id_match_score": {
+        "band_matched": "device_id_match",
+        "building_block_id": "BB_GCP_SETUP",
+        "condition_evaluated": "form device_id == RINEX device_id",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_006",
+        "indicator_name": "gcp_device_id_match_score",
+        "input_values": {
+          "device_id_match": true
+        },
+        "score": 100.0,
+        "weight_in_block": 0.3
+      },
+      "L3I_GCP_007_gcp_antenna_type_match_score": {
+        "band_matched": "antenna_type_match",
+        "building_block_id": "BB_GCP_SETUP",
+        "condition_evaluated": "form antenna_model == RINEX antenna_type",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_007",
+        "indicator_name": "gcp_antenna_type_match_score",
+        "input_values": {
+          "antenna_type_match": true
+        },
+        "score": 100.0,
+        "weight_in_block": 0.15
+      },
+      "L3I_GCP_008_gcp_multipath_score": {
+        "band_matched": "moderate_multipath",
+        "building_block_id": "BB_GCP_ENV",
+        "condition_evaluated": "2.5 < mean_std <= 4.0 dB-Hz",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_008",
+        "indicator_name": "gcp_multipath_score",
+        "input_values": {
+          "cn0_mean_dbhz": 35.0,
+          "mean_of_per_sat_cn0_std_dbhz": 3.5,
+          "thresholds_dbhz": {
+            "high_min": 4.0,
+            "low_max": 2.5
+          }
+        },
+        "score": 58.0,
+        "weight_in_block": 0.5
+      },
+      "L3I_GCP_009_gcp_acquisition_score": {
+        "band_matched": "moderate_acquisition",
+        "building_block_id": "BB_GCP_ENV",
+        "condition_evaluated": "60s <= acquisition < 120s",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_009",
+        "indicator_name": "gcp_acquisition_score",
+        "input_values": {
+          "device_acquisition_time_sec": 110.0
+        },
+        "score": 52.0,
+        "weight_in_block": 0.3
+      },
+      "L3I_GCP_010_gcp_ionospheric_risk_score": {
+        "band_matched": "single_freq_risk",
+        "building_block_id": "BB_GCP_ENV",
+        "condition_evaluated": "dual_freq=False AND kp_index=5.5",
+        "flags_raised": [],
+        "gate_action_spec": null,
+        "gate_triggered": false,
+        "indicator_id": "L3I_GCP_010",
+        "indicator_name": "gcp_ionospheric_risk_score",
+        "input_values": {
+          "dual_freq_available": false,
+          "kp_index": 5.5,
+          "kp_status": "MINOR_STORM",
+          "kp_storm_min": 7.0,
+          "kp_top_max": 4.0
+        },
+        "score": 50.0,
+        "weight_in_block": 0.2
+      }
+    },
+    "point_id": "gcp_rinex_point_3"
+  }
+]

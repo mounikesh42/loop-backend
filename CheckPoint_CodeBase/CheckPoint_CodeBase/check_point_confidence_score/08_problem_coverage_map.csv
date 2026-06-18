@@ -1,0 +1,31 @@
+problem_no,problem,severity,frequency,disposition,covered_by
+1,Float Solution Accepted as Fixed,CRITICAL (escalates to CATASTROPHIC when N<5),OCCASIONAL,OWNED,cp_fix_type_score + hard gate + conditional severity escalation
+2,Single-Epoch Capture,HIGH,OCCASIONAL,OWNED,cp_fix_hold_score (environment category)
+3,Stale or Lost Correction,CRITICAL,OCCASIONAL,OWNED,cp_correction_age_score (degrades gracefully when data absent)
+4,Wrong Base Coordinate,CATASTROPHIC,OCCASIONAL,OWNED_BY_BASE_STATION,"base_station_score (BENCHMARK_UNVERIFIED, AUTONOMOUS_SEED). Documented in check_point_score known_limitations; no detection here."
+5,Reference Frame / Datum / CRS Mismatch,CATASTROPHIC,COMMON,OWNED_BY_PRE_PROCESSING,pre_processing_score. Documented; no detection here. Silent-invisible failure class.
+6,Geoid / Vertical Datum Mismatch,CATASTROPHIC,COMMON,OWNED_BY_PRE_PROCESSING,pre_processing_score. Documented; no detection here. Silent-invisible failure class.
+7,Site Calibration / Localization Applied,HIGH,OCCASIONAL (COMMON for construction),OWNED_BY_PRE_PROCESSING,pre_processing_score. Documented; no detection here.
+8,False Fix,CRITICAL,OCCASIONAL,OWNED (advisory only),CP_NO_REPEATABILITY_CHECK advisory flag (zero weight). Documented detection gap. Roadmap: repeatability_check_score with dual-occupation workflow.
+9,Excessive Baseline Length,HIGH,OCCASIONAL (COMMON in patchy-CORS regions),OWNED,cp_baseline_length_score
+10,Check-Point Antenna Height Blunder,CATASTROPHIC,OCCASIONAL,OWNED,cp_antenna_height_documented_score + hard gate
+11,Antenna Type / Model Mismatch,MEDIUM,RARE,OWNED,cp_antenna_type_match_score
+12,Device ID Mismatch (Provenance),MEDIUM,OCCASIONAL,OWNED,cp_device_id_match_score (reviewer-blocking)
+13,Mark Disturbed Between Flight and Capture,HIGH,COMMON,OWNED,CP_DELAYED_CAPTURE + CP_STALE_CAPTURE timing flags
+14,Wrong Physical Point Captured,HIGH,OCCASIONAL,OWNED (advisory only),CP_NO_MARK_PHOTO advisory flag is a weak proxy — mark photo presence enables retrospective verification but does not detect wrong-point capture at scoring time. Common subtle case (10-30 cm off the intended mark) not scoreable from any available data.
+15,Check Points Not Spatially Independent from GCPs,HIGH,COMMON,OWNED_BY_PRE_PROCESSING,pre_processing_score. Documented; no detection here.
+16,No Check Points Designated,CATASTROPHIC,VERY COMMON,OWNED_BY_PRE_PROCESSING,pre_processing_score + Stage-1 null state (NO_DESIGNATED_CHECK_POINTS)
+17,Too Few Check Points for Statistical Validity,HIGH,COMMON,OWNED_BY_PRE_PROCESSING,pre_processing_score
+18,Check Points Clustered Geographically,HIGH,COMMON,OWNED_BY_PRE_PROCESSING,pre_processing_score
+19,Check-Point Captured Before Drone Flight,HIGH,OCCASIONAL,OWNED,CP_CAPTURED_BEFORE_FLIGHT timing flag
+20,Capture During Flight Window,LOW (workflow),OCCASIONAL,OWNED,CP_CAPTURED_DURING_FLIGHT workflow advisory only
+21,RTK Capture Near Obstructions,HIGH,OCCASIONAL,OWNED,cp_obstruction_score (weaker signal than PPK)
+22,Ionospheric Disturbance,MEDIUM,OCCASIONAL/RARE,OWNED,cp_ionospheric_risk_score (with documented Kp limitation for India)
+23,Check-Point Log Not Downloaded,HIGH,OCCASIONAL,OWNED,cp_log_integrity_score
+24,Check-Point Log Tampered,HIGH,RARE,OWNED,cp_log_integrity_score (signature validation; device-type-aware)
+25,Pole/Rod Tilt,HIGH,COMMON (hand-held) / RARE (tilt-comp),OWNED,cp_pole_stability_score (verifiable on tilt-comp; advisory on hand-held)
+26,Mark Photo Not Captured,MEDIUM,COMMON,OWNED,CP_NO_MARK_PHOTO advisory flag
+27,Wrong NTRIP Mountpoint,HIGH,RARE,OWNED,cp_ntrip_mountpoint_score
+28,Poor DOP/Geometry at Fixed Epoch,MEDIUM,OCCASIONAL,OWNED,cp_pdop_at_capture_score
+29,CP Used as Control in Bundle Adjustment,CRITICAL,OCCASIONAL,OWNED_BY_PROCESSING,Future processing_score. Pre-committed catalog row; documented as known failure class.
+30,Receiver-Estimated Sigma Ignored,HIGH,UNIVERSAL,OWNED,cp_position_sigma_score — PRIMARY anchor indicator with graceful degradation

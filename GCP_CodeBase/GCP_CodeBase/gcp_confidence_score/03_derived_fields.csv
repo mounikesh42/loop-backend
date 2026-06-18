@@ -1,0 +1,24 @@
+derived_id,derived_name,kind,formula_expression,meaning,input_field_names
+L2D_GCP_001,occupation_coverage_ratio,scoring,"overlap(obs window, flight window) / duration(flight window)",Fraction of the drone flight covered by this GCP's observations. Must equal 1.0; less means PPK gaps for this point.,obs_start_utc;obs_end_utc;flight_start_utc;flight_end_utc
+L2D_GCP_002,pre_flight_buffer_sec,scoring,flight_start_utc - obs_start_utc,"Seconds the GCP device was recording before flight start. Threshold >= 120s ideal, >= 60s acceptable.",obs_start_utc;flight_start_utc
+L2D_GCP_003,post_flight_buffer_sec,scoring,obs_end_utc - flight_end_utc,Seconds the GCP device kept recording after flight end. Threshold >= 60s.,obs_end_utc;flight_end_utc
+L2D_GCP_004,dual_freq_available,scoring,dual_freq_present == True,Whether dual-frequency observations are available.,dual_freq_present
+L2D_GCP_005,cycle_slip_count,scoring,count of cycle_slip_markers,Total cycle slips. Elevated = obstruction/disturbance/multipath.,cycle_slip_markers
+L2D_GCP_006,gap_gt_5s_count,scoring,count of inter-epoch gaps > 5s,Short recording gaps within the occupation.,epoch_interval_sec;total_epochs
+L2D_GCP_007,any_gap_gt_60s,scoring,max inter-epoch gap > 60s,Any major recording gap.,epoch_interval_sec;total_epochs
+L2D_GCP_008,cn0_mean_dbhz,scoring,mean of cn0_per_sat,Mean signal strength across the occupation.,cn0_per_sat
+L2D_GCP_009,multipath_risk_level,scoring,std-dev of cn0_per_sat across sats at equal elevation,"Proxy for multipath risk from a fixed reflector geometry. Risk indicator, not error magnitude. Numeric thresholds: low <= 2.5 dB-Hz; moderate 2.5–4.0; high > 4.0.",cn0_per_sat
+L2D_GCP_010,mean_pdop,scoring,mean of pdop_per_epoch during occupation,Average sky-geometry quality. Thresholds: <2 = 100; 2-4 = 80; 4-6 = 55; >6 = 30.,pdop_per_epoch
+L2D_GCP_011,max_pdop,scoring,max of pdop_per_epoch during occupation,Worst-case geometry during occupation.,pdop_per_epoch
+L2D_GCP_012,device_acquisition_time_sec,scoring,time from power-on to stable sat_count (>=6 sats with low PDOP),How quickly the device reached a stable solution after power-on. Thresholds: <60s = 100; 60-119s = 88; 120-299s = 65; >=300s = 30.,sat_count_per_epoch
+L2D_GCP_013,rinex_version_supported,scoring,"rinex_version in {2.10, 2.11, 3.02, 3.03, 3.04, 3.05}",Whether RINEX version is accepted by the PPK pipeline.,rinex_version
+L2D_GCP_014,header_completeness,scoring,antenna_type AND receiver_type AND approx_position_xyz all present,Whether required header records are present.,antenna_type;receiver_type;approx_position_xyz
+L2D_GCP_015,constellation_count,scoring,count of constellation_set,Number of constellations tracked.,constellation_set
+L2D_GCP_016,session_integrity_ok,composite_scoring,"device_type-aware: for DGPS, requires completed_normally AND shutdowns==0 AND battery_min >= 20%; for CB_X / AEROPOINT / OTHER, oplog expected-absent, evaluates as TRUE if RINEX-side signals are clean (no gap_gt_60s)",Whether the occupation terminated cleanly with adequate power. Device-type aware.,session_completed_normally;unexpected_shutdown_count;battery_min_pct;any_gap_gt_60s;device_type
+L2D_GCP_017,antenna_type_match,scoring,"antenna_model (form) == antenna_type (RINEX), normalised",Form vs RINEX antenna type consistency. NOT ANTEX calibration (Stage 2).,antenna_model;antenna_type
+L2D_GCP_018,antenna_height_agreement,scoring,|antenna_height_m (form) - antenna_delta_h (RINEX)| within tolerance (when delta_h != 0),Form-height vs RINEX-recorded-height cross-check. Agreement raises confidence; conflict flags the wrong-reference blunder.,antenna_height_m;antenna_delta_h
+L2D_GCP_019,device_id_match,scoring,"device_id (form) == device_id (RINEX), normalised",Form vs RINEX device ID match. Uniform threshold: match=100; mismatch=50 + reviewer-blocking flag (HIGH severity).,device_id;device_id
+L2D_GCP_020,kp_index,scoring,NOAA SWPC Kp at obs_start_utc,Geomagnetic activity index. External NOAA SWPC API dependency.,obs_start_utc
+L2D_GCP_021,antenna_height_auto_known,scoring,"device_type in {CB_X, AEROPOINT}","Whether antenna height is factory-known for this device type. When true, antenna_height_documented_score = 100 by definition.",device_type
+L2D_GCP_022,position_disturbance_signature,composite_flag,gap_gt_5s_count rising AND cycle_slip_count rising AND cn0 variance rising in same time window,"Correlation detector for physical disturbance during occupation (#15). FLAG-ONLY, no weight. BLIND to slow settling that produces no gap/slip.",gap_gt_5s_count;cycle_slip_count;cn0_per_sat
+L2D_GCP_023,truncation_check,composite_flag,|session_end_utc - obs_end_utc| within tolerance (when oplog is expected-present),Device-clock vs observation-end cross-check. Disagreement = silent truncation. Applies to DGPS only.,session_end_utc;obs_end_utc;device_type

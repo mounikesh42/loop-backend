@@ -1,0 +1,365 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CB Capture — Check Point Confidence Score (v1, RTK)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--accent:#4A8BBF;--accent2:#5fa3d8;--gold:#c9a84c;--green:#3dba78;--teal:#3dd8c0;
+--orange:#e08c3a;--purple:#9b6fe0;--red:#e05555;--navy:#0d1b2a;--navy2:#112236;--navy3:#162d44;
+--navy4:#1a3350;--text:#d6e4f0;--textdim:#7a9bb5;--textfaint:#4a6a80;--border:rgba(122,155,181,.18);
+--border2:rgba(122,155,181,.30);--mono:'SF Mono',ui-monospace,Menlo,monospace;
+--sans:-apple-system,Segoe UI,Roboto,sans-serif}
+body{background:var(--navy);color:var(--text);font-family:var(--sans);line-height:1.55;padding:40px 32px 80px;max-width:1180px;margin:0 auto}
+.hdr-eye{font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin-bottom:6px}
+.hdr-title{font-size:30px;font-weight:700;letter-spacing:-.5px}
+.hdr-title span{color:var(--accent2);font-weight:400}
+.hdr-sub{font-size:13px;color:var(--textdim);margin-top:8px;line-height:1.65;max-width:880px}
+.flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:22px 0 8px;font-family:var(--mono);font-size:11px}
+.flow span{padding:5px 11px;border-radius:5px;background:var(--navy3);border:1px solid var(--border2);color:var(--textdim)}
+.flow b{color:var(--gold)}
+.sec{margin:38px 0 0}
+.sec-bar{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border2);padding-bottom:8px;margin-bottom:16px}
+.sec-name{font-size:18px;font-weight:700;color:var(--accent2)}
+.sec-sub{font-size:12px;color:var(--textdim)}
+.card{background:var(--navy2);border:1px solid var(--border);border-radius:9px;padding:18px 20px;margin-bottom:14px}
+.card.gate{border-color:rgba(224,140,58,.35)}
+.row-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.name{font-family:var(--mono);font-size:14px;color:var(--gold);font-weight:600}
+.lname{font-size:13px;color:var(--text)}
+.wt{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--teal)}
+.pill{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:3px;border:1px solid var(--border2);color:var(--textdim)}
+.pill.cov{color:var(--purple);border-color:rgba(155,111,224,.4)}
+.pill.auto{color:var(--teal);border-color:rgba(61,216,192,.35)}
+.pill.user{color:var(--orange);border-color:rgba(224,140,58,.4)}
+.pill.flag{color:var(--red);border-color:rgba(224,85,85,.4)}
+.pill.warn{color:var(--gold);border-color:rgba(201,168,76,.4)}
+.meaning{font-size:12.5px;color:var(--textdim);margin:4px 0}
+.formula{font-family:var(--mono);font-size:12px;color:var(--text);background:var(--navy);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin:8px 0;white-space:pre-wrap;line-height:1.7}
+.src{font-family:var(--mono);font-size:11px;color:var(--accent);margin-top:4px}
+.thr{font-size:11.5px;color:var(--textdim);background:var(--navy);border-left:2px solid var(--accent);padding:7px 10px;border-radius:0 5px 5px 0;margin-top:8px;font-family:var(--mono);line-height:1.6}
+.davail{font-size:11px;color:var(--teal);background:rgba(61,216,192,.05);border:1px dashed rgba(61,216,192,.25);border-radius:5px;padding:6px 10px;margin-top:6px;font-family:var(--mono);line-height:1.6}
+.gatetag{font-size:11px;color:var(--orange);background:rgba(224,140,58,.08);border:1px solid rgba(224,140,58,.25);border-radius:5px;padding:7px 10px;margin-top:8px;font-family:var(--mono)}
+.fld{display:grid;grid-template-columns:230px 1fr;gap:14px;padding:7px 0;border-bottom:1px solid var(--border)}
+.fld:last-child{border:0}
+.fld-n{font-family:var(--mono);font-size:12px;color:var(--text)}
+.fld-m{font-size:12px;color:var(--textdim)}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+th{text-align:left;color:var(--gold);font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--border2)}
+td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--textdim);vertical-align:top}
+td.kw{font-family:var(--mono);color:var(--text)}
+.sev-CATASTROPHIC{color:var(--red);font-weight:600}
+.sev-CRITICAL{color:var(--orange);font-weight:600}
+.sev-HIGH{color:var(--gold)}
+.sev-MEDIUM{color:var(--textdim)}
+.sev-LOW{color:var(--textfaint)}
+.sev-ADVISORY{color:var(--textfaint)}
+.disp{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:3px}
+.disp-OWNED{color:var(--green);border:1px solid rgba(61,186,120,.4)}
+.disp-SPLIT{color:var(--teal);border:1px solid rgba(61,216,192,.4)}
+.disp-OWNED_BY_BASE_STATION{color:var(--accent2);border:1px solid rgba(95,163,216,.4)}
+.disp-OWNED_BY_PRE_PROCESSING{color:var(--textfaint);border:1px solid var(--border2)}
+.disp-OWNED_BY_PROCESSING{color:var(--purple);border:1px solid rgba(155,111,224,.4)}
+.note{font-size:12px;color:var(--textdim);background:var(--navy3);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-top:14px;line-height:1.7}
+.note b{color:var(--gold)}
+</style></head><body>
+<div class="hdr-eye">CrystalBall Infinity — CB Capture Universe</div>
+<div class="hdr-title">Check Point Confidence Score <span>v1 · RTK · Single-Phase</span></div>
+<div class="hdr-sub">RTK-only single-phase single-scalar redesign. Capture-confidence only — survey-design adequacy (counts, role allocation, spatial independence from GCPs, reference frame, geoid, base coordinate, processing role assignment) owned by other subsystems. Per-point scoring as primary; sigma is the universal anchor indicator with graceful degradation when missing. Three building blocks structurally parallel to gcp_score and base_station_score (independently specified). mean − k·worst aggregation (k=0.25) across CHECK_POINT-role points.</div>
+<div class="hdr-sub" style="margin-top:10px;color:var(--gold)">Computed entirely from check-point RTK device exports + check-point operation logs + check-point user input + flight timing context + external NOAA Kp API. Does not read from base_station_score, gcp_score, drone_score, or pre_processing_score data at runtime.</div>
+<div class="flow">
+<span><b>Source Files (×N per CP point)</b></span>→<span>Source Fields</span>→<span>Derived Fields</span>→<span>Indicators</span>→<span>Per-point Score</span>→<span>Building Blocks (aggregate)</span>→<span><b>check_point_score</b></span>
+</div>
+
+<div class="sec"><div class="sec-bar"><div class="sec-name">Core — check_point_score</div>
+<div class="sec-sub">Single scalar. RTK only. Capture-confidence only. Sigma is the universal anchor.</div></div>
+<div class="card gate"><div class="row-top"><div class="name">check_point_score</div><div class="lname">Check Point Confidence Score</div></div>
+<div class="formula">0.45*cp_capture_completeness_score + 0.35*cp_setup_confidence_score + 0.20*cp_observation_environment_score</div>
+<div class="formula" style="background:var(--navy2)">per-point:  0.45*per_point_completeness + 0.35*per_point_setup_confidence + 0.20*per_point_environment
+aggregator:  mean − 0.25 × (100 − min) within each role-block, applied across all CHECK_POINT-role points</div>
+<div class="gatetag">⊘ GLOBAL GATE: Sets check_point_score = 0. Raises FLAG: CP_CRITICAL_FAILURE.</div>
+<div class="gatetag" style="background:rgba(155,111,224,.08);border-color:rgba(155,111,224,.25);color:var(--purple)">∅ NULL: Zero points with device_role=CHECK_POINT → check_point_score = null (not 0). FLAG: NO_DESIGNATED_CHECK_POINTS. Pre-processing handles the survey-design implication.</div>
+<div class="meaning" style="margin-top:10px">Hardware-derived capture-confidence score for RTK check-point captures. Independent at runtime of base_station_score, gcp_score, and pre_processing_score — requires only per-point RTK device exports + check-point operation logs + check-point user input + NOAA Kp API. Survey-design adequacy (counts, role allocation, spatial independence from GCPs, geographic clustering, reference frame, geoid, base coordinate, processing role assignment) is owned by base_station_score, pre_processing_score, or future processing_score and surfaced only there.</div>
+<div class="meaning"><b style="color:var(--text)">Supported device types:</b> CB_X / AEROPOINT / DGPS / OTHER</div></div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 1 — Building Blocks</div><div class="sec-sub">Three blocks aggregating per-point category scores across all CHECK_POINT-role points.</div></div>
+<div class="card gate">
+<div class="row-top"><div class="name" style="color:var(--accent2)">cp_capture_completeness_score</div>
+<div class="lname">Capture Completeness &amp; Integrity</div><div class="wt">weight 0.45 in check_point_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Are the per-point captures present, RTK-fix-quality acceptable, and recorded reliably? &nbsp;·&nbsp; <b style="color:var(--text)">Owner:</b> Per-point capture / device &nbsp;·&nbsp; <b style="color:var(--text)">If low:</b> Re-occupy affected points; verify FIXED fix before storing</div>
+<div class="formula">aggregator: mean − k × (100 − min) across CHECK_POINT-role per_point_completeness, k=0.25
+indicators:  cp_position_sigma_score(0.45), cp_fix_type_score(0.30), cp_correction_age_score(0.15), cp_log_integrity_score(0.10)</div><div class="gatetag">⊘ Triggers CP_CRITICAL_FAILURE at check_point_score level.</div></div>
+<div class="card gate">
+<div class="row-top"><div class="name" style="color:var(--orange)">cp_setup_confidence_score</div>
+<div class="lname">Per-point Setup &amp; Documentation Confidence</div><div class="wt">weight 0.35 in check_point_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Is per-point operator metadata trustworthy and baseline/mountpoint correctly configured? &nbsp;·&nbsp; <b style="color:var(--text)">Owner:</b> Operator (per-point setup) &nbsp;·&nbsp; <b style="color:var(--text)">If low:</b> Re-measure antenna height; verify mountpoint; bipod or tilt-comp rover</div>
+<div class="formula">aggregator: mean − k × (100 − min) across CHECK_POINT-role per_point_setup_confidence, k=0.25
+indicators:  cp_antenna_height_documented_score(0.40), cp_pole_stability_score(0.20), cp_baseline_length_score(0.15), cp_ntrip_mountpoint_score(0.10), cp_antenna_type_match_score(0.10), cp_device_id_match_score(0.05)</div><div class="gatetag">⊘ That point per_point_setup_confidence = 0. FLAG: CP_POINT_ANTENNA_HEIGHT_MISSING.</div></div>
+<div class="card">
+<div class="row-top"><div class="name" style="color:var(--teal)">cp_observation_environment_score</div>
+<div class="lname">Per-point Observation Environment</div><div class="wt">weight 0.2 in check_point_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Was the sky and environment good at each capture moment? &nbsp;·&nbsp; <b style="color:var(--text)">Owner:</b> Site / sky conditions &nbsp;·&nbsp; <b style="color:var(--text)">If low:</b> Relocate next time; accept noise; capture at lower-iono time</div>
+<div class="formula">aggregator: mean − k × (100 − min) across CHECK_POINT-role per_point_environment, k=0.25
+indicators:  cp_pdop_at_capture_score(0.40), cp_fix_hold_score(0.25), cp_obstruction_score(0.20), cp_ionospheric_risk_score(0.15)</div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 2 — Per-point Computation</div>
+<div class="sec-sub">Each CHECK_POINT-role point gets its own score using same shape as drone/base/gcp chains. Hard gates at per-point level.</div></div>
+<div class="card"><div class="formula">per_point_score = 0.45 × per_point_completeness
+                + 0.35 × per_point_setup_confidence
+                + 0.20 × per_point_environment
+
+Per-point hard gates:
+  • fix_type_at_capture ∈ {FLOAT, AUTONOMOUS}  →  this point's completeness sub-score = 0
+                                                  (flag: CP_FLOAT_ACCEPTED_AS_FIXED or
+                                                   CP_AUTONOMOUS_ACCEPTED; CRIT or CAT if N&lt;5)
+  • antenna_height_m missing AND device_type ∉ {CB_X, AEROPOINT}
+                                                  →  this point's setup sub-score = 0
+                                                  (flag: CP_POINT_ANTENNA_HEIGHT_MISSING)</div>
+<div class="meaning" style="margin-top:8px">Per-point scores are then aggregated by the building blocks using <span style="font-family:var(--mono);color:var(--accent)">mean − 0.25 × (100 − min)</span> across all CHECK_POINT-role points.</div></div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 3 — Per-point Indicators</div><div class="sec-sub">14 indicators applied to every CHECK_POINT-role point. Sigma is the primary universal anchor.</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--accent2);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for cp_capture_completeness_score</div>
+<div class="card">
+<div class="row-top"><div class="name">cp_position_sigma_score</div><div class="lname">Per-point Receiver Sigma</div>
+<div class="wt">weight 0.45 · SHEET (gap G; primary universal anchor)</div></div>
+<div class="meaning">covers <span class="pill cov">#30</span></div>
+<div class="src">← sigma_relative_to_target;sigma_available;sigma_expected_for_device</div>
+<div class="thr">PRIMARY INDICATOR. σ available: σ_h ≤ accuracy_target → 100; 1-2× target → 70 + FLAG: CP_SIGMA_MARGINAL; 2-5× → 30 + FLAG: CP_SIGMA_HIGH; &gt;5× → 0 + FLAG: CP_SIGMA_REJECT. σ absent AND expected → 50 + FLAG: CP_SIGMA_NOT_EXPORTED (user can re-export). σ absent AND not expected (device limit) → N/A, weight redistributes to other category-A indicators.</div><div class="davail">data availability: CB_X: ✓ / Trimble: ✓ usually / Emlid: ✓ usually / OTHER: variable (graceful degradation)</div></div>
+<div class="card gate">
+<div class="row-top"><div class="name">cp_fix_type_score</div><div class="lname">Per-point Fix Type at Capture</div>
+<div class="wt">weight 0.3 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#1</span></div>
+<div class="src">← fix_type_at_capture</div>
+<div class="thr">FIXED → 100; FLOAT → 0 + CP_FLOAT_ACCEPTED_AS_FIXED (CRITICAL, escalates to CAT if N&lt;5); AUTONOMOUS → 0 + CP_AUTONOMOUS_ACCEPTED.</div><div class="davail">data availability: CB_X: ✓ / Trimble: ✓ (solution-status flag) / Emlid: ✓ / OTHER: usually ✓</div><div class="gatetag">⊘ HARD: fix_type_at_capture IN {FLOAT, AUTONOMOUS} → Sets per-point completeness sub-score = 0. FLAGS: CP_FLOAT_ACCEPTED_AS_FIXED or CP_AUTONOMOUS_ACCEPTED. Severity escalates to CATASTROPHIC when effective_check_point_count &lt; 5.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cp_correction_age_score</div><div class="lname">Per-point Correction Age</div>
+<div class="wt">weight 0.15 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#3</span></div>
+<div class="src">← correction_age_at_capture_sec</div>
+<div class="thr">≤2s → 100; 2-5s → 88; 5-15s → 60 + CP_STALE_CORRECTION; 15-30s → 30 + CP_STALE_CORRECTION; &gt;30s → 0 + CP_CORRECTION_LOST. When absent (not in export) → N/A, weight redistributes.</div><div class="davail">data availability: CB_X: ✓ / Trimble: ⚠ partial (often absent in JXL export) / Emlid: ⚠ partial / OTHER: typically absent</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cp_log_integrity_score</div><div class="lname">Per-point Log Download &amp; Signature</div>
+<div class="wt">weight 0.1 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#23</span> <span class="pill cov">#24</span></div>
+<div class="src">← session_integrity_ok;raw_log_download_confirmed;raw_log_signature_valid;device_type</div>
+<div class="thr">downloaded AND signature valid (CB_X / Trimble where available) → 100; downloaded AND signature N/A (Emlid / OTHER) → 80; download unconfirmed → 50 + CP_LOG_DOWNLOAD_UNCONFIRMED; signature invalid → 30 + CP_LOG_TAMPERED.</div><div class="davail">data availability: CB_X: ✓ signed / Trimble: ✓ partial signed / Emlid: ⚠ unsigned / OTHER: typically unsigned</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for cp_setup_confidence_score</div>
+<div class="card gate">
+<div class="row-top"><div class="name">cp_antenna_height_documented_score</div><div class="lname">Per-point Antenna Height Documentation</div>
+<div class="wt">weight 0.4 · SHEET (mirrors GCP #6)</div></div>
+<div class="meaning">covers <span class="pill cov">#10</span></div>
+<div class="src">← antenna_height_auto_known;antenna_measurement_type;measured_to_reference;height_measured_count;antenna_height_agreement</div>
+<div class="thr">antenna_height_auto_known=True (CB_X / AEROPOINT) → 100 (factory-known). device_type=DGPS / OTHER: VERTICAL AND ARP AND count≥3 AND device-report agreement → 100; single VERTICAL → 88; SLANT → 72; conflict with device-reported → 55 (review); no height entered → 0 + gate.</div><div class="davail">data availability: CB_X / AEROPOINT: ✓ factory / DGPS: ✓ operator / OTHER: ✓ operator</div><div class="gatetag">⊘ HARD: antenna_height_m absent AND antenna_height_auto_known=False → Sets per-point setup sub-score = 0. FLAG: CP_POINT_ANTENNA_HEIGHT_MISSING.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cp_pole_stability_score</div><div class="lname">Per-point Pole/Rod Stability</div>
+<div class="wt">weight 0.2 · SHEET (split per device_type)</div></div>
+<div class="meaning">covers <span class="pill cov">#25</span></div>
+<div class="src">← tilt_verifiable;tilt_logged_deg;tilt_compensation_used</div>
+<div class="thr">Tilt-comp-capable device (CB_X / R12+ / RS3+) with logged tilt: tilt ≤2° → 100; 2-4° → 70; &gt;4° → 30 + CP_HIGH_TILT. Older/hand-held: tilt_compensation_used boolean is ADVISORY ONLY (operator-declarative cannot be verified) → 70 (unconfirmed); if explicitly False → 50.</div><div class="davail">data availability: CB_X (tilt-comp): ✓ verifiable / Trimble R12+: ✓ verifiable / Emlid RS3+: ✓ verifiable / Older devices: declarative advisory only</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cp_baseline_length_score</div><div class="lname">Per-point Baseline to Base/CORS</div>
+<div class="wt">weight 0.15 · SHEET (geography-relevant)</div></div>
+<div class="meaning">covers <span class="pill cov">#9</span></div>
+<div class="src">← baseline_length_km</div>
+<div class="thr">≤5km → 100; 5-10km → 88; 10-20km → 70 + CP_LONG_BASELINE; 20-40km → 40 + CP_EXCESSIVE_BASELINE; &gt;40km → 20 + CP_EXCESSIVE_BASELINE. Particularly relevant in regions with patchy CORS coverage (e.g. India).</div><div class="davail">data availability: CB_X: ✓ / Trimble: ✓ / Emlid: ✓ / OTHER: variable</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cp_ntrip_mountpoint_score</div><div class="lname">Per-point NTRIP Mountpoint Match</div>
+<div class="wt">weight 0.1 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#27</span></div>
+<div class="src">← mountpoint_match;ntrip_mountpoint;expected_mountpoint</div>
+<div class="thr">mountpoint_match=True → 100; mountpoint_match=False → 40 + CP_UNEXPECTED_MOUNTPOINT; expected_mountpoint not declared → 70 (unconfirmed).</div><div class="davail">data availability: CB_X: ✓ / Trimble: ✓ / Emlid: ✓ / OTHER: typically ✓</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cp_antenna_type_match_score</div><div class="lname">Per-point Antenna Type Consistency</div>
+<div class="wt">weight 0.1 · RTK consistency check</div></div>
+<div class="meaning">covers <span class="pill cov">#11</span></div>
+<div class="src">← antenna_type_match</div>
+<div class="thr">Match → 100; mismatch → 60 + CP_ANTENNA_TYPE_MISMATCH (MEDIUM). Sub-cm to ~3 cm vertical impact for typical short-baseline drone-survey targets.</div><div class="davail">data availability: CB_X: ✓ / Trimble: ✓ / Emlid: ✓ / OTHER: variable</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cp_device_id_match_score</div><div class="lname">Per-point Device ID Provenance</div>
+<div class="wt">weight 0.05 · SHEET (provenance, not accuracy)</div></div>
+<div class="meaning">covers <span class="pill cov">#12</span></div>
+<div class="src">← device_id_match</div>
+<div class="thr">Match → 100; mismatch → 60 + CP_DEVICE_ID_MISMATCH (MEDIUM provenance, reviewer-blocking); either side missing → 70 (unconfirmed).</div><div class="davail">data availability: CB_X: ✓ / Trimble: ✓ / Emlid: ✓ / OTHER: variable</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--teal);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for cp_observation_environment_score</div>
+<div class="card">
+<div class="row-top"><div class="name">cp_pdop_at_capture_score</div><div class="lname">Per-point PDOP at Capture Epoch</div>
+<div class="wt">weight 0.4 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#28</span></div>
+<div class="src">← pdop_at_capture</div>
+<div class="thr">≤2 → 100; 2-4 → 80; 4-6 → 55; &gt;6 → 30 + CP_HIGH_PDOP. Distinct from multipath — captures sky geometry at the capture moment.</div><div class="davail">data availability: CB_X: ✓ / Trimble: ✓ / Emlid: ✓ / OTHER: variable</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cp_fix_hold_score</div><div class="lname">Per-point Fix Hold Duration</div>
+<div class="wt">weight 0.25 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#2</span></div>
+<div class="src">← fix_hold_duration_sec</div>
+<div class="thr">≥5s held FIXED → 100; 1-4s → 60 + CP_SHORT_FIX_HOLD; &lt;1s → 30 + CP_NO_FIX_HOLD. When absent → N/A, weight redistributes.</div><div class="davail">data availability: CB_X: ✓ / Trimble: ⚠ partial / Emlid: ⚠ partial / OTHER: typically N/A</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cp_obstruction_score</div><div class="lname">Per-point Sky Obstruction</div>
+<div class="wt">weight 0.2 · SHEET</div></div>
+<div class="meaning">covers <span class="pill cov">#21</span></div>
+<div class="src">← sat_count_at_capture;cn0_mean_at_capture</div>
+<div class="thr">sats ≥10 AND CN0 ≥40 dBHz → 100; sats 7-9 OR CN0 30-40 → 70; sats &lt;7 OR CN0 &lt;30 → 35 + CP_HIGH_MULTIPATH. Less able to detect multipath than PPK (no extended observation to compute variance).</div><div class="davail">data availability: CB_X: ✓ / Trimble: ✓ / Emlid: ✓ / OTHER: variable</div></div>
+<div class="card">
+<div class="row-top"><div class="name">cp_ionospheric_risk_score</div><div class="lname">Per-point Ionospheric Risk</div>
+<div class="wt">weight 0.15 · SHEET (with documented Kp limitation)</div></div>
+<div class="meaning">covers <span class="pill cov">#22</span></div>
+<div class="src">← kp_index;dual_freq_available</div>
+<div class="thr">Kp ≤4 OR dual_freq → 100; Kp 5-6 single-freq → 60; Kp ≥7 single-freq → 40 + CP_IONO_RISK. KNOWN LIMITATION: Kp under-detects equatorial scintillation (relevant for India); long-term roadmap to S4/ROTI source.</div><div class="davail">data availability: External NOAA SWPC dependency; same for all device types</div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 4 — Derived Fields</div><div class="sec-sub">Per-point derivations. Composite-scoring fields combine other derived fields; flag-only composites raise warnings.</div></div><div class="card">
+<div class="fld"><div class="fld-n">sigma_relative_to_target </div>
+<div class="fld-m">Ratio of receiver-estimated horizontal sigma to survey accuracy target. The primary quality indicator. Banded at 1×/2×/5× target.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= position_sigma_horizontal_m / accuracy_target_m</span></div></div>
+<div class="fld"><div class="fld-n">sigma_available </div>
+<div class="fld-m">Whether per-point sigma is available in the device export. False triggers either Scenario 1 (exported subset missing sigma) or Scenario 2 (device truly does not report).<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= position_sigma_horizontal_m IS NOT NULL</span></div></div>
+<div class="fld"><div class="fld-n">sigma_expected_for_device </div>
+<div class="fld-m">Whether sigma should be exported for this device type. If True but sigma is missing → Scenario 1 (fixable by re-export). If False and sigma is missing → Scenario 2 (device limit, N/A treatment).<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= device_type IN {CB_X, AEROPOINT, DGPS}</span></div></div>
+<div class="fld"><div class="fld-n">antenna_height_auto_known </div>
+<div class="fld-m">Whether antenna height is factory-known for this device type. When True, antenna_height_documented_score = 100 by definition.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= device_type IN {CB_X, AEROPOINT}</span></div></div>
+<div class="fld"><div class="fld-n">antenna_height_agreement </div>
+<div class="fld-m">Form-height vs device-reported-height cross-check.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= |antenna_height_m (form) - antenna_delta_h (device)| within tolerance, when both populated</span></div></div>
+<div class="fld"><div class="fld-n">antenna_type_match </div>
+<div class="fld-m">Form vs device antenna type consistency.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= antenna_model (form) == antenna_type (device), normalised</span></div></div>
+<div class="fld"><div class="fld-n">device_id_match </div>
+<div class="fld-m">Form vs device ID match. Provenance check, not accuracy.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= device_id (form) == device_id (device), normalised</span></div></div>
+<div class="fld"><div class="fld-n">tilt_verifiable </div>
+<div class="fld-m">Whether tilt can be verified from device log (vs operator-declarative boolean).<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= device_type supports tilt logging AND tilt_logged_deg IS NOT NULL</span></div></div>
+<div class="fld"><div class="fld-n">mountpoint_match </div>
+<div class="fld-m">Whether actual NTRIP mountpoint matches project-declared expected mountpoint.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= ntrip_mountpoint == expected_mountpoint</span></div></div>
+<div class="fld"><div class="fld-n">capture_to_flight_delay_hours </div>
+<div class="fld-m">Hours between drone flight end and check-point capture. Positive = after flight (preferred).<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= (capture_utc - flight_end_utc) / 3600  -- positive if capture after flight</span></div></div>
+<div class="fld"><div class="fld-n">captured_before_flight </div>
+<div class="fld-m">True if capture occurred before drone flight start.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= capture_utc &lt; flight_start_utc</span></div></div>
+<div class="fld"><div class="fld-n">captured_during_flight </div>
+<div class="fld-m">True if capture occurred during drone flight window.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= flight_start_utc &lt;= capture_utc &lt;= flight_end_utc</span></div></div>
+<div class="fld"><div class="fld-n">kp_index </div>
+<div class="fld-m">External geomagnetic activity index. KNOWN LIMITATION: Kp under-detects equatorial scintillation (relevant for India). Long-term roadmap: S4/ROTI from regional reference.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= NOAA SWPC Kp index at capture_utc</span></div></div>
+<div class="fld"><div class="fld-n">dual_freq_available </div>
+<div class="fld-m">Whether the device captured dual-frequency data — mitigates ionospheric impact.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= device firmware/model exposes L1+L2 carrier phase</span></div></div>
+<div class="fld"><div class="fld-n">session_integrity_ok <span class="pill warn">composite-scoring</span></div>
+<div class="fld-m">Whether the capture session terminated cleanly with download confirmed and signature (where applicable) intact.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= device_type-aware: CB_X / DGPS / AEROPOINT: completed_normally AND signature valid (if available); OTHER: signature N/A, integrity based on download confirmation</span></div></div>
+<div class="fld"><div class="fld-n">effective_check_point_count </div>
+<div class="fld-m">Number of CP points that survived per-point gates. Drives the conditional severity escalation of CP_FLOAT_ACCEPTED_AS_FIXED.<br><span style="font-family:var(--mono);color:var(--accent);font-size:11px">= count of CHECK_POINT-role points where per_point_score &gt; 0</span></div></div>
+</div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 5 — Source Fields</div><div class="sec-sub">Grouped by source file. auto = machine-generated · user = operator-entered.</div></div>
+<div class="card"><div class="row-top"><div class="name">RTK Device Export (per point)</div><div class="lname">.csv / .jxl / .pos / .gpx (vendor-specific)</div></div>
+<div class="fld"><div class="fld-n">marker_name <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Identity]</b> Mark/point identifier from device export.</div></div>
+<div class="fld"><div class="fld-n">captured_position_ecef <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Position]</b> Final captured ECEF coordinate from RTK device.</div></div>
+<div class="fld"><div class="fld-n">position_sigma_horizontal_m <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Quality]</b> Receiver-estimated per-point horizontal standard deviation (sigma). The universal anchor indicator. Exported by all RTK devices in principle; may be absent in restricted export configs.</div></div>
+<div class="fld"><div class="fld-n">position_sigma_vertical_m <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Quality]</b> Receiver-estimated per-point vertical standard deviation.</div></div>
+<div class="fld"><div class="fld-n">fix_type_at_capture <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Quality]</b> Solution status at capture moment: FIXED / FLOAT / AUTONOMOUS. Hard-gates per-point completeness if FLOAT or AUTONOMOUS.</div></div>
+<div class="fld"><div class="fld-n">correction_age_at_capture_sec <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Quality]</b> Age of the RTK correction stream at the capture moment. May be missing on some third-party exports (Trimble JXL / Emlid CSV).</div></div>
+<div class="fld"><div class="fld-n">fix_hold_duration_sec <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Quality]</b> How long the rover held FIXED before this capture. CB_X full; Trimble/Emlid partial; OTHER often N/A.</div></div>
+<div class="fld"><div class="fld-n">pdop_at_capture <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Geometry]</b> Position dilution of precision at the capture epoch.</div></div>
+<div class="fld"><div class="fld-n">sat_count_at_capture <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Geometry]</b> Tracked satellite count at the capture epoch.</div></div>
+<div class="fld"><div class="fld-n">cn0_mean_at_capture <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Signal]</b> Mean carrier-to-noise density across tracked satellites at capture.</div></div>
+<div class="fld"><div class="fld-n">antenna_type <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Identity]</b> Antenna model as configured/auto-detected by the rover.</div></div>
+<div class="fld"><div class="fld-n">device_id <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Identity]</b> Device serial / ID from the rover.</div></div>
+<div class="fld"><div class="fld-n">tilt_logged_deg <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Setup]</b> Logged tilt angle at capture (tilt-compensated rovers only — CB_X, Trimble R12+, Emlid RS3+). N/A for older devices.</div></div>
+<div class="fld"><div class="fld-n">capture_utc <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Timing]</b> UTC timestamp of the capture moment.</div></div>
+<div class="fld"><div class="fld-n">firmware_version <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Identity]</b> RTK device firmware version.</div></div>
+</div>
+<div class="card"><div class="row-top"><div class="name">Check-Point Operation Log</div><div class="lname">.json</div></div>
+<div class="fld"><div class="fld-n">raw_log_download_confirmed <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Integrity]</b> True once the device session has been downloaded/synced from the rover.</div></div>
+<div class="fld"><div class="fld-n">raw_log_signature_valid <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Integrity]</b> Signature validation result. CB_X expected; Trimble partial; Emlid/OTHER typically N/A.</div></div>
+<div class="fld"><div class="fld-n">session_completed_normally <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Integrity]</b> True if session was closed deliberately (not via crash/power loss).</div></div>
+<div class="fld"><div class="fld-n">session_end_utc <span class="pill auto">auto</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Timing]</b> Device-reported session end (UTC). Cross-check against capture timestamps.</div></div>
+</div>
+<div class="card"><div class="row-top"><div class="name">Check-Point User Input (per point)</div><div class="lname">.json (cp_user_input.json)</div></div>
+<div class="fld"><div class="fld-n">device_type <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Device Identity]</b> Enum: CB_X / AEROPOINT / DGPS / OTHER. Drives oplog branching, antenna-height auto-fill, and indicator data-availability logic.</div></div>
+<div class="fld"><div class="fld-n">device_id <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Device Identity]</b> Operator-entered device ID. Cross-checked vs RTK device-reported device_id.</div></div>
+<div class="fld"><div class="fld-n">device_role <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Survey Role]</b> Locked to CHECK_POINT for this score. GCP-role points are excluded (covered by gcp_score).</div></div>
+<div class="fld"><div class="fld-n">antenna_model <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Antenna Setup]</b> Operator-selected antenna model. Cross-checked vs RTK device antenna_type.</div></div>
+<div class="fld"><div class="fld-n">antenna_height_m <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Antenna Setup]</b> Operator-entered antenna height. CB_X / AEROPOINT: factory-known and auto-filled (indicator = 100). DGPS / OTHER: operator-measured.</div></div>
+<div class="fld"><div class="fld-n">antenna_height_units <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Antenna Setup]</b> Explicit units (m/ft).</div></div>
+<div class="fld"><div class="fld-n">antenna_measurement_type <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Antenna Setup]</b> VERTICAL or SLANT. Only meaningful for DGPS / OTHER.</div></div>
+<div class="fld"><div class="fld-n">measured_to_reference <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Antenna Setup]</b> ARP / SLANT_MARK / MOUNT_BOTTOM / OTHER. Only meaningful for DGPS / OTHER.</div></div>
+<div class="fld"><div class="fld-n">height_measured_count <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Antenna Setup]</b> Number of independent height measurements. Only meaningful for DGPS / OTHER.</div></div>
+<div class="fld"><div class="fld-n">tilt_compensation_used <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Setup]</b> Boolean — operator-declarative. ADVISORY only on non-tilt-comp devices (cannot be verified). On tilt-comp devices, replaced by logged tilt_logged_deg which IS verifiable.</div></div>
+<div class="fld"><div class="fld-n">baseline_length_km <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Setup]</b> Distance from rover to base/CORS at capture time. Critical for India where CORS coverage is patchy.</div></div>
+<div class="fld"><div class="fld-n">ntrip_mountpoint <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Setup]</b> NTRIP mountpoint operator was connected to.</div></div>
+<div class="fld"><div class="fld-n">expected_mountpoint <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Setup]</b> Project-declared expected mountpoint. Cross-check against actual.</div></div>
+<div class="fld"><div class="fld-n">accuracy_target_m <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Survey Config]</b> Survey accuracy target (e.g. 0.02 m for cm-grade work). σ thresholds expressed as multiples of this target.</div></div>
+<div class="fld"><div class="fld-n">target_type <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Target]</b> Mark physical type (printed_paper / painted / cb_x_surface / aeropoint_surface / dgps_peg / other).</div></div>
+<div class="fld"><div class="fld-n">mark_integrity_confirmed <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Target]</b> Operator confirmation that the mark was intact at capture. ADVISORY only — not scored.</div></div>
+<div class="fld"><div class="fld-n">mark_photo_captured <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Target]</b> Boolean — was a photo of the mark taken. ADVISORY flag CP_NO_MARK_PHOTO if False.</div></div>
+<div class="fld"><div class="fld-n">flight_start_utc <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Flight Context]</b> Drone flight start (UTC) from upload bundle. Used to compute capture-to-flight delay.</div></div>
+<div class="fld"><div class="fld-n">flight_end_utc <span class="pill user">user</span></div><div class="fld-m"><b style="color:var(--textfaint)">[Flight Context]</b> Drone flight end (UTC) from upload bundle.</div></div>
+</div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 6 — Source Files</div><div class="sec-sub">Three per captured CHECK_POINT-role point. Behaviour branches on device_type.</div></div>
+<div class="card"><div class="row-top"><div class="name">RTK Device Export (per point)</div>
+<div class="lname">.csv / .jxl / .pos / .gpx (vendor-specific)</div><div class="wt">auto</div></div>
+<div class="meaning"><b style="color:var(--text)">Obtain:</b> Each RTK check-point capture produces a record in the device export: per-point coordinate, fix_type at capture moment, receiver-estimated sigma (H/V precision), correction age at capture, fix hold duration, PDOP, satellite count, CN0, antenna info. CB_X exports full set; Trimble/Emlid exports subset depending on export config; OTHER variable.</div>
+<div class="meaning">Per-point RTK device record. Replaces RINEX from PPK chains — RTK does not produce extended observation file for post-processing. Per-point sigma is the universal anchor indicator.</div></div>
+<div class="card"><div class="row-top"><div class="name">Check-Point Operation Log</div>
+<div class="lname">.json</div><div class="wt">auto</div></div>
+<div class="meaning"><b style="color:var(--text)">Obtain:</b> Session-level log: download confirmation, signature/integrity verification, session boundaries. CB_X expected-present with signature; Trimble/Emlid expected-present without signature; OTHER expected-absent.</div>
+<div class="meaning">Behaviour branches on device_type. CB_X is designed to produce signed logs for tamper-evidence; third-party gear typically does not.</div></div>
+<div class="card"><div class="row-top"><div class="name">Check-Point User Input (per point)</div>
+<div class="lname">.json (cp_user_input.json)</div><div class="wt">user</div></div>
+<div class="meaning"><b style="color:var(--text)">Obtain:</b> Structured field form filled per occupation: device_type, antenna setup, baseline length, NTRIP mountpoint, expected mountpoint, target/mark info, accuracy target. Operator-declarative fields (mark_integrity_confirmed, tilt_compensation_used on non-tilt-comp gear, mark_photo_captured) are advisory only — zero scoring weight per Concern 5.</div>
+<div class="meaning">Per-point operator metadata. Form design itself is the safeguard against antenna-height blunders. Tilt-compensation reads logged tilt verifiably on tilt-comp devices; falls back to advisory boolean on hand-held pole.</div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Flags & Signals</div><div class="sec-sub">Gates, scoring flags, flag-only composites, and advisory signals.</div></div><div class="card"><table><tr><th>Flag</th><th>Type</th><th>When</th><th>Sev</th><th>Covers</th><th>Meaning</th></tr>
+<tr><td class="kw">CP_CRITICAL_FAILURE</td><td>score</td><td>every CP point has cp_fix_type_score=0 OR cp_position_sigma_score=0</td><td class="sev-CRITICAL">CRITICAL</td><td>system view</td><td>No usable check-point captures across the survey — check_point_score = 0. Parallels DRONE_CRITICAL_FAILURE / BASE_CRITICAL_FAILURE / GCP_CRITICAL_FAILURE structurally; defined independently.</td></tr>
+<tr><td class="kw">NO_DESIGNATED_CHECK_POINTS</td><td>score</td><td>no points with device_role=CHECK_POINT</td><td class="sev-CRITICAL">CRITICAL</td><td>system view</td><td>No designated check points in this survey. check_point_score = null. Pre-processing handles survey-design implication.</td></tr>
+<tr><td class="kw">CP_POINT_ANTENNA_HEIGHT_MISSING</td><td>indicator_gate</td><td>antenna_height_m absent AND antenna_height_auto_known=False</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>#10</td><td>Per-point antenna height not entered for a non-factory-known device — per_point_setup_confidence = 0.</td></tr>
+<tr><td class="kw">CP_FLOAT_ACCEPTED_AS_FIXED</td><td>indicator_gate</td><td>fix_type_at_capture = FLOAT</td><td class="sev-CRITICAL">CRITICAL</td><td>#1</td><td>Rover was in FLOAT (decimetre-level) at capture moment — per_point_completeness = 0. Severity escalates to CATASTROPHIC when effective_check_point_count &lt; 5.</td></tr>
+<tr><td class="kw">CP_AUTONOMOUS_ACCEPTED</td><td>indicator_gate</td><td>fix_type_at_capture = AUTONOMOUS</td><td class="sev-CRITICAL">CRITICAL</td><td>#1</td><td>Rover was in AUTONOMOUS (metre-level) at capture — per_point_completeness = 0.</td></tr>
+<tr><td class="kw">CP_SIGMA_MARGINAL</td><td>indicator</td><td>sigma_relative_to_target 1-2×</td><td class="sev-HIGH">HIGH</td><td>#30</td><td>Receiver-estimated sigma at 1-2× survey accuracy target — marginal.</td></tr>
+<tr><td class="kw">CP_SIGMA_HIGH</td><td>indicator</td><td>sigma_relative_to_target 2-5×</td><td class="sev-HIGH">HIGH</td><td>#30</td><td>Receiver-estimated sigma at 2-5× accuracy target — degraded.</td></tr>
+<tr><td class="kw">CP_SIGMA_REJECT</td><td>indicator</td><td>sigma_relative_to_target &gt; 5×</td><td class="sev-CRITICAL">CRITICAL</td><td>#30</td><td>Receiver-estimated sigma at &gt;5× accuracy target — point not usable.</td></tr>
+<tr><td class="kw">CP_SIGMA_NOT_EXPORTED</td><td>indicator</td><td>sigma_expected_for_device=True AND sigma_available=False</td><td class="sev-HIGH">HIGH</td><td>#30</td><td>Sigma should be in export for this device type but is missing — user can re-export with precision columns enabled.</td></tr>
+<tr><td class="kw">CP_STALE_CORRECTION</td><td>indicator</td><td>correction_age_at_capture_sec 5-30s</td><td class="sev-HIGH">HIGH</td><td>#3</td><td>RTK correction stream was stale at capture — accuracy degraded.</td></tr>
+<tr><td class="kw">CP_CORRECTION_LOST</td><td>indicator</td><td>correction_age_at_capture_sec &gt; 30s</td><td class="sev-CRITICAL">CRITICAL</td><td>#3</td><td>RTK correction stream effectively lost at capture moment.</td></tr>
+<tr><td class="kw">CP_LONG_BASELINE</td><td>indicator</td><td>baseline_length_km 10-20</td><td class="sev-HIGH">HIGH</td><td>#9</td><td>Baseline to base/CORS is long enough to introduce distance-dependent error.</td></tr>
+<tr><td class="kw">CP_EXCESSIVE_BASELINE</td><td>indicator</td><td>baseline_length_km &gt; 20</td><td class="sev-HIGH">HIGH</td><td>#9</td><td>Baseline excessive — accuracy claim should be downgraded.</td></tr>
+<tr><td class="kw">CP_HIGH_TILT</td><td>indicator</td><td>tilt_logged_deg &gt; 4 on tilt-comp device</td><td class="sev-HIGH">HIGH</td><td>#25</td><td>Verified pole tilt exceeds threshold — horizontal accuracy degraded by pole-length × sin(tilt).</td></tr>
+<tr><td class="kw">CP_NO_REPEATABILITY_CHECK</td><td>advisory_flag</td><td>every single-occupation point (always fires in v1)</td><td class="sev-ADVISORY">ADVISORY</td><td>#8</td><td>Single occupation cannot detect false fix. Advisory only — zero scoring weight. Roadmap: dual-occupation workflow enables repeatability_check_score.</td></tr>
+<tr><td class="kw">CP_DEVICE_ID_MISMATCH</td><td>indicator (reviewer-blocking)</td><td>form device_id != device-reported device_id</td><td class="sev-MEDIUM">MEDIUM (provenance)</td><td>#12</td><td>Per-point form/device ID disagreement — provenance concern, reviewer-blocking.</td></tr>
+<tr><td class="kw">CP_HIGH_MULTIPATH</td><td>indicator</td><td>obstruction_score low (sats &lt;7 OR CN0 &lt;30)</td><td class="sev-HIGH">HIGH</td><td>#21</td><td>Obstruction-prone capture environment.</td></tr>
+<tr><td class="kw">CP_IONO_RISK</td><td>indicator</td><td>kp_index ≥ 7 AND single-frequency</td><td class="sev-HIGH">HIGH</td><td>#22</td><td>Ionospheric disturbance likely degraded accuracy. Documented limit: Kp under-detects equatorial scintillation.</td></tr>
+<tr><td class="kw">CP_HIGH_PDOP</td><td>indicator</td><td>pdop_at_capture &gt; 6</td><td class="sev-MEDIUM">MEDIUM</td><td>#28</td><td>Poor satellite geometry at the capture epoch.</td></tr>
+<tr><td class="kw">CP_SHORT_FIX_HOLD</td><td>indicator</td><td>fix_hold_duration_sec 1-4</td><td class="sev-HIGH">HIGH</td><td>#2</td><td>Fix held briefly before capture — accuracy may reflect transient state.</td></tr>
+<tr><td class="kw">CP_NO_FIX_HOLD</td><td>indicator</td><td>fix_hold_duration_sec &lt; 1</td><td class="sev-HIGH">HIGH</td><td>#2</td><td>Single-epoch capture without held fix — accuracy may reflect transient state.</td></tr>
+<tr><td class="kw">CP_UNEXPECTED_MOUNTPOINT</td><td>indicator</td><td>ntrip_mountpoint != expected_mountpoint</td><td class="sev-HIGH">HIGH</td><td>#27</td><td>NTRIP mountpoint differs from project-declared expected — corrections may be in different reference frame.</td></tr>
+<tr><td class="kw">CP_DELAYED_CAPTURE</td><td>indicator</td><td>capture_to_flight_delay_hours 24-168</td><td class="sev-HIGH">HIGH</td><td>#13</td><td>Check-point captured &gt;24 hours after drone flight — mark may have been disturbed.</td></tr>
+<tr><td class="kw">CP_STALE_CAPTURE</td><td>indicator</td><td>capture_to_flight_delay_hours &gt; 168</td><td class="sev-HIGH">HIGH</td><td>#13</td><td>Check-point captured &gt;7 days after drone flight — likelihood of mark disturbance significant.</td></tr>
+<tr><td class="kw">CP_CAPTURED_BEFORE_FLIGHT</td><td>indicator</td><td>capture_utc &lt; flight_start_utc</td><td class="sev-HIGH">HIGH</td><td>#19</td><td>Check-point captured before drone flight — site conditions may have changed.</td></tr>
+<tr><td class="kw">CP_CAPTURED_DURING_FLIGHT</td><td>indicator</td><td>flight_start_utc &lt;= capture_utc &lt;= flight_end_utc</td><td class="sev-LOW">LOW (workflow)</td><td>#20</td><td>Check-point captured during drone flight window — workflow advisory only, not an accuracy concern.</td></tr>
+<tr><td class="kw">CP_LOG_DOWNLOAD_UNCONFIRMED</td><td>indicator</td><td>raw_log_download_confirmed = False</td><td class="sev-HIGH">HIGH</td><td>#23</td><td>Session log not confirmed downloaded.</td></tr>
+<tr><td class="kw">CP_LOG_TAMPERED</td><td>indicator</td><td>raw_log_signature_valid = False</td><td class="sev-HIGH">HIGH</td><td>#24</td><td>Session log signature failed validation — possible manual edit.</td></tr>
+<tr><td class="kw">CP_NO_MARK_PHOTO</td><td>advisory_flag</td><td>mark_photo_captured = False</td><td class="sev-MEDIUM">MEDIUM (advisory)</td><td>#26, #14</td><td>No photo of the mark and surroundings — cannot retroactively investigate questionable points.</td></tr>
+<tr><td class="kw">CP_ANTENNA_TYPE_MISMATCH</td><td>indicator</td><td>antenna_type_match = False</td><td class="sev-MEDIUM">MEDIUM</td><td>#11</td><td>Form vs device antenna type mismatch — sub-cm to cm vertical impact.</td></tr>
+</table></div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Problem Coverage Matrix</div><div class="sec-sub">All 30 real-world check-point problems — every one with an explicit home, limitations stated.</div></div><div class="card"><table><tr><th>#</th><th>Problem</th><th>Severity</th><th>Frequency</th><th>Disposition</th><th>Covered by</th></tr>
+<tr><td class="kw">1</td><td>Float Solution Accepted as Fixed</td><td class="sev-CRITICAL">CRITICAL (escalates to CATASTROPHIC when N&lt;5)</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>cp_fix_type_score + hard gate + conditional severity escalation</td></tr>
+<tr><td class="kw">2</td><td>Single-Epoch Capture</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>cp_fix_hold_score (environment category)</td></tr>
+<tr><td class="kw">3</td><td>Stale or Lost Correction</td><td class="sev-CRITICAL">CRITICAL</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>cp_correction_age_score (degrades gracefully when data absent)</td></tr>
+<tr><td class="kw">4</td><td>Wrong Base Coordinate</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED_BY_BASE_STATION">OWNED_BY_BASE_STATION</span></td><td>base_station_score (BENCHMARK_UNVERIFIED, AUTONOMOUS_SEED). Documented in check_point_score known_limitations; no detection here.</td></tr>
+<tr><td class="kw">5</td><td>Reference Frame / Datum / CRS Mismatch</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>COMMON</td><td><span class="disp disp-OWNED_BY_PRE_PROCESSING">OWNED_BY_PRE_PROCESSING</span></td><td>pre_processing_score. Documented; no detection here. Silent-invisible failure class.</td></tr>
+<tr><td class="kw">6</td><td>Geoid / Vertical Datum Mismatch</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>COMMON</td><td><span class="disp disp-OWNED_BY_PRE_PROCESSING">OWNED_BY_PRE_PROCESSING</span></td><td>pre_processing_score. Documented; no detection here. Silent-invisible failure class.</td></tr>
+<tr><td class="kw">7</td><td>Site Calibration / Localization Applied</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL (COMMON for construction)</td><td><span class="disp disp-OWNED_BY_PRE_PROCESSING">OWNED_BY_PRE_PROCESSING</span></td><td>pre_processing_score. Documented; no detection here.</td></tr>
+<tr><td class="kw">8</td><td>False Fix</td><td class="sev-CRITICAL">CRITICAL</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED (advisory only)</span></td><td>CP_NO_REPEATABILITY_CHECK advisory flag (zero weight). Documented detection gap. Roadmap: repeatability_check_score with dual-occupation workflow.</td></tr>
+<tr><td class="kw">9</td><td>Excessive Baseline Length</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL (COMMON in patchy-CORS regions)</td><td><span class="disp disp-OWNED">OWNED</span></td><td>cp_baseline_length_score</td></tr>
+<tr><td class="kw">10</td><td>Check-Point Antenna Height Blunder</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>cp_antenna_height_documented_score + hard gate</td></tr>
+<tr><td class="kw">11</td><td>Antenna Type / Model Mismatch</td><td class="sev-MEDIUM">MEDIUM</td><td>RARE</td><td><span class="disp disp-OWNED">OWNED</span></td><td>cp_antenna_type_match_score</td></tr>
+<tr><td class="kw">12</td><td>Device ID Mismatch (Provenance)</td><td class="sev-MEDIUM">MEDIUM</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>cp_device_id_match_score (reviewer-blocking)</td></tr>
+<tr><td class="kw">13</td><td>Mark Disturbed Between Flight and Capture</td><td class="sev-HIGH">HIGH</td><td>COMMON</td><td><span class="disp disp-OWNED">OWNED</span></td><td>CP_DELAYED_CAPTURE + CP_STALE_CAPTURE timing flags</td></tr>
+<tr><td class="kw">14</td><td>Wrong Physical Point Captured</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED (advisory only)</span></td><td>CP_NO_MARK_PHOTO advisory flag is a weak proxy — mark photo presence enables retrospective verification but does not detect wrong-point capture at scoring time. Common subtle case (10-30 cm off the intended mark) not scoreable from any available data.</td></tr>
+<tr><td class="kw">15</td><td>Check Points Not Spatially Independent from GCPs</td><td class="sev-HIGH">HIGH</td><td>COMMON</td><td><span class="disp disp-OWNED_BY_PRE_PROCESSING">OWNED_BY_PRE_PROCESSING</span></td><td>pre_processing_score. Documented; no detection here.</td></tr>
+<tr><td class="kw">16</td><td>No Check Points Designated</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>VERY COMMON</td><td><span class="disp disp-OWNED_BY_PRE_PROCESSING">OWNED_BY_PRE_PROCESSING</span></td><td>pre_processing_score + Stage-1 null state (NO_DESIGNATED_CHECK_POINTS)</td></tr>
+<tr><td class="kw">17</td><td>Too Few Check Points for Statistical Validity</td><td class="sev-HIGH">HIGH</td><td>COMMON</td><td><span class="disp disp-OWNED_BY_PRE_PROCESSING">OWNED_BY_PRE_PROCESSING</span></td><td>pre_processing_score</td></tr>
+<tr><td class="kw">18</td><td>Check Points Clustered Geographically</td><td class="sev-HIGH">HIGH</td><td>COMMON</td><td><span class="disp disp-OWNED_BY_PRE_PROCESSING">OWNED_BY_PRE_PROCESSING</span></td><td>pre_processing_score</td></tr>
+<tr><td class="kw">19</td><td>Check-Point Captured Before Drone Flight</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>CP_CAPTURED_BEFORE_FLIGHT timing flag</td></tr>
+<tr><td class="kw">20</td><td>Capture During Flight Window</td><td class="sev-LOW">LOW (workflow)</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>CP_CAPTURED_DURING_FLIGHT workflow advisory only</td></tr>
+<tr><td class="kw">21</td><td>RTK Capture Near Obstructions</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>cp_obstruction_score (weaker signal than PPK)</td></tr>
+<tr><td class="kw">22</td><td>Ionospheric Disturbance</td><td class="sev-MEDIUM">MEDIUM</td><td>OCCASIONAL/RARE</td><td><span class="disp disp-OWNED">OWNED</span></td><td>cp_ionospheric_risk_score (with documented Kp limitation for India)</td></tr>
+<tr><td class="kw">23</td><td>Check-Point Log Not Downloaded</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>cp_log_integrity_score</td></tr>
+<tr><td class="kw">24</td><td>Check-Point Log Tampered</td><td class="sev-HIGH">HIGH</td><td>RARE</td><td><span class="disp disp-OWNED">OWNED</span></td><td>cp_log_integrity_score (signature validation; device-type-aware)</td></tr>
+<tr><td class="kw">25</td><td>Pole/Rod Tilt</td><td class="sev-HIGH">HIGH</td><td>COMMON (hand-held) / RARE (tilt-comp)</td><td><span class="disp disp-OWNED">OWNED</span></td><td>cp_pole_stability_score (verifiable on tilt-comp; advisory on hand-held)</td></tr>
+<tr><td class="kw">26</td><td>Mark Photo Not Captured</td><td class="sev-MEDIUM">MEDIUM</td><td>COMMON</td><td><span class="disp disp-OWNED">OWNED</span></td><td>CP_NO_MARK_PHOTO advisory flag</td></tr>
+<tr><td class="kw">27</td><td>Wrong NTRIP Mountpoint</td><td class="sev-HIGH">HIGH</td><td>RARE</td><td><span class="disp disp-OWNED">OWNED</span></td><td>cp_ntrip_mountpoint_score</td></tr>
+<tr><td class="kw">28</td><td>Poor DOP/Geometry at Fixed Epoch</td><td class="sev-MEDIUM">MEDIUM</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>cp_pdop_at_capture_score</td></tr>
+<tr><td class="kw">29</td><td>CP Used as Control in Bundle Adjustment</td><td class="sev-CRITICAL">CRITICAL</td><td>OCCASIONAL</td><td><span class="disp disp-OWNED_BY_PROCESSING">OWNED_BY_PROCESSING</span></td><td>Future processing_score. Pre-committed catalog row; documented as known failure class.</td></tr>
+<tr><td class="kw">30</td><td>Receiver-Estimated Sigma Ignored</td><td class="sev-HIGH">HIGH</td><td>UNIVERSAL</td><td><span class="disp disp-OWNED">OWNED</span></td><td>cp_position_sigma_score — PRIMARY anchor indicator with graceful degradation</td></tr>
+</table></div>
+<div class="note"><b>Known limitations (stated, not hidden):</b><br>False fix (wrong integer ambiguity resolution) is documented as CRITICAL but NOT detected from single-occupation data. Advisory flag CP_NO_REPEATABILITY_CHECK fires on every single-occupation point. Roadmap: when CBMI field workflow adds dual-occupation, repeatability_check_score becomes a real indicator. Sigma may be absent on third-party exports configured to omit precision columns — CP_SIGMA_NOT_EXPORTED flag tells user to re-export. Sigma may be N/A for devices that genuinely do not report it (rare) — weight redistributes within completeness category. Multipath detection is weaker than PPK because RTK captures instantaneous position, not extended observation variance. Kp ionospheric index under-detects equatorial scintillation (relevant for India); long-term roadmap to integrate S4/ROTI from regional reference. 9 catalog rows are dispositioned OWNED_BY_* (other subsystem) and are documented but not detected here. Runtime independence preserved. Antenna-height-missing gate dilutes via aggregation: one bad point in a fleet of N reduces check_point_score by (1/N) × the per-point penalty. Operator-declarative inputs (mark_integrity_confirmed, mark_photo_captured, tilt_compensation_used on non-tilt-comp gear) report documentation rigor, not field truth.</div>
+</div>
+</body></html>

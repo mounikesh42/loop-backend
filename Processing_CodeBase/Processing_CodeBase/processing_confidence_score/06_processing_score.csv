@@ -1,0 +1,5 @@
+block_id,block_name,weight
+BB_PROC_BA,ba_quality_score,0.3
+BB_PROC_IM,image_matching_score,0.3
+BB_PROC_CV,control_verification_score,0.25
+BB_PROC_DO,deliverable_output_score,0.15

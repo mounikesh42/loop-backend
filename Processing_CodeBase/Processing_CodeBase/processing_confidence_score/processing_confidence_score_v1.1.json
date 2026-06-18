@@ -1,0 +1,3268 @@
+{
+  "_meta": {
+    "title": "processing_confidence_score",
+    "version": "1.1.1",
+    "previous": "v1.1.0 (locked, pressure-test passed); v1.0.0 before that",
+    "workflow": "Evidence-based",
+    "phase": "single (computed once at processing stage)",
+    "generated_at": "2026-06-02T08:02:05Z",
+    "runtime_independence": "Computed entirely from Agisoft processing report + processing manifest + deliverable files + pre_processing handoff data (source artifacts only — NOT pre_processing_score output). Does not read drone_score, base_station_score, gcp_score, check_point_score, or pre_processing_score outputs at runtime.",
+    "design_summary": "Four-block evidence-based processing confidence chain. Single scalar processing_score per survey. Owns check-point residual analysis as the moment-of-truth survey accuracy measurement. Agisoft Metashape v1 engine; other engines (ODM, Pix4D, RealityCapture) deferred to v2+. Processing report REQUIRED (Option A locked) — processing_score=null when absent because the report IS the evidence base (unlike pre_processing where it is supplementary). verification_status field separates verification-result from quality-score, mirroring pre_processing pattern.",
+    "id_prefixes": {
+      "SRC_PROC_": "source file",
+      "L1F_PROC_": "source field",
+      "L2D_PROC_": "derived field",
+      "L3I_PROC_": "indicator",
+      "BB_PROC_": "building block",
+      "FLG_PROC_": "flag"
+    },
+    "counts": {
+      "source_files": 4,
+      "source_fields": 90,
+      "derived_fields": 37,
+      "indicators": 38,
+      "building_blocks": 4,
+      "flags": 64,
+      "problems": 39,
+      "per_deliverable_views": 5
+    },
+    "fix_log": "v1.0.0 (pre-lock): pressure-test against three reference reports caught rank-ordering issue (Report B scored below Report A despite operational expectation). Diagnosed: BA4 penalty for missing b1/b2 was too steep (30 points × 0.10 weight = 3.0 BA points, exceeding moment-of-truth gain). Fix 1 applied: BA4 threshold softened — missing b1/b2 now scores 90 instead of 70. Rank ordering restored to A < B < C. Problem #6 severity downgraded MEDIUM → LOW. PROC_OPTIMIZATION_INCOMPLETE severity downgraded MEDIUM → LOW (advisory).",
+    "v11_additions": "STRICTLY ADDITIVE extension over v1.0. Adds 5 per-deliverable views (ortho_score, dsm_score, dtm_score, point_cloud_score, mesh_3d_score) as configurations over locked v1.0 indicator layer. No changes to v1.0 indicators, weights, blocks, or scoring. Each view is a diagnostic readout answering \"what is the quality story for THIS specific deliverable?\" — not a separate score. When a deliverable file is absent, the corresponding view returns null with file_missing reason; processing_score itself remains unaffected.",
+    "v111_clarifications": [
+      "Global gate: clarified that PROC_OUTPUT_CRS_MISMATCH FORCES processing_score=0 (implementation force-zeros the apex), not via 0.15-weight block arithmetic.",
+      "Per-deliverable views: when the output-CRS gate trips, all views return null (reason=output_crs_mismatch) since every deliverable is in the wrong frame.",
+      "Indicators L3I_PROC_021/024/025 are always N/A on v1.7 reports (no absolute marker XYZ); detection is v2.",
+      "Indicator L3I_PROC_035 returns N/A (redistribute) when the report omits void fraction (v1.7); no optimistic default.",
+      "L3I_PROC_005 precalibration penalty is asymmetric: only 'expected-but-not-loaded' is penalised."
+    ]
+  },
+  "processing_score": {
+    "score_id": "processing_score",
+    "display_name": "Processing Confidence Score",
+    "workflow": "Evidence-based (CBMI does not perform processing; chain evaluates Agisoft processing report + deliverables + manifest)",
+    "phase": "single (computed once at processing stage)",
+    "formula_expression": "0.30*ba_quality_score + 0.30*image_matching_score + 0.25*control_verification_score + 0.15*deliverable_output_score",
+    "aggregator": "block-of-blocks; within-block weighted averages",
+    "global_gate_condition": "PROC_OUTPUT_CRS_MISMATCH",
+    "global_gate_action": "Forces processing_score = 0 (global gate; the implementation force-zeros the apex rather than relying on 0.15-weight block-of-blocks arithmetic). Also sets deliverable_output_score = 0 and nulls every per-deliverable view (reason=output_crs_mismatch). PROC_OUTPUT_CRS_MISMATCH fires with severity CATASTROPHIC at the global_gate stage.",
+    "verification_status_field": "Separate categorical field reporting CP-related quality. VALUES: VERIFIED_RESIDUALS_PASS (CPs ≥5 AND CP_RMSE ≤target), VERIFIED_RESIDUALS_MARGINAL (CPs ≥5 AND CP_RMSE 1-2× target), VERIFIED_RESIDUALS_FAIL (CPs ≥5 AND CP_RMSE >2× target), UNVERIFIED_INSUFFICIENT_CPS (1-4 CPs), UNVERIFIED_NO_CPS (0 CPs). NEVER score-gating. Surveys can be high-quality without verification; the score reflects quality, verification_status reports independent verification result.",
+    "null_handling": "processing_score = null when processing report is not uploaded (Option A locked). Per-deliverable views in v1.1 also return null when their underlying deliverable file is missing. Note: this is meaningfully different from pre_processing_score which uses Option B (report optional with graceful degradation) — because processing has almost no non-report evidence (the report IS the evidence base), Option B would produce fictional scores.",
+    "scope_note": "Deep-diagnostic chain for processing-stage failures. CBMI does NOT run Agisoft — this chain evaluates the Agisoft processing report + deliverable files + processing manifest. Owns the moment-of-truth check-point residual analysis. Runtime-independent of upstream chains — uses pre_processing source artifacts and manifest (NOT pre_processing_score outputs) for cross-source comparisons. Cross-subsystem coupling deferred to future capture_score integration layer.",
+    "source_file_set": "Agisoft Metashape Processing Report (required), Processing Manifest (required), Deliverable Files (required for completeness check and v1.1 per-deliverable views), Pre-Processing Handoff Data (for cross-source comparisons).",
+    "paths_supported": "Agisoft Metashape v1.7.x reference; v1.6+ parser keys off section headers not page numbers. Other engines (ODM, Pix4D, RealityCapture) deferred to v2+.",
+    "known_limitations": "Processing report is REQUIRED — without it, processing_score is null. The majority of third-party-processed surveys may lack the Agisoft report; for those, the future delivery layer evaluates deliverable artifacts directly. processing_score serves the report-bearing population only. Localized reconstruction collapse (#37, IM7) detection is PARTIAL in v1 — uses global proxies (tie density, reprojection). Full spatial detection of collapse zones requires v2 density-map visual analysis. The mining-most-relevant failure case (CP RMSE passes while volumes wrong because CPs do not sit on collapsed region) is partially detected only. Per-camera position outliers (#8, BA3) detection is ENSEMBLE-ONLY in v1. Per-camera detail visible only in Camera Locations ellipse map figure; v2 visual analysis required for outlier detection. Software version known-buggy list (#33, DO8) is v2 deliverable — v1 carries the indicator as advisory only with zero scoring weight. CP-GCP statistical independence check (from GCP#2) deferred to v2 — needs statistical analysis beyond report fields. High altitude variance (from Drone FLG_011) deferred to v2 — needs visual overlap-map analysis. Parser must key off section headers (Survey Data / Camera Calibration / Camera Locations / Ground Control Points / Digital Elevation Model / Processing Parameters) NOT page numbers, since Agisoft changes layout between versions. Every evidence cite has been validated against the v1.7.6 reference reports. Cross-source comparison rows (CV4 role consistency, CV5 GCP typo, DO3 internal transform) are dual-dependency — they require both Agisoft report and pre_processing handoff data. When manifest or pre_processing data is incomplete, these indicators degrade to N/A. BA4 (optimization completeness) threshold softened per v1.0 pressure-test: missing b1/b2 → 90 (was 70). Rationale: skipping b1/b2 is a minor operator preference, not a major quality differentiator."
+  },
+  "processing_score_blocks": [
+    {
+      "block_id": "BB_PROC_BA",
+      "block_name": "ba_quality_score",
+      "weight": 0.3
+    },
+    {
+      "block_id": "BB_PROC_IM",
+      "block_name": "image_matching_score",
+      "weight": 0.3
+    },
+    {
+      "block_id": "BB_PROC_CV",
+      "block_name": "control_verification_score",
+      "weight": 0.25
+    },
+    {
+      "block_id": "BB_PROC_DO",
+      "block_name": "deliverable_output_score",
+      "weight": 0.15
+    }
+  ],
+  "building_blocks": [
+    {
+      "block_id": "BB_PROC_BA",
+      "block_name": "ba_quality_score",
+      "display_name": "Bundle Adjustment Quality",
+      "weight_in_processing_score": 0.3,
+      "question": "Did the bundle adjustment solve well? Cameras aligned, calibration sound, optimization complete?",
+      "failure_owner": "Photogrammetry processing operator (Agisoft settings + input data)",
+      "operator_action": "Investigate convergence, alignment, calibration; reprocess with adjusted parameters",
+      "aggregator": "weighted average of indicator scores",
+      "indicators_within": "ba_reprojection_score(0.20), camera_alignment_score(0.20), camera_position_ensemble_score(0.15), optimization_completeness_score(0.10), precalibration_loaded_score(0.10), camera_model_consistency_score(0.10), self_calibration_quality_score(0.10), max_reproj_outlier_score(0.05)",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": ""
+    },
+    {
+      "block_id": "BB_PROC_IM",
+      "block_name": "image_matching_score",
+      "display_name": "Image Matching & Reconstruction Quality",
+      "weight_in_processing_score": 0.3,
+      "question": "Did image matching produce dense, well-distributed tie points and quality depth maps?",
+      "failure_owner": "Photogrammetry processing operator + capture quality (overlap, texture)",
+      "operator_action": "Reprocess at higher quality settings; investigate texture/overlap if sparse",
+      "aggregator": "weighted average of indicator scores",
+      "indicators_within": "alignment_accuracy_setting_score(0.20), depth_quality_setting_score(0.20), tiepoint_density_score(0.15), tiepoint_multiplicity_score(0.10), filtering_mode_appropriateness_score(0.10), marker_image_coverage_score(0.10), localized_reconstruction_score(0.10), atmospheric_artifact_composite_score(0.05)",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": ""
+    },
+    {
+      "block_id": "BB_PROC_CV",
+      "block_name": "control_verification_score",
+      "display_name": "Control & Verification",
+      "weight_in_processing_score": 0.25,
+      "question": "Were GCPs adequate and well-distributed? Do check points verify accuracy? (Moment-of-truth block)",
+      "failure_owner": "Survey design + capture + processing operator (marker roles)",
+      "operator_action": "Reprocess with correct roles; re-survey if control inadequate",
+      "aggregator": "weighted average; cp_rmse_score is primary moment-of-truth indicator at 0.35 within block",
+      "indicators_within": "cp_rmse_score(0.35), gcp_rmse_score(0.15), per_cp_outlier_score(0.10), marker_role_consistency_score(0.08), gcp_coord_consistency_score(0.07), cp_count_statistical_score(0.06), gcp_count_in_bundle_score(0.05), gcp_bundle_distribution_score(0.04), gcp_vertical_coverage_score(0.03), z_xy_residual_ratio_score(0.03), per_marker_pix_error_score(0.02), reconstruction_drift_composite_score(0.01), no_markers_at_all_flag_score(0.01), no_gcps_used_flag_score(0.00)",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": ""
+    },
+    {
+      "block_id": "BB_PROC_DO",
+      "block_name": "deliverable_output_score",
+      "display_name": "Deliverable Output Quality",
+      "weight_in_processing_score": 0.15,
+      "question": "Are output deliverables in the right frame, well-formed, classified correctly?",
+      "failure_owner": "Processing operator (export settings)",
+      "operator_action": "Reproject; reprocess with ground classification; investigate void interpolation",
+      "aggregator": "weighted average; DO1 zeros block when CRS mismatch",
+      "indicators_within": "output_crs_project_match_score(0.30), output_crs_projection_score(0.20), internal_transform_consistency_score(0.15), dtm_classification_score(0.10), dem_void_interpolation_score(0.08), dem_resolution_score(0.07), deliverable_completeness_score(0.05), software_version_score(0.05)",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "PROC_OUTPUT_CRS_MISMATCH",
+      "gate_action": "deliverable_output_score = 0. Zeros processing_score via block-of-blocks."
+    }
+  ],
+  "indicators": [
+    {
+      "indicator_id": "L3I_PROC_001",
+      "indicator_name": "ba_reprojection_score",
+      "display_name": "Bundle Adjustment Reprojection Error",
+      "building_block_id": "BB_PROC_BA",
+      "weight_in_block": 0.2,
+      "covers_problems": "#1",
+      "input_derived_fields": "ba_reprojection_relative",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "≤1.5 pix → 100; 1.5-2.5 → 70 + PROC_BA_REPROJ_ELEVATED; 2.5-3.5 → 30 + PROC_BA_REPROJ_HIGH; >3.5 → 0 + PROC_BA_CONVERGENCE_FAIL.",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_002",
+      "indicator_name": "camera_alignment_score",
+      "display_name": "Camera Alignment Success Rate",
+      "building_block_id": "BB_PROC_BA",
+      "weight_in_block": 0.2,
+      "covers_problems": "#2",
+      "input_derived_fields": "camera_alignment_fraction",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "aligned/total ≥0.98 → 100; 0.95-0.98 → 70 + PROC_CAMERAS_PARTIAL_ALIGN; 0.90-0.95 → 30 + PROC_CAMERAS_POOR_ALIGN; <0.90 → 0 + PROC_CAMERAS_SEVERE_ALIGN_FAIL.",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_003",
+      "indicator_name": "camera_position_ensemble_score",
+      "display_name": "Camera Position Ensemble Error (v1)",
+      "building_block_id": "BB_PROC_BA",
+      "weight_in_block": 0.15,
+      "covers_problems": "#8",
+      "input_derived_fields": "camera_position_relative_to_gsd",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (v1 ensemble; per-camera outliers deferred to v2)",
+      "threshold_summary": "total_err / GSD ≤ 2× → 100; 2-4× → 70 + PROC_CAMERA_POS_ELEVATED; 4-8× → 30; >8× → 0 + PROC_CAMERA_POS_SEVERE. Per-camera outlier detection requires v2 visual analysis of Camera Locations ellipse map.",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_004",
+      "indicator_name": "optimization_completeness_score",
+      "display_name": "BA Optimization Parameter Completeness",
+      "building_block_id": "BB_PROC_BA",
+      "weight_in_block": 0.1,
+      "covers_problems": "#6",
+      "input_derived_fields": "optimization_params_completeness",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "all 10 params {f,b1,b2,cx,cy,k1-k3,p1,p2} present → 100; b1/b2 missing → 90 + PROC_OPTIMIZATION_INCOMPLETE (softened per v1.0 pressure-test: missing b1/b2 is minor optimization preference, not major quality differentiator); more missing → 70; severely incomplete → 30.",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_005",
+      "indicator_name": "precalibration_loaded_score",
+      "display_name": "Precalibration Loading Consistency",
+      "building_block_id": "BB_PROC_BA",
+      "weight_in_block": 0.1,
+      "covers_problems": "#4",
+      "input_derived_fields": "precalibration_loaded_match",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "manifest expectation matches report → 100; mismatch (expected loaded, report shows \"No\") → 30 + PROC_PRECALIB_NOT_LOADED.",
+      "evidence_required": "report_and_manifest_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_006",
+      "indicator_name": "camera_model_consistency_score",
+      "display_name": "Camera Model Cross-Source Match",
+      "building_block_id": "BB_PROC_BA",
+      "weight_in_block": 0.1,
+      "covers_problems": "#5",
+      "input_derived_fields": "camera_model_match",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "manifest camera model matches report → 100; mismatch → 30 + PROC_CAMERA_MODEL_MISMATCH.",
+      "evidence_required": "report_and_manifest_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_007",
+      "indicator_name": "self_calibration_quality_score",
+      "display_name": "Self-Calibration Quality (Compound)",
+      "building_block_id": "BB_PROC_BA",
+      "weight_in_block": 0.1,
+      "covers_problems": "#3",
+      "input_derived_fields": "self_calibration_compound_condition",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (v0.2 reviewer fix: compound condition to avoid universal flagging)",
+      "threshold_summary": "precalibrated=Yes → 100; precalibrated=No AND |K| <0.90 → 100; |K| 0.90-0.95 → 70; >0.95 AND degraded reprojection/CP residuals → 30 + PROC_SELF_CALIB_ILL_CONDITIONED (advisory).",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_008",
+      "indicator_name": "max_reproj_outlier_score",
+      "display_name": "Max Reprojection Outlier Ratio (Advisory)",
+      "building_block_id": "BB_PROC_BA",
+      "weight_in_block": 0.05,
+      "covers_problems": "#7",
+      "input_derived_fields": "max_reproj_to_rms_ratio",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (v0.2 reviewer fix: advisory weight)",
+      "threshold_summary": "max/rms ≤10 → 100; 10-20 → 70 + PROC_REPROJ_OUTLIERS (advisory); 20-50 → 50; >50 → 30 + PROC_REPROJ_SEVERE_OUTLIERS (advisory). Almost always elevated in practice — keep advisory.",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_009",
+      "indicator_name": "alignment_accuracy_setting_score",
+      "display_name": "Alignment Accuracy Setting",
+      "building_block_id": "BB_PROC_IM",
+      "weight_in_block": 0.2,
+      "covers_problems": "#11",
+      "input_derived_fields": "alignment_accuracy_setting_class",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "Highest/High → 100; Medium → 50 + PROC_ALIGNMENT_ACCURACY_LOW; Low/Lowest → 0 + PROC_ALIGNMENT_ACCURACY_CRITICAL.",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_010",
+      "indicator_name": "depth_quality_setting_score",
+      "display_name": "Depth Map Quality Setting",
+      "building_block_id": "BB_PROC_IM",
+      "weight_in_block": 0.2,
+      "covers_problems": "#12",
+      "input_derived_fields": "depth_quality_setting_class",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "High/Ultra → 100; Medium → 60 + PROC_DEPTH_QUALITY_MEDIUM (advisory); Low/Lowest → 20 + PROC_DEPTH_QUALITY_LOW.",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_011",
+      "indicator_name": "tiepoint_density_score",
+      "display_name": "Tie Point Density per km²",
+      "building_block_id": "BB_PROC_IM",
+      "weight_in_block": 0.15,
+      "covers_problems": "#9",
+      "input_derived_fields": "tiepoint_density_per_km2",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "≥3M/km² → 100; 1-3M → 70 + PROC_SPARSE_TIEPOINTS; 0.5-1M → 30 + PROC_VERY_SPARSE_TIEPOINTS; <0.5M → 0.",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_012",
+      "indicator_name": "tiepoint_multiplicity_score",
+      "display_name": "Average Tie Point Multiplicity",
+      "building_block_id": "BB_PROC_IM",
+      "weight_in_block": 0.1,
+      "covers_problems": "#10",
+      "input_derived_fields": "tiepoint_multiplicity_value",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "≥4 → 100; 3-4 → 70 + PROC_LOW_MULTIPLICITY; 2.5-3 → 30 + PROC_VERY_LOW_MULTIPLICITY; <2.5 → 0.",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_013",
+      "indicator_name": "filtering_mode_appropriateness_score",
+      "display_name": "Depth Filtering Mode vs Site Type",
+      "building_block_id": "BB_PROC_IM",
+      "weight_in_block": 0.1,
+      "covers_problems": "#13",
+      "input_derived_fields": "filtering_mode_site_match",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "match (flat-structured=Mild, vegetated=Aggressive, mining-pit=Moderate) → 100; mismatch → 50 + PROC_FILTERING_INSUFFICIENT or PROC_FILTERING_OVERSMOOTHED.",
+      "evidence_required": "report_and_manifest_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_014",
+      "indicator_name": "marker_image_coverage_score",
+      "display_name": "Per-Marker Image Triangulation Strength",
+      "building_block_id": "BB_PROC_IM",
+      "weight_in_block": 0.1,
+      "covers_problems": "#14",
+      "input_derived_fields": "marker_image_count_per_marker",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (borderline-included per user decision)",
+      "threshold_summary": "per-marker: ≥5 images → 100; 3-4 → 50 + PROC_MARKER_WEAK; <3 → 0 + PROC_MARKER_INSUFFICIENT_IMAGES. Aggregate via mean − 0.25 × (100 − min).",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_015",
+      "indicator_name": "localized_reconstruction_score",
+      "display_name": "Localized Reconstruction Collapse (v1 partial)",
+      "building_block_id": "BB_PROC_IM",
+      "weight_in_block": 0.1,
+      "covers_problems": "#37",
+      "input_derived_fields": "localized_reconstruction_v1_proxy",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (v1 partial / v2 full per v0.2 reviewer)",
+      "threshold_summary": "v1: IF tiepoint_density <1M/km² OR DEM has visible voids → 50 + PROC_LOCALIZED_RECON_COLLAPSE (advisory). v2: density-map parsing for honest spatial detection. **Documented v1 limitation — full detection requires v2.**",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_016",
+      "indicator_name": "atmospheric_artifact_composite_score",
+      "display_name": "Atmospheric Artifact Composite (Advisory)",
+      "building_block_id": "BB_PROC_IM",
+      "weight_in_block": 0.05,
+      "covers_problems": "#15",
+      "input_derived_fields": "atmospheric_artifact_composite",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (cross-handoff)",
+      "threshold_summary": "Composite condition → 50 + PROC_ATMOSPHERIC_ARTIFACT_SUSPECTED (advisory cross-handoff to drone chain).",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_017",
+      "indicator_name": "cp_rmse_score",
+      "display_name": "Check-Point RMSE vs Accuracy Target (Moment-of-Truth)",
+      "building_block_id": "BB_PROC_CV",
+      "weight_in_block": 0.35,
+      "covers_problems": "#20",
+      "input_derived_fields": "cp_rmse_relative_to_target",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (PRIMARY moment-of-truth indicator)",
+      "threshold_summary": "cp_rmse/target ≤1 → 100 + verification_status=VERIFIED_RESIDUALS_PASS; 1-2× → 60 + VERIFIED_RESIDUALS_MARGINAL + PROC_CP_RMSE_MARGINAL; >2× → 0 + VERIFIED_RESIDUALS_FAIL + PROC_CP_RMSE_FAIL. N/A when 0 CPs.",
+      "evidence_required": "report_and_manifest_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_018",
+      "indicator_name": "gcp_rmse_score",
+      "display_name": "GCP RMSE vs Accuracy Target",
+      "building_block_id": "BB_PROC_CV",
+      "weight_in_block": 0.15,
+      "covers_problems": "#19",
+      "input_derived_fields": "gcp_rmse_relative_to_target",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "≤target → 100; 1-2× → 70 + PROC_GCP_RMSE_MARGINAL; 2-5× → 30 + PROC_GCP_RMSE_HIGH; >5× → 0 + PROC_GCP_RMSE_REJECT. N/A when 0 GCPs.",
+      "evidence_required": "report_and_manifest_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_019",
+      "indicator_name": "per_cp_outlier_score",
+      "display_name": "Per-CP Residual Outliers",
+      "building_block_id": "BB_PROC_CV",
+      "weight_in_block": 0.1,
+      "covers_problems": "#22",
+      "input_derived_fields": "per_cp_outlier_ratio",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (covers PP#32 target washed away + CP#14 mark disturbed)",
+      "threshold_summary": "per-CP: cp_total/mean ≤1.5 → 100; 1.5-2 → 70 + PROC_CP_OUTLIER_MILD; 2-3 → 30 + PROC_CP_OUTLIER_SEVERE; >3 → 0 + PROC_CP_OUTLIER_REJECT. Aggregate via mean − 0.25 × (100 − min).",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_020",
+      "indicator_name": "marker_role_consistency_score",
+      "display_name": "Marker Role Cross-Source Consistency",
+      "building_block_id": "BB_PROC_CV",
+      "weight_in_block": 0.08,
+      "covers_problems": "#25",
+      "input_derived_fields": "marker_role_match",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (covers CP#26 + CP#29 + GCP#21)",
+      "threshold_summary": "all markers match → 100; any mismatch → 30 + PROC_ROLE_MISMATCH (CRITICAL). Both directions covered (CP→GCP or GCP→CP).",
+      "evidence_required": "report_and_manifest_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_021",
+      "indicator_name": "gcp_coord_consistency_score",
+      "display_name": "GCP Coordinate Cross-Source Match",
+      "building_block_id": "BB_PROC_CV",
+      "weight_in_block": 0.07,
+      "covers_problems": "#26",
+      "input_derived_fields": "gcp_coord_match",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (covers GCP#12 typo)",
+      "threshold_summary": "per-GCP match within noise → 100; any mismatch beyond noise → 30 + PROC_GCP_TYPO.",
+      "evidence_required": "report_and_pp_handoff_required",
+      "v1_limitation": "v1.7 Agisoft reports emit no absolute marker XYZ -> always N/A on real reports; the within-noise coordinate comparison runs only when abs coords are present. Real-data detection is v2."
+    },
+    {
+      "indicator_id": "L3I_PROC_022",
+      "indicator_name": "cp_count_statistical_score",
+      "display_name": "CP Count Statistical Sufficiency",
+      "building_block_id": "BB_PROC_CV",
+      "weight_in_block": 0.06,
+      "covers_problems": "#24",
+      "input_derived_fields": "cp_count_value",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "≥20 → 100; 10-19 → 80; 5-9 → 60 + PROC_CP_COUNT_STATISTICAL_WEAK; 1-4 → 30 + PROC_CP_COUNT_INSUFFICIENT; 0 → 0 + verification_status=UNVERIFIED_NO_CPS.",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_023",
+      "indicator_name": "gcp_count_in_bundle_score",
+      "display_name": "GCP Count Used in Bundle",
+      "building_block_id": "BB_PROC_CV",
+      "weight_in_block": 0.05,
+      "covers_problems": "#18",
+      "input_derived_fields": "reportGCP_control_points_count",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "≥5 → 100; 3-4 → 50 + PROC_GCP_COUNT_MARGINAL; <3 → 0 + PROC_GCP_COUNT_INSUFFICIENT (also fires PROC_NO_GCPS_USED if 0).",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_024",
+      "indicator_name": "gcp_bundle_distribution_score",
+      "display_name": "GCP Spatial Distribution in Bundle",
+      "building_block_id": "BB_PROC_CV",
+      "weight_in_block": 0.04,
+      "covers_problems": "#27",
+      "input_derived_fields": "gcp_bundle_distribution_coverage",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "coverage ≥80% extent → 100; 60-80% → 60 + PROC_GCPS_CLUSTERED_IN_BUNDLE; <60% → 30 + PROC_GCPS_SEVERELY_CLUSTERED.",
+      "evidence_required": "report_required",
+      "v1_limitation": "Requires absolute GCP positions not present in v1.7 reports -> always N/A; spatial distribution detection is v2."
+    },
+    {
+      "indicator_id": "L3I_PROC_025",
+      "indicator_name": "gcp_vertical_coverage_score",
+      "display_name": "GCP Vertical Coverage of Terrain",
+      "building_block_id": "BB_PROC_CV",
+      "weight_in_block": 0.03,
+      "covers_problems": "#28",
+      "input_derived_fields": "gcp_vertical_coverage_ratio",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "z_spread_gcps / z_range_terrain ≥0.6 → 100; 0.3-0.6 → 60 + PROC_GCPS_NO_VERTICAL_COVERAGE_MARGINAL; <0.3 → 30 + PROC_GCPS_NO_VERTICAL_COVERAGE.",
+      "evidence_required": "report_required",
+      "v1_limitation": "Requires absolute GCP z-values not present in v1.7 reports -> always N/A; vertical coverage detection is v2."
+    },
+    {
+      "indicator_id": "L3I_PROC_026",
+      "indicator_name": "z_xy_residual_ratio_score",
+      "display_name": "Z/XY Residual Ratio",
+      "building_block_id": "BB_PROC_CV",
+      "weight_in_block": 0.03,
+      "covers_problems": "#21",
+      "input_derived_fields": "z_xy_residual_ratio",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "z/xy ≤1.5 → 100; 1.5-2 → 70 + PROC_Z_XY_HIGH; >2 → 30 + PROC_Z_XY_SEVERE.",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_027",
+      "indicator_name": "per_marker_pix_error_score",
+      "display_name": "Per-Marker Image Pixel Error",
+      "building_block_id": "BB_PROC_CV",
+      "weight_in_block": 0.02,
+      "covers_problems": "#23",
+      "input_derived_fields": "per_marker_pix_outlier_ratio",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "per-marker: pix_err/mean ≤1.5 → 100; 1.5-2 → 70 + PROC_MARKER_PIX_HIGH; >2 → 30 + PROC_MARKER_PIX_SEVERE.",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_028",
+      "indicator_name": "reconstruction_drift_composite_score",
+      "display_name": "Reconstruction Drift Composite (Diagnostic)",
+      "building_block_id": "BB_PROC_CV",
+      "weight_in_block": 0.01,
+      "covers_problems": "#29",
+      "input_derived_fields": "reconstruction_drift_composite",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (covers GCP#22)",
+      "threshold_summary": "Composite condition (adequate GCPs + good GCP RMSE + bad CP RMSE) → 50 + PROC_RECONSTRUCTION_DRIFT (HIGH, diagnostic).",
+      "evidence_required": "report_and_manifest_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_029",
+      "indicator_name": "no_markers_at_all_flag_score",
+      "display_name": "Zero Markers Flag",
+      "building_block_id": "BB_PROC_CV",
+      "weight_in_block": 0.01,
+      "covers_problems": "#16",
+      "input_derived_fields": "markers_total_zero",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (flag-only weight)",
+      "threshold_summary": "Markers > 0 → 100; Markers = 0 → 0 + PROC_NO_MARKERS_AT_ALL (CATASTROPHIC flag-only — score still computes from PPK-anchored bundle).",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_030",
+      "indicator_name": "no_gcps_used_flag_score",
+      "display_name": "Zero GCPs Used Flag (Advisory Wrapper)",
+      "building_block_id": "BB_PROC_CV",
+      "weight_in_block": 0.0,
+      "covers_problems": "#17",
+      "input_derived_fields": "gcps_used_zero",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (zero weight; flag also handled in CV7)",
+      "threshold_summary": "0 control points → PROC_NO_GCPS_USED (CRITICAL flag-only). Zero weight as score; flag fires loudly.",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_031",
+      "indicator_name": "output_crs_project_match_score",
+      "display_name": "Output CRS vs Project Requirement",
+      "building_block_id": "BB_PROC_DO",
+      "weight_in_block": 0.3,
+      "covers_problems": "#31",
+      "input_derived_fields": "output_crs_project_match",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "output_crs_project_match=False",
+      "gate_action": "deliverable_output_score=0; FLAG: PROC_OUTPUT_CRS_MISMATCH (CATASTROPHIC). Zeros processing_score via block.",
+      "justification": "SHEET",
+      "threshold_summary": "match → 100; mismatch → 0 + PROC_OUTPUT_CRS_MISMATCH (HARD GATE on Deliverable Output block).",
+      "evidence_required": "report_and_manifest_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_032",
+      "indicator_name": "output_crs_projection_score",
+      "display_name": "Output CRS Geographic vs Projected",
+      "building_block_id": "BB_PROC_DO",
+      "weight_in_block": 0.2,
+      "covers_problems": "#30",
+      "input_derived_fields": "output_crs_is_projected",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "projected EPSG → 100; geographic (e.g., EPSG:4326) → 30 + PROC_OUTPUT_CRS_GEOGRAPHIC (CRITICAL).",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_033",
+      "indicator_name": "internal_transform_consistency_score",
+      "display_name": "Internal Transform Consistency",
+      "building_block_id": "BB_PROC_DO",
+      "weight_in_block": 0.15,
+      "covers_problems": "#36",
+      "input_derived_fields": "internal_transform_match",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (silent-invisible failure; distinct from CRS label check)",
+      "threshold_summary": "match → 100; mismatch → 0 + PROC_INTERNAL_TRANSFORM_WRONG (CRITICAL). Distinct from DO1 (label) — this is the applied transform.",
+      "evidence_required": "report_and_pp_handoff_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_034",
+      "indicator_name": "dtm_classification_score",
+      "display_name": "DTM Ground Classification Run",
+      "building_block_id": "BB_PROC_DO",
+      "weight_in_block": 0.1,
+      "covers_problems": "#39",
+      "input_derived_fields": "dtm_classification_consistency",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "DTM not claimed → 100 (N/A); DTM claimed AND classification ran → 100; DTM claimed AND no classification → 30 + PROC_DSM_LABELLED_DTM.",
+      "evidence_required": "report_and_manifest_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_035",
+      "indicator_name": "dem_void_interpolation_score",
+      "display_name": "DEM Void Interpolation Fraction",
+      "building_block_id": "BB_PROC_DO",
+      "weight_in_block": 0.08,
+      "covers_problems": "#38",
+      "input_derived_fields": "dem_void_interpolation_fraction",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (version-dependent field)",
+      "threshold_summary": "low interpolation fraction → 100; high → 30 + PROC_DEM_INTERPOLATED_VOIDS (HIGH). Version-dependent: Agisoft v2+ reports void stats; older may not.",
+      "evidence_required": "report_required",
+      "v1_limitation": "v1.7 reports no void fraction -> N/A redistribute (no optimistic default). Agisoft v2+ reports the statistic."
+    },
+    {
+      "indicator_id": "L3I_PROC_036",
+      "indicator_name": "dem_resolution_score",
+      "display_name": "DEM Resolution vs GSD",
+      "building_block_id": "BB_PROC_DO",
+      "weight_in_block": 0.07,
+      "covers_problems": "#32",
+      "input_derived_fields": "dem_to_gsd_ratio",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "dem/gsd 1-3× → 100; 3-5× → 70 + PROC_DEM_RES_COARSE; 5-10× → 30 + PROC_DEM_RES_VERY_COARSE; >10× → 0.",
+      "evidence_required": "report_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_037",
+      "indicator_name": "deliverable_completeness_score",
+      "display_name": "Deliverable File Set Completeness",
+      "building_block_id": "BB_PROC_DO",
+      "weight_in_block": 0.05,
+      "covers_problems": "#34",
+      "input_derived_fields": "deliverable_completeness",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "all declared deliverables present → 100; some missing → flag PROC_DELIVERABLE_FILE_MISSING; affected per-deliverable views in v1.1 return null with file_missing reason.",
+      "evidence_required": "manifest_and_deliverables_required"
+    },
+    {
+      "indicator_id": "L3I_PROC_038",
+      "indicator_name": "software_version_score",
+      "display_name": "Software Version Check",
+      "building_block_id": "BB_PROC_DO",
+      "weight_in_block": 0.05,
+      "covers_problems": "#33",
+      "input_derived_fields": "software_version_class",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (v1 advisory only; v2 with maintained list)",
+      "threshold_summary": "v1: declared baseline matches → 100; unknown → 60; in known-buggy list (v2) → 30 + PROC_SOFTWARE_VERSION_BUGGY (advisory in v1, zero scoring weight).",
+      "evidence_required": "report_required"
+    }
+  ],
+  "derived_fields": [
+    {
+      "derived_id": "L2D_PROC_001",
+      "derived_name": "ba_reprojection_relative",
+      "formula_expression": "reportSurveyData_reprojection_error_pix banded against thresholds (1.5/2.5/3.5)",
+      "meaning": "Reprojection error scoring threshold computation.",
+      "input_field_names": "reportSurveyData_reprojection_error_pix",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_002",
+      "derived_name": "camera_alignment_fraction",
+      "formula_expression": "reportSurveyData_camera_stations / reportSurveyData_n_images",
+      "meaning": "Fraction of cameras that aligned.",
+      "input_field_names": "reportSurveyData_camera_stations;reportSurveyData_n_images",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_003",
+      "derived_name": "camera_position_relative_to_gsd",
+      "formula_expression": "reportCameraLocations_total_err_cm / reportSurveyData_ground_resolution_cm",
+      "meaning": "Camera position error as ratio of GSD — scale-independent quality measure.",
+      "input_field_names": "reportCameraLocations_total_err_cm;reportSurveyData_ground_resolution_cm",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_004",
+      "derived_name": "optimization_params_completeness",
+      "formula_expression": "check reportParams_optimization_parameters contains {f, b1, b2, cx, cy, k1, k2, k3, p1, p2}",
+      "meaning": "How complete is the BA optimization parameter set?",
+      "input_field_names": "reportParams_optimization_parameters",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_005",
+      "derived_name": "precalibration_loaded_match",
+      "formula_expression": "manifest_precalibration_expected vs reportCameras_precalibrated comparison",
+      "meaning": "Did precalibration expectation match actual loading?",
+      "input_field_names": "manifest_precalibration_expected;reportCameras_precalibrated",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_006",
+      "derived_name": "camera_model_match",
+      "formula_expression": "manifest_declared_camera_model vs reportCameras_camera_model exact-string match",
+      "meaning": "Camera model consistency between declaration and report.",
+      "input_field_names": "manifest_declared_camera_model;reportCameras_camera_model",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_007",
+      "derived_name": "self_calibration_compound_condition",
+      "formula_expression": "IF reportCameras_precalibrated=No AND abs(reportCalibration_k1_k2_correlation) > 0.95 AND (reportSurveyData_reprojection_error_pix > 2 OR reportGCP_check_rmse_total_cm > 2*manifest_accuracy_target_m * 100) THEN flag",
+      "meaning": "Compound condition: ill-conditioned self-calibration only flagged when co-occurring with degraded reprojection or CP residuals (per v0.2 reviewer fix).",
+      "input_field_names": "reportCameras_precalibrated;reportCalibration_k1_k2_correlation;reportSurveyData_reprojection_error_pix;reportGCP_check_rmse_total_cm;manifest_accuracy_target_m",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_008",
+      "derived_name": "max_reproj_to_rms_ratio",
+      "formula_expression": "reportParams_max_reprojection_error_pix / reportParams_rms_reprojection_error_pix",
+      "meaning": "Ratio of max to RMS reprojection error — outlier detection.",
+      "input_field_names": "reportParams_max_reprojection_error_pix;reportParams_rms_reprojection_error_pix",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_009",
+      "derived_name": "alignment_accuracy_setting_class",
+      "formula_expression": "reportParams_alignment_accuracy mapped to {High, Medium, Low} classes",
+      "meaning": "Class membership of alignment accuracy setting.",
+      "input_field_names": "reportParams_alignment_accuracy",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_010",
+      "derived_name": "depth_quality_setting_class",
+      "formula_expression": "reportParams_depth_quality mapped to {High, Medium, Low} classes",
+      "meaning": "Class membership of depth map quality setting.",
+      "input_field_names": "reportParams_depth_quality",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_011",
+      "derived_name": "tiepoint_density_per_km2",
+      "formula_expression": "reportSurveyData_tie_points / reportSurveyData_coverage_area_km2",
+      "meaning": "Tie point density.",
+      "input_field_names": "reportSurveyData_tie_points;reportSurveyData_coverage_area_km2",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_012",
+      "derived_name": "tiepoint_multiplicity_value",
+      "formula_expression": "reportParams_avg_tie_point_multiplicity",
+      "meaning": "Direct read; threshold-banded.",
+      "input_field_names": "reportParams_avg_tie_point_multiplicity",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_013",
+      "derived_name": "filtering_mode_site_match",
+      "formula_expression": "reportParams_depth_filtering_mode vs manifest_declared_site_cover appropriateness lookup",
+      "meaning": "Filtering mode appropriateness for declared site type.",
+      "input_field_names": "reportParams_depth_filtering_mode;manifest_declared_site_cover",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_014",
+      "derived_name": "marker_image_count_per_marker",
+      "formula_expression": "reportGCP_per_marker_image_count — per-marker count of images marker appears in",
+      "meaning": "For per-marker triangulation strength scoring.",
+      "input_field_names": "reportGCP_per_marker_image_count",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_015",
+      "derived_name": "localized_reconstruction_v1_proxy",
+      "formula_expression": "v1: IF tiepoint_density_per_km2 < 1M OR DEM has visible voids in reportDEM_void_statistics THEN partial-flag. v2: full density-map parse.",
+      "meaning": "V1 partial detection via global proxies; full detection deferred to v2 visual analysis.",
+      "input_field_names": "tiepoint_density_per_km2;reportDEM_void_statistics",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_016",
+      "derived_name": "atmospheric_artifact_composite",
+      "formula_expression": "IF reprojection > 2 AND tie_density < 1M/km² AND camera_pos_xy > 15 cm THEN flag",
+      "meaning": "Composite advisory cross-handoff to drone chain.",
+      "input_field_names": "reportSurveyData_reprojection_error_pix;tiepoint_density_per_km2;reportCameraLocations_xy_err_cm",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_017",
+      "derived_name": "cp_rmse_relative_to_target",
+      "formula_expression": "reportGCP_check_rmse_total_cm / (manifest_accuracy_target_m * 100)",
+      "meaning": "CP RMSE as multiple of accuracy target — primary moment-of-truth measure.",
+      "input_field_names": "reportGCP_check_rmse_total_cm;manifest_accuracy_target_m",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_018",
+      "derived_name": "gcp_rmse_relative_to_target",
+      "formula_expression": "reportGCP_control_rmse_total_cm / (manifest_accuracy_target_m * 100)",
+      "meaning": "GCP RMSE as multiple of accuracy target.",
+      "input_field_names": "reportGCP_control_rmse_total_cm;manifest_accuracy_target_m",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_019",
+      "derived_name": "per_cp_outlier_ratio",
+      "formula_expression": "per-CP: reportGCP_per_marker_residuals (filtered to CPs) / mean(CP residuals)",
+      "meaning": "Per-CP residual as multiple of ensemble mean.",
+      "input_field_names": "reportGCP_per_marker_residuals;reportGCP_marker_roles",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_020",
+      "derived_name": "marker_role_match",
+      "formula_expression": "reportGCP_marker_roles vs manifest_marker_roles_declared per-marker comparison",
+      "meaning": "Per-marker role consistency between manifest declaration and Agisoft report.",
+      "input_field_names": "reportGCP_marker_roles;manifest_marker_roles_declared",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_021",
+      "derived_name": "gcp_coord_match",
+      "formula_expression": "reportGCP_marker_locations (control points) vs pp_gcp_coord_file_gcp_positions per-GCP comparison within noise tolerance",
+      "meaning": "Per-GCP coordinate consistency between Agisoft report and pre_processing GCP coord file.",
+      "input_field_names": "reportGCP_marker_locations;pp_gcp_coord_file_gcp_positions",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_022",
+      "derived_name": "gcp_bundle_distribution_coverage",
+      "formula_expression": "spatial coverage fraction of reportGCP_marker_locations (control points) over site extent",
+      "meaning": "How well GCPs in bundle cover the survey extent.",
+      "input_field_names": "reportGCP_marker_locations",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_023",
+      "derived_name": "gcp_vertical_coverage_ratio",
+      "formula_expression": "(max(GCP_z) - min(GCP_z)) / (reportDEM_z_range_max_m - reportDEM_z_range_min_m)",
+      "meaning": "GCP vertical spread relative to terrain vertical range.",
+      "input_field_names": "reportGCP_marker_locations;reportDEM_z_range_min_m;reportDEM_z_range_max_m",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_024",
+      "derived_name": "z_xy_residual_ratio",
+      "formula_expression": "reportGCP_check_rmse_z_cm / reportGCP_check_rmse_xy_cm",
+      "meaning": "Vertical vs horizontal residual ratio.",
+      "input_field_names": "reportGCP_check_rmse_z_cm;reportGCP_check_rmse_xy_cm",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_025",
+      "derived_name": "per_marker_pix_outlier_ratio",
+      "formula_expression": "per-marker: reportGCP_per_marker_image_pix / mean(per_marker_image_pix)",
+      "meaning": "Per-marker image pixel residual as multiple of ensemble mean.",
+      "input_field_names": "reportGCP_per_marker_image_pix",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_026",
+      "derived_name": "reconstruction_drift_composite",
+      "formula_expression": "IF gcp_count >= 3 AND gcp_rmse_relative_to_target <= 1 AND cp_rmse_relative_to_target > 2 THEN composite-flag",
+      "meaning": "Diagnostic composite: adequate control + good GCP residuals + bad CP residuals = terrain/coverage/atmospheric issue.",
+      "input_field_names": "reportGCP_control_points_count;gcp_rmse_relative_to_target;cp_rmse_relative_to_target",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_027",
+      "derived_name": "markers_total_zero",
+      "formula_expression": "reportGCP_total_markers_count == 0",
+      "meaning": "No markers at all (CATASTROPHIC flag-only).",
+      "input_field_names": "reportGCP_total_markers_count",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_028",
+      "derived_name": "gcps_used_zero",
+      "formula_expression": "reportGCP_control_points_count == 0",
+      "meaning": "No control points used in bundle (CRITICAL flag-only).",
+      "input_field_names": "reportGCP_control_points_count",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_029",
+      "derived_name": "output_crs_project_match",
+      "formula_expression": "reportParams_coordinate_system vs manifest_project_required_crs",
+      "meaning": "Output CRS match with project requirement.",
+      "input_field_names": "reportParams_coordinate_system;manifest_project_required_crs",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_030",
+      "derived_name": "output_crs_is_projected",
+      "formula_expression": "parse EPSG of reportParams_coordinate_system, classify geographic vs projected",
+      "meaning": "Whether output CRS is projected (suitable for survey measurements).",
+      "input_field_names": "reportParams_coordinate_system",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_031",
+      "derived_name": "internal_transform_match",
+      "formula_expression": "reportParams_datum_geoid_transform vs pp_manifest_capture_crs + pp_manifest_capture_geoid",
+      "meaning": "Internal georeferencing transform consistency with capture frame.",
+      "input_field_names": "reportParams_datum_geoid_transform;pp_manifest_capture_crs;pp_manifest_capture_geoid",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_032",
+      "derived_name": "dtm_classification_consistency",
+      "formula_expression": "IF manifest_dtm_deliverable_claimed=True AND reportDEM_ground_classification_ran=False THEN flag",
+      "meaning": "DTM claimed but ground classification not run = DSM-labelled-as-DTM.",
+      "input_field_names": "manifest_dtm_deliverable_claimed;reportDEM_ground_classification_ran",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_033",
+      "derived_name": "dem_void_interpolation_fraction",
+      "formula_expression": "parse reportDEM_void_statistics for void/hole interpolation fraction",
+      "meaning": "Fraction of DEM area filled by interpolation across data voids (version-dependent field).",
+      "input_field_names": "reportDEM_void_statistics;reportDEM_interpolation_enabled",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_034",
+      "derived_name": "dem_to_gsd_ratio",
+      "formula_expression": "reportDEM_resolution_cm / reportSurveyData_ground_resolution_cm",
+      "meaning": "DEM resolution as multiple of image GSD.",
+      "input_field_names": "reportDEM_resolution_cm;reportSurveyData_ground_resolution_cm",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_035",
+      "derived_name": "deliverable_completeness",
+      "formula_expression": "For each in manifest_declared_deliverables: check corresponding deliverable_*_present.",
+      "meaning": "Per-deliverable presence check.",
+      "input_field_names": "manifest_declared_deliverables;deliverable_ortho_present;deliverable_dsm_present;deliverable_dtm_present;deliverable_point_cloud_present;deliverable_mesh_3d_present",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_036",
+      "derived_name": "software_version_class",
+      "formula_expression": "v1: reportSystem_software_version vs manifest_software_version_baseline. v2: vs CBMI-maintained known-good/buggy list.",
+      "meaning": "Software version classification (v1: declared baseline match; v2: known-buggy list maintained).",
+      "input_field_names": "reportSystem_software_version;manifest_software_version_baseline",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PROC_037",
+      "derived_name": "cp_count_value",
+      "formula_expression": "reportGCP_check_points_count",
+      "meaning": "Direct read for verification_status determination.",
+      "input_field_names": "reportGCP_check_points_count",
+      "kind": "scoring"
+    }
+  ],
+  "source_fields": [
+    {
+      "field_id": "L1F_PROC_001",
+      "field_name": "reportSurveyData_n_images",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Number of images imported (Survey Data section).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_002",
+      "field_name": "reportSurveyData_camera_stations",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Camera stations / aligned camera count.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_003",
+      "field_name": "reportSurveyData_tie_points",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Tie point count.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_004",
+      "field_name": "reportSurveyData_projections",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Total projections.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_005",
+      "field_name": "reportSurveyData_reprojection_error_pix",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Overall reprojection error in pixels.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_006",
+      "field_name": "reportSurveyData_flying_altitude_m",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Flying altitude.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_007",
+      "field_name": "reportSurveyData_ground_resolution_cm",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Ground sample distance (cm/pix).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_008",
+      "field_name": "reportSurveyData_coverage_area_km2",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Survey coverage area (km²).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_009",
+      "field_name": "reportCameras_camera_model",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Camera model string from Table 1.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_010",
+      "field_name": "reportCameras_resolution",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Camera resolution string.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_011",
+      "field_name": "reportCameras_focal_length",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Camera focal length.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_012",
+      "field_name": "reportCameras_pixel_size",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Camera pixel size.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_013",
+      "field_name": "reportCameras_precalibrated",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "Yes/No — was camera pre-calibrated?",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_014",
+      "field_name": "reportCalibration_correlation_matrix",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Full correlation matrix between F, Cx, Cy, B1, B2, K1, K2, K3, P1, P2 calibration coefficients.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_015",
+      "field_name": "reportCalibration_k1_k2_correlation",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Specifically the K1-K2 correlation cell (high values indicate ill-conditioned self-calibration).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_016",
+      "field_name": "reportCalibration_k2_k3_correlation",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "K2-K3 correlation cell.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_017",
+      "field_name": "reportCameraLocations_x_err_cm",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Average camera location X error (cm).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_018",
+      "field_name": "reportCameraLocations_y_err_cm",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Average camera location Y error (cm).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_019",
+      "field_name": "reportCameraLocations_z_err_cm",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Average camera location Z error (cm).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_020",
+      "field_name": "reportCameraLocations_xy_err_cm",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Average XY error (cm).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_021",
+      "field_name": "reportCameraLocations_total_err_cm",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Average total error (cm).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_022",
+      "field_name": "reportGCP_control_points_count",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Number of markers designated as control points in bundle.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_023",
+      "field_name": "reportGCP_check_points_count",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Number of markers designated as check points.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_024",
+      "field_name": "reportGCP_total_markers_count",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Total markers in Processing Parameters section.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_025",
+      "field_name": "reportGCP_control_rmse_total_cm",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Total RMSE on control points (cm).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_026",
+      "field_name": "reportGCP_control_rmse_xy_cm",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "XY RMSE on control points.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_027",
+      "field_name": "reportGCP_control_rmse_z_cm",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Z RMSE on control points.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_028",
+      "field_name": "reportGCP_check_rmse_total_cm",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Total RMSE on check points (cm) — moment-of-truth indicator.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_029",
+      "field_name": "reportGCP_check_rmse_xy_cm",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "XY RMSE on check points.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_030",
+      "field_name": "reportGCP_check_rmse_z_cm",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Z RMSE on check points.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_031",
+      "field_name": "reportGCP_per_marker_residuals",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Per-marker total residual (cm) — for per-CP outlier detection.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_032",
+      "field_name": "reportGCP_per_marker_image_pix",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Per-marker image residual in pixels (with image count in parentheses).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_033",
+      "field_name": "reportGCP_per_marker_image_count",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Number of images each marker appears in (for triangulation strength).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_034",
+      "field_name": "reportGCP_marker_roles",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Per-marker designated role (control vs check) as recorded in report.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_035",
+      "field_name": "reportGCP_marker_locations",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Per-marker XYZ coordinates from Agisoft report.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_036",
+      "field_name": "reportDEM_resolution_cm",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "DEM resolution (cm/pix).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_037",
+      "field_name": "reportDEM_point_density",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Point density (points/m²).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_038",
+      "field_name": "reportDEM_z_range_min_m",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "DEM minimum elevation.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_039",
+      "field_name": "reportDEM_z_range_max_m",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "DEM maximum elevation.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_040",
+      "field_name": "reportDEM_void_statistics",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Void/hole statistics if reported (version-dependent).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_041",
+      "field_name": "reportDEM_interpolation_enabled",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "Was interpolation across voids enabled?",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_042",
+      "field_name": "reportDEM_source_data",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "DEM source (Dense cloud / Sparse cloud / Depth maps).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_043",
+      "field_name": "reportParams_alignment_accuracy",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "Accuracy setting (Highest / High / Medium / Low / Lowest).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_044",
+      "field_name": "reportParams_key_point_limit",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "Key point limit value.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_045",
+      "field_name": "reportParams_tie_point_limit",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "Tie point limit value.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_046",
+      "field_name": "reportParams_generic_preselection",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "Generic preselection flag.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_047",
+      "field_name": "reportParams_guided_image_matching",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "Guided image matching flag.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_048",
+      "field_name": "reportParams_adaptive_camera_fitting",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "Adaptive camera model fitting flag.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_049",
+      "field_name": "reportParams_optimization_parameters",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "List of parameters in BA optimization (e.g., f, b1, b2, cx, cy, k1-k3, p1, p2).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_050",
+      "field_name": "reportParams_avg_tie_point_multiplicity",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Average tie point multiplicity.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_051",
+      "field_name": "reportParams_max_reprojection_error_pix",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "Max reprojection error (pix).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_052",
+      "field_name": "reportParams_rms_reprojection_error_pix",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Quality",
+      "meaning": "RMS reprojection error (pix).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_053",
+      "field_name": "reportParams_depth_quality",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "Depth maps quality (Ultra High / High / Medium / Low / Lowest).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_054",
+      "field_name": "reportParams_depth_filtering_mode",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "Filtering mode (Mild / Moderate / Aggressive / Disabled).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_055",
+      "field_name": "reportParams_coordinate_system",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Reference",
+      "meaning": "Output coordinate system (e.g., WGS 84 EPSG::4326).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_056",
+      "field_name": "reportParams_datum_geoid_transform",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Reference",
+      "meaning": "Datum/geoid transform settings used during georeferencing (for internal transform check).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_057",
+      "field_name": "reportParams_ortho_blending_mode",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "Orthomosaic blending mode (Mosaic / Average / Disabled).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_058",
+      "field_name": "reportParams_ortho_hole_filling",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "Hole filling enabled flag.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_059",
+      "field_name": "reportParams_ortho_ghosting_filter",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "Ghosting filter enabled flag.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_060",
+      "field_name": "reportPerDeliverable_dem_coordinate_system",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Reference",
+      "meaning": "DEM section coordinate system.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_061",
+      "field_name": "reportPerDeliverable_dense_cloud_coordinate_system",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Reference",
+      "meaning": "Dense cloud coordinate system.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_062",
+      "field_name": "reportPerDeliverable_orthomosaic_coordinate_system",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Reference",
+      "meaning": "Orthomosaic coordinate system.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_063",
+      "field_name": "reportDEM_ground_classification_ran",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "Was ground classification executed before DTM generation?",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_064",
+      "field_name": "reportDEM_point_classification_params",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Setup",
+      "meaning": "Ground classification parameters if any.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_065",
+      "field_name": "reportSystem_software_version",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Agisoft software version (e.g., 1.7.6 build 13524).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_066",
+      "field_name": "reportSystem_software_name",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Software name (e.g., Agisoft Metashape Professional).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_067",
+      "field_name": "reportSystem_os",
+      "file_id": "SRC_PROC_REPORT",
+      "category": "Identity",
+      "meaning": "Operating system.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_068",
+      "field_name": "manifest_project_required_crs",
+      "file_id": "SRC_PROC_MANIFEST",
+      "category": "Project",
+      "meaning": "Required CRS for the project (e.g., EPSG:32647).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_069",
+      "field_name": "manifest_accuracy_target_m",
+      "file_id": "SRC_PROC_MANIFEST",
+      "category": "Project",
+      "meaning": "Survey accuracy target in meters (e.g., 0.02 for cm-grade).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_070",
+      "field_name": "manifest_capture_frame_crs",
+      "file_id": "SRC_PROC_MANIFEST",
+      "category": "Project",
+      "meaning": "CRS in which capture was performed (for internal transform consistency check).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_071",
+      "field_name": "manifest_capture_geoid",
+      "file_id": "SRC_PROC_MANIFEST",
+      "category": "Project",
+      "meaning": "Geoid model used during capture.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_072",
+      "field_name": "manifest_declared_camera_model",
+      "file_id": "SRC_PROC_MANIFEST",
+      "category": "Setup",
+      "meaning": "Camera model declared by operator.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_073",
+      "field_name": "manifest_precalibration_expected",
+      "file_id": "SRC_PROC_MANIFEST",
+      "category": "Setup",
+      "meaning": "Boolean: was pre-calibration expected to be loaded?",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_074",
+      "field_name": "manifest_marker_roles_declared",
+      "file_id": "SRC_PROC_MANIFEST",
+      "category": "Setup",
+      "meaning": "Per-marker declared role (control vs check) — for role-mismatch detection.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_075",
+      "field_name": "manifest_declared_site_cover",
+      "file_id": "SRC_PROC_MANIFEST",
+      "category": "Site",
+      "meaning": "Site cover type (flat-structured / vegetated / mining-pit / mixed) — for filtering-mode appropriateness check.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_076",
+      "field_name": "manifest_declared_deliverables",
+      "file_id": "SRC_PROC_MANIFEST",
+      "category": "Deliverable",
+      "meaning": "List of expected deliverable types (ortho, dsm, dtm, point_cloud, mesh_3d).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_077",
+      "field_name": "manifest_dtm_deliverable_claimed",
+      "file_id": "SRC_PROC_MANIFEST",
+      "category": "Deliverable",
+      "meaning": "Boolean: is DTM specifically claimed in deliverables (triggers ground-classification check).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_078",
+      "field_name": "manifest_software_version_baseline",
+      "file_id": "SRC_PROC_MANIFEST",
+      "category": "Setup",
+      "meaning": "Expected baseline software version (for version drift check; v2: known-good list).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_079",
+      "field_name": "deliverable_ortho_present",
+      "file_id": "SRC_PROC_DELIVERABLES",
+      "category": "Identity",
+      "meaning": "Boolean: orthomosaic file uploaded.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_080",
+      "field_name": "deliverable_dsm_present",
+      "file_id": "SRC_PROC_DELIVERABLES",
+      "category": "Identity",
+      "meaning": "Boolean: DSM file uploaded.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_081",
+      "field_name": "deliverable_dtm_present",
+      "file_id": "SRC_PROC_DELIVERABLES",
+      "category": "Identity",
+      "meaning": "Boolean: DTM file uploaded.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_082",
+      "field_name": "deliverable_point_cloud_present",
+      "file_id": "SRC_PROC_DELIVERABLES",
+      "category": "Identity",
+      "meaning": "Boolean: point cloud file uploaded.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_083",
+      "field_name": "deliverable_mesh_3d_present",
+      "file_id": "SRC_PROC_DELIVERABLES",
+      "category": "Identity",
+      "meaning": "Boolean: 3D mesh file uploaded.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_084",
+      "field_name": "deliverable_ortho_crs",
+      "file_id": "SRC_PROC_DELIVERABLES",
+      "category": "Reference",
+      "meaning": "CRS metadata in ortho file (geotiff CRS).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_085",
+      "field_name": "deliverable_dsm_crs",
+      "file_id": "SRC_PROC_DELIVERABLES",
+      "category": "Reference",
+      "meaning": "CRS metadata in DSM file.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_086",
+      "field_name": "deliverable_dtm_crs",
+      "file_id": "SRC_PROC_DELIVERABLES",
+      "category": "Reference",
+      "meaning": "CRS metadata in DTM file.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_087",
+      "field_name": "deliverable_point_cloud_crs",
+      "file_id": "SRC_PROC_DELIVERABLES",
+      "category": "Reference",
+      "meaning": "CRS metadata in point cloud file.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_088",
+      "field_name": "pp_gcp_coord_file_gcp_positions",
+      "file_id": "SRC_PROC_PP_HANDOFF",
+      "category": "Reference",
+      "meaning": "GCP coordinates from pre_processing GCP coord file (for typo cross-check).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_089",
+      "field_name": "pp_manifest_capture_crs",
+      "file_id": "SRC_PROC_PP_HANDOFF",
+      "category": "Reference",
+      "meaning": "Capture CRS as declared in pre_processing manifest.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PROC_090",
+      "field_name": "pp_manifest_capture_geoid",
+      "file_id": "SRC_PROC_PP_HANDOFF",
+      "category": "Reference",
+      "meaning": "Capture geoid as declared in pre_processing manifest.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    }
+  ],
+  "source_files": [
+    {
+      "file_id": "SRC_PROC_REPORT",
+      "file_name": "Agisoft Metashape Processing Report",
+      "subsystem": "Processing output (Agisoft Metashape v1.7.x reference)",
+      "file_extensions": ".pdf (Agisoft auto-generated report)",
+      "physical_source": "Output of Agisoft Metashape \"Generate Report\" workflow after processing complete",
+      "how_to_obtain": "Operator generates report in Agisoft Metashape Pro after processing. Required input — processing_score = null without it.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": "REQUIRED. Parser keys off section headers (Survey Data / Camera Calibration / Camera Locations / Ground Control Points / Digital Elevation Model / Processing Parameters) not page numbers. Agisoft version drift handled by header-based parsing."
+    },
+    {
+      "file_id": "SRC_PROC_MANIFEST",
+      "file_name": "Processing Manifest",
+      "subsystem": "Operator-declared processing provenance",
+      "file_extensions": ".json (proc_manifest.json)",
+      "physical_source": "Filled by operator at survey upload",
+      "how_to_obtain": "Operator declares: project required CRS, accuracy target, expected precalibration, declared camera model, declared marker roles (which markers were intended as GCPs vs CPs), declared site cover, declared deliverable types, declared software version.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": "Cross-source comparison artifact. Manifest is operator-declarative; report is software-generated. Mismatches between them reveal errors."
+    },
+    {
+      "file_id": "SRC_PROC_DELIVERABLES",
+      "file_name": "Processing Deliverable Files",
+      "subsystem": "Output artifacts produced by Agisoft",
+      "file_extensions": ".tif/.tiff (ortho, DSM, DTM), .las/.laz (point cloud), .obj/.ply (mesh)",
+      "physical_source": "Agisoft export outputs",
+      "how_to_obtain": "Operator uploads deliverable files alongside the processing report. Used for per-deliverable views in v1.1 + CRS metadata cross-checks.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": "v1.0 reads minimal data (CRS metadata, file presence). v1.1 per-deliverable views read deeper. When deliverable file absent → DO7 flag fires + per-deliverable view returns null."
+    },
+    {
+      "file_id": "SRC_PROC_PP_HANDOFF",
+      "file_name": "Pre-Processing Handoff Data",
+      "subsystem": "Cross-chain reference (read-only consumption)",
+      "file_extensions": "Reads from pre-processing GCP coord file + pre_processing manifest",
+      "physical_source": "Already in CBMI system from upstream chain",
+      "how_to_obtain": "CBMI internal — pre_processing chain outputs are available for cross-source comparison.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": "Used ONLY for cross-source comparison (CV5 GCP typo check, CV4 role consistency check, DO3 internal transform check). NOT a runtime dependency on pre_processing_score — reads pre_processing source artifacts/manifest, not its computed score."
+    }
+  ],
+  "flags": [
+    {
+      "flag_id": "FLG_PROC_001",
+      "flag_name": "PROC_OUTPUT_CRS_MISMATCH",
+      "raised_by_type": "indicator_gate",
+      "condition": "output_crs_project_match=False",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#31",
+      "meaning": "Output CRS does not match project requirement. Zeros processing_score via deliverable_output_score=0.",
+      "raised_at_stage": "global_gate"
+    },
+    {
+      "flag_id": "FLG_PROC_002",
+      "flag_name": "PROC_NO_MARKERS_AT_ALL",
+      "raised_by_type": "indicator (flag-only)",
+      "condition": "reportGCP_total_markers_count=0",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#16",
+      "meaning": "Zero markers — no ground truth at all. Bundle PPK-anchored only. Flag-only, not score gate per user decision.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_003",
+      "flag_name": "PROC_NO_GCPS_USED",
+      "raised_by_type": "indicator (flag-only)",
+      "condition": "reportGCP_control_points_count=0",
+      "severity": "CRITICAL",
+      "covers_problems": "#17",
+      "meaning": "Markers exist but all as check points; zero GCPs in bundle. PPK-anchored. Flag-only.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_004",
+      "flag_name": "PROC_BA_REPROJ_ELEVATED",
+      "raised_by_type": "indicator",
+      "condition": "1.5 < reprojection_error ≤ 2.5",
+      "severity": "HIGH",
+      "covers_problems": "#1",
+      "meaning": "Bundle adjustment reprojection error elevated.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_005",
+      "flag_name": "PROC_BA_REPROJ_HIGH",
+      "raised_by_type": "indicator",
+      "condition": "2.5 < reprojection_error ≤ 3.5",
+      "severity": "CRITICAL",
+      "covers_problems": "#1",
+      "meaning": "Bundle adjustment reprojection error high.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_006",
+      "flag_name": "PROC_BA_CONVERGENCE_FAIL",
+      "raised_by_type": "indicator",
+      "condition": "reprojection_error > 3.5",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#1",
+      "meaning": "Bundle adjustment did not converge.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_007",
+      "flag_name": "PROC_CAMERAS_PARTIAL_ALIGN",
+      "raised_by_type": "indicator",
+      "condition": "0.95 ≤ alignment_fraction < 0.98",
+      "severity": "HIGH",
+      "covers_problems": "#2",
+      "meaning": "Some cameras failed to align.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_008",
+      "flag_name": "PROC_CAMERAS_POOR_ALIGN",
+      "raised_by_type": "indicator",
+      "condition": "0.90 ≤ alignment_fraction < 0.95",
+      "severity": "CRITICAL",
+      "covers_problems": "#2",
+      "meaning": "Many cameras failed to align.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_009",
+      "flag_name": "PROC_CAMERAS_SEVERE_ALIGN_FAIL",
+      "raised_by_type": "indicator",
+      "condition": "alignment_fraction < 0.90",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#2",
+      "meaning": "Severe camera alignment failure.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_010",
+      "flag_name": "PROC_CAMERA_POS_ELEVATED",
+      "raised_by_type": "indicator",
+      "condition": "camera_pos / GSD 2-4×",
+      "severity": "HIGH",
+      "covers_problems": "#8",
+      "meaning": "Camera position error elevated vs GSD.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_011",
+      "flag_name": "PROC_CAMERA_POS_SEVERE",
+      "raised_by_type": "indicator",
+      "condition": "camera_pos / GSD > 8×",
+      "severity": "CRITICAL",
+      "covers_problems": "#8",
+      "meaning": "Severe camera position error.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_012",
+      "flag_name": "PROC_OPTIMIZATION_INCOMPLETE",
+      "raised_by_type": "indicator",
+      "condition": "b1/b2 missing from optimization parameters",
+      "severity": "LOW (advisory)",
+      "covers_problems": "#6",
+      "meaning": "BA optimization parameter set missing b1/b2 (affinity/skew correction). Minor optimization preference per v1.0 pressure-test diagnostic — softened from MEDIUM.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_013",
+      "flag_name": "PROC_PRECALIB_NOT_LOADED",
+      "raised_by_type": "indicator",
+      "condition": "manifest expected precalib loaded, report shows No",
+      "severity": "HIGH",
+      "covers_problems": "#4",
+      "meaning": "Operator did not load precalibration when expected.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_014",
+      "flag_name": "PROC_CAMERA_MODEL_MISMATCH",
+      "raised_by_type": "indicator",
+      "condition": "manifest camera model ≠ report camera model",
+      "severity": "HIGH",
+      "covers_problems": "#5",
+      "meaning": "Camera model declared in manifest does not match Agisoft report.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_015",
+      "flag_name": "PROC_SELF_CALIB_ILL_CONDITIONED",
+      "raised_by_type": "indicator (compound)",
+      "condition": "precalibrated=No AND |K1-K2 corr| > 0.95 AND degraded reprojection/CP residuals",
+      "severity": "MEDIUM (advisory)",
+      "covers_problems": "#3",
+      "meaning": "Self-calibration ill-conditioned and showing consequences. v0.2 reviewer: compound condition to avoid universal false-positive flagging.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_016",
+      "flag_name": "PROC_REPROJ_OUTLIERS",
+      "raised_by_type": "indicator (advisory)",
+      "condition": "10 < max/rms ratio ≤ 20",
+      "severity": "MEDIUM (advisory)",
+      "covers_problems": "#7",
+      "meaning": "Reprojection outliers present (typical in practice).",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_017",
+      "flag_name": "PROC_REPROJ_SEVERE_OUTLIERS",
+      "raised_by_type": "indicator (advisory)",
+      "condition": "max/rms ratio > 50",
+      "severity": "MEDIUM (advisory)",
+      "covers_problems": "#7",
+      "meaning": "Reprojection outliers severe.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_018",
+      "flag_name": "PROC_ALIGNMENT_ACCURACY_LOW",
+      "raised_by_type": "indicator",
+      "condition": "alignment_accuracy = Medium",
+      "severity": "CRITICAL",
+      "covers_problems": "#11",
+      "meaning": "Alignment accuracy setting below recommended.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_019",
+      "flag_name": "PROC_ALIGNMENT_ACCURACY_CRITICAL",
+      "raised_by_type": "indicator",
+      "condition": "alignment_accuracy = Low/Lowest",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#11",
+      "meaning": "Alignment accuracy setting catastrophically low.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_020",
+      "flag_name": "PROC_DEPTH_QUALITY_MEDIUM",
+      "raised_by_type": "indicator (advisory)",
+      "condition": "depth_quality = Medium",
+      "severity": "MEDIUM (advisory)",
+      "covers_problems": "#12",
+      "meaning": "Depth map quality Medium — common operator choice; advisory.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_021",
+      "flag_name": "PROC_DEPTH_QUALITY_LOW",
+      "raised_by_type": "indicator",
+      "condition": "depth_quality = Low/Lowest",
+      "severity": "CRITICAL",
+      "covers_problems": "#12",
+      "meaning": "Depth map quality very low.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_022",
+      "flag_name": "PROC_SPARSE_TIEPOINTS",
+      "raised_by_type": "indicator",
+      "condition": "tie_density 1-3M/km²",
+      "severity": "HIGH",
+      "covers_problems": "#9",
+      "meaning": "Tie point density sparse.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_023",
+      "flag_name": "PROC_VERY_SPARSE_TIEPOINTS",
+      "raised_by_type": "indicator",
+      "condition": "tie_density <1M/km²",
+      "severity": "CRITICAL",
+      "covers_problems": "#9",
+      "meaning": "Tie point density very sparse.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_024",
+      "flag_name": "PROC_LOW_MULTIPLICITY",
+      "raised_by_type": "indicator",
+      "condition": "multiplicity 3-4",
+      "severity": "HIGH",
+      "covers_problems": "#10",
+      "meaning": "Tie point multiplicity low.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_025",
+      "flag_name": "PROC_VERY_LOW_MULTIPLICITY",
+      "raised_by_type": "indicator",
+      "condition": "multiplicity <3",
+      "severity": "CRITICAL",
+      "covers_problems": "#10",
+      "meaning": "Tie point multiplicity very low.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_026",
+      "flag_name": "PROC_FILTERING_INSUFFICIENT",
+      "raised_by_type": "indicator",
+      "condition": "filtering=Mild + site=vegetated",
+      "severity": "HIGH",
+      "covers_problems": "#13",
+      "meaning": "Depth filtering insufficient for site type.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_027",
+      "flag_name": "PROC_FILTERING_OVERSMOOTHED",
+      "raised_by_type": "indicator",
+      "condition": "filtering=Aggressive + site=flat-structured",
+      "severity": "HIGH",
+      "covers_problems": "#13",
+      "meaning": "Depth filtering over-smoothed for site type.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_028",
+      "flag_name": "PROC_MARKER_WEAK",
+      "raised_by_type": "indicator",
+      "condition": "3-4 images per marker",
+      "severity": "HIGH",
+      "covers_problems": "#14",
+      "meaning": "Marker visible in too few images for robust triangulation.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_029",
+      "flag_name": "PROC_MARKER_INSUFFICIENT_IMAGES",
+      "raised_by_type": "indicator",
+      "condition": "<3 images per marker",
+      "severity": "CRITICAL",
+      "covers_problems": "#14",
+      "meaning": "Marker insufficient images for triangulation.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_030",
+      "flag_name": "PROC_LOCALIZED_RECON_COLLAPSE",
+      "raised_by_type": "indicator (v1 advisory)",
+      "condition": "tie_density <1M/km² OR DEM has visible voids",
+      "severity": "HIGH (advisory in v1)",
+      "covers_problems": "#37",
+      "meaning": "Localized reconstruction collapse suspected. v1 partial via global proxies; v2 full via density-map visual analysis.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_031",
+      "flag_name": "PROC_ATMOSPHERIC_ARTIFACT_SUSPECTED",
+      "raised_by_type": "advisory (cross-handoff)",
+      "condition": "composite of reprojection + tie density + camera pos",
+      "severity": "HIGH (advisory)",
+      "covers_problems": "#15",
+      "meaning": "Atmospheric artifact suspected. Cross-handoff to drone chain.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_032",
+      "flag_name": "PROC_CP_RMSE_MARGINAL",
+      "raised_by_type": "indicator",
+      "condition": "CP_RMSE 1-2× target",
+      "severity": "HIGH",
+      "covers_problems": "#20",
+      "meaning": "Check-point residuals marginal — accuracy claim weakened.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_033",
+      "flag_name": "PROC_CP_RMSE_FAIL",
+      "raised_by_type": "indicator",
+      "condition": "CP_RMSE > 2× target",
+      "severity": "CRITICAL",
+      "covers_problems": "#20",
+      "meaning": "Check-point residuals fail accuracy target — survey accuracy claim broken.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_034",
+      "flag_name": "PROC_GCP_RMSE_MARGINAL",
+      "raised_by_type": "indicator",
+      "condition": "GCP_RMSE 1-2× target",
+      "severity": "HIGH",
+      "covers_problems": "#19",
+      "meaning": "GCP residuals marginal.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_035",
+      "flag_name": "PROC_GCP_RMSE_HIGH",
+      "raised_by_type": "indicator",
+      "condition": "GCP_RMSE 2-5× target",
+      "severity": "CRITICAL",
+      "covers_problems": "#19",
+      "meaning": "GCP residuals high.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_036",
+      "flag_name": "PROC_GCP_RMSE_REJECT",
+      "raised_by_type": "indicator",
+      "condition": "GCP_RMSE > 5× target",
+      "severity": "CRITICAL",
+      "covers_problems": "#19",
+      "meaning": "GCP control unusable.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_037",
+      "flag_name": "PROC_CP_OUTLIER_MILD",
+      "raised_by_type": "indicator",
+      "condition": "per-CP residual 1.5-2× ensemble mean",
+      "severity": "HIGH",
+      "covers_problems": "#22",
+      "meaning": "Individual CP outlier.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_038",
+      "flag_name": "PROC_CP_OUTLIER_SEVERE",
+      "raised_by_type": "indicator",
+      "condition": "per-CP residual 2-3× ensemble mean",
+      "severity": "CRITICAL",
+      "covers_problems": "#22",
+      "meaning": "Individual CP severely off.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_039",
+      "flag_name": "PROC_CP_OUTLIER_REJECT",
+      "raised_by_type": "indicator",
+      "condition": "per-CP residual > 3× ensemble mean",
+      "severity": "CRITICAL",
+      "covers_problems": "#22",
+      "meaning": "Individual CP unusable.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_040",
+      "flag_name": "PROC_ROLE_MISMATCH",
+      "raised_by_type": "indicator",
+      "condition": "manifest marker_roles ≠ report marker_roles",
+      "severity": "CRITICAL",
+      "covers_problems": "#25",
+      "meaning": "Marker roles differ between declaration and Agisoft (covers CP→GCP and GCP→CP swaps).",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_041",
+      "flag_name": "PROC_GCP_TYPO",
+      "raised_by_type": "indicator",
+      "condition": "report GCP coords ≠ pre_processing GCP coord file",
+      "severity": "CRITICAL",
+      "covers_problems": "#26",
+      "meaning": "GCP coordinate entered in Agisoft differs from pre_processing source — likely typo.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_042",
+      "flag_name": "PROC_CP_COUNT_STATISTICAL_WEAK",
+      "raised_by_type": "indicator",
+      "condition": "5 ≤ CP count < 10",
+      "severity": "HIGH",
+      "covers_problems": "#24",
+      "meaning": "CP count below statistical sufficiency.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_043",
+      "flag_name": "PROC_CP_COUNT_INSUFFICIENT",
+      "raised_by_type": "indicator",
+      "condition": "CP count < 5",
+      "severity": "CRITICAL",
+      "covers_problems": "#24",
+      "meaning": "CP count insufficient for statistical claim.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_044",
+      "flag_name": "PROC_GCP_COUNT_MARGINAL",
+      "raised_by_type": "indicator",
+      "condition": "GCP count 3-4",
+      "severity": "HIGH",
+      "covers_problems": "#18",
+      "meaning": "GCP count marginal for site extent.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_045",
+      "flag_name": "PROC_GCP_COUNT_INSUFFICIENT",
+      "raised_by_type": "indicator",
+      "condition": "GCP count < 3",
+      "severity": "CRITICAL",
+      "covers_problems": "#18",
+      "meaning": "GCP count insufficient.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_046",
+      "flag_name": "PROC_GCPS_CLUSTERED_IN_BUNDLE",
+      "raised_by_type": "indicator",
+      "condition": "GCP spatial coverage 60-80%",
+      "severity": "HIGH",
+      "covers_problems": "#27",
+      "meaning": "GCPs in bundle partially clustered.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_047",
+      "flag_name": "PROC_GCPS_SEVERELY_CLUSTERED",
+      "raised_by_type": "indicator",
+      "condition": "GCP spatial coverage < 60%",
+      "severity": "CRITICAL",
+      "covers_problems": "#27",
+      "meaning": "GCPs in bundle severely clustered.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_048",
+      "flag_name": "PROC_GCPS_NO_VERTICAL_COVERAGE_MARGINAL",
+      "raised_by_type": "indicator",
+      "condition": "GCP z_spread / terrain z_range 0.3-0.6",
+      "severity": "HIGH",
+      "covers_problems": "#28",
+      "meaning": "GCP vertical coverage marginal.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_049",
+      "flag_name": "PROC_GCPS_NO_VERTICAL_COVERAGE",
+      "raised_by_type": "indicator",
+      "condition": "GCP z_spread / terrain z_range < 0.3",
+      "severity": "HIGH",
+      "covers_problems": "#28",
+      "meaning": "GCPs do not cover terrain vertical extent.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_050",
+      "flag_name": "PROC_Z_XY_HIGH",
+      "raised_by_type": "indicator",
+      "condition": "z/xy residual ratio 1.5-2",
+      "severity": "HIGH",
+      "covers_problems": "#21",
+      "meaning": "Vertical residual elevated relative to horizontal.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_051",
+      "flag_name": "PROC_Z_XY_SEVERE",
+      "raised_by_type": "indicator",
+      "condition": "z/xy residual ratio > 2",
+      "severity": "HIGH",
+      "covers_problems": "#21",
+      "meaning": "Vertical residual severely elevated.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_052",
+      "flag_name": "PROC_MARKER_PIX_HIGH",
+      "raised_by_type": "indicator",
+      "condition": "per-marker pix_err / ensemble 1.5-2",
+      "severity": "HIGH",
+      "covers_problems": "#23",
+      "meaning": "Marker image pixel residual elevated.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_053",
+      "flag_name": "PROC_MARKER_PIX_SEVERE",
+      "raised_by_type": "indicator",
+      "condition": "per-marker pix_err / ensemble > 2",
+      "severity": "HIGH",
+      "covers_problems": "#23",
+      "meaning": "Marker image pixel residual severely elevated.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_054",
+      "flag_name": "PROC_RECONSTRUCTION_DRIFT",
+      "raised_by_type": "indicator (composite)",
+      "condition": "adequate GCPs + good GCP RMSE + bad CP RMSE",
+      "severity": "HIGH",
+      "covers_problems": "#29",
+      "meaning": "Reconstruction drift composite diagnostic — terrain/coverage/atmospheric issue suspected.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_055",
+      "flag_name": "PROC_OUTPUT_CRS_GEOGRAPHIC",
+      "raised_by_type": "indicator",
+      "condition": "output_crs is geographic (e.g., EPSG:4326)",
+      "severity": "CRITICAL",
+      "covers_problems": "#30",
+      "meaning": "Output CRS geographic not projected — linear measurements unreliable.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_056",
+      "flag_name": "PROC_INTERNAL_TRANSFORM_WRONG",
+      "raised_by_type": "indicator",
+      "condition": "report transform settings ≠ capture frame",
+      "severity": "CRITICAL",
+      "covers_problems": "#36",
+      "meaning": "Internal georeferencing transform inconsistent with capture frame — silent-invisible failure (label correct, transform wrong).",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_057",
+      "flag_name": "PROC_DSM_LABELLED_DTM",
+      "raised_by_type": "indicator",
+      "condition": "DTM claimed + no ground classification ran",
+      "severity": "HIGH",
+      "covers_problems": "#39",
+      "meaning": "DSM delivered as DTM (no ground classification).",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_058",
+      "flag_name": "PROC_DEM_INTERPOLATED_VOIDS",
+      "raised_by_type": "indicator",
+      "condition": "high DEM void interpolation fraction",
+      "severity": "HIGH",
+      "covers_problems": "#38",
+      "meaning": "DEM holes interpolated over voids — fabricated terrain in gap regions.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_059",
+      "flag_name": "PROC_DEM_RES_COARSE",
+      "raised_by_type": "indicator",
+      "condition": "dem_resolution / GSD 3-5×",
+      "severity": "MEDIUM",
+      "covers_problems": "#32",
+      "meaning": "DEM coarser than image GSD warrants.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_060",
+      "flag_name": "PROC_DEM_RES_VERY_COARSE",
+      "raised_by_type": "indicator",
+      "condition": "dem_resolution / GSD 5-10×",
+      "severity": "HIGH",
+      "covers_problems": "#32",
+      "meaning": "DEM very coarse vs GSD.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_061",
+      "flag_name": "PROC_DELIVERABLE_FILE_MISSING",
+      "raised_by_type": "indicator",
+      "condition": "manifest declares deliverable but file not uploaded",
+      "severity": "HIGH",
+      "covers_problems": "#34",
+      "meaning": "Declared deliverable file not uploaded — v1.1 per-deliverable view returns null for that deliverable.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_062",
+      "flag_name": "PROC_SOFTWARE_VERSION_BUGGY",
+      "raised_by_type": "advisory (v1)",
+      "condition": "software version in known-buggy list (v2 maintained)",
+      "severity": "MEDIUM (advisory, zero scoring weight in v1)",
+      "covers_problems": "#33",
+      "meaning": "Software version with known issues — v1: catalogued only; v2: scored when CBMI maintains list.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PROC_063",
+      "flag_name": "PROC_TARGET_DETECTION_FAILURE",
+      "raised_by_type": "handoff",
+      "condition": "OWNED_BY_PROC via CV3",
+      "severity": "HIGH",
+      "covers_problems": "#32 (PP)",
+      "meaning": "Target washed away/displaced — detected here via per-CP outlier residuals (CV3). Inherited from PP#32.",
+      "raised_at_stage": "handoff"
+    },
+    {
+      "flag_id": "FLG_PROC_064",
+      "flag_name": "PROC_PER_DELIVERABLE_FITNESS",
+      "raised_by_type": "handoff",
+      "condition": "OWNED_BY_DELIVERY_LAYER",
+      "severity": "INFORMATIONAL",
+      "covers_problems": "#35",
+      "meaning": "Per-deliverable fitness for customer use case — future delivery layer concern.",
+      "raised_at_stage": "handoff"
+    }
+  ],
+  "problem_coverage_map": [
+    {
+      "problem_no": 1,
+      "problem": "Bundle Adjustment Failed to Converge",
+      "severity": "CATASTROPHIC",
+      "frequency": "RARE",
+      "disposition": "OWNED",
+      "covered_by": "ba_reprojection_score (BA1) + PROC_BA_CONVERGENCE_FAIL"
+    },
+    {
+      "problem_no": 2,
+      "problem": "Camera Alignment Failures",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "camera_alignment_score (BA2)"
+    },
+    {
+      "problem_no": 3,
+      "problem": "Ill-Conditioned Self-Calibration",
+      "severity": "MEDIUM (v0.2 downgrade)",
+      "frequency": "COMMON",
+      "disposition": "OWNED (compound)",
+      "covered_by": "self_calibration_quality_score (BA7) — compound condition"
+    },
+    {
+      "problem_no": 4,
+      "problem": "Precalibrated Status Mismatch",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "precalibration_loaded_score (BA5)"
+    },
+    {
+      "problem_no": 5,
+      "problem": "Camera Model Mismatch",
+      "severity": "HIGH",
+      "frequency": "RARE",
+      "disposition": "OWNED (inherited from drone)",
+      "covered_by": "camera_model_consistency_score (BA6)"
+    },
+    {
+      "problem_no": 6,
+      "problem": "Optimization Parameters Incomplete",
+      "severity": "LOW (v1.0 pressure-test downgrade)",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "optimization_completeness_score (BA4)"
+    },
+    {
+      "problem_no": 7,
+      "problem": "Excessive Max Reprojection Error",
+      "severity": "MEDIUM (v0.2 downgrade)",
+      "frequency": "COMMON",
+      "disposition": "OWNED (advisory)",
+      "covered_by": "max_reproj_outlier_score (BA8) — advisory"
+    },
+    {
+      "problem_no": 8,
+      "problem": "Per-Camera Position Outliers",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (v1 ensemble only)",
+      "covered_by": "camera_position_ensemble_score (BA3) — per-camera deferred to v2"
+    },
+    {
+      "problem_no": 9,
+      "problem": "Insufficient Tie Points",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "tiepoint_density_score (IM3)"
+    },
+    {
+      "problem_no": 10,
+      "problem": "Low Tie Point Multiplicity",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "tiepoint_multiplicity_score (IM4)"
+    },
+    {
+      "problem_no": 11,
+      "problem": "Alignment Accuracy Too Low",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "alignment_accuracy_setting_score (IM1)"
+    },
+    {
+      "problem_no": 12,
+      "problem": "Depth Map Quality Too Low",
+      "severity": "CRITICAL",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "depth_quality_setting_score (IM2)"
+    },
+    {
+      "problem_no": 13,
+      "problem": "Filtering Mode Inappropriate",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "filtering_mode_appropriateness_score (IM5)"
+    },
+    {
+      "problem_no": 14,
+      "problem": "Marker Image-Pair Count Insufficient",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "marker_image_coverage_score (IM6)"
+    },
+    {
+      "problem_no": 15,
+      "problem": "Atmospheric Artifact Suspected",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (cross-handoff)",
+      "covered_by": "atmospheric_artifact_composite_score (IM8) — cross-handoff to drone chain"
+    },
+    {
+      "problem_no": 16,
+      "problem": "Zero Markers At All",
+      "severity": "CATASTROPHIC",
+      "frequency": "RARE",
+      "disposition": "OWNED (flag-only)",
+      "covered_by": "no_markers_at_all_flag_score (CV13) + PROC_NO_MARKERS_AT_ALL"
+    },
+    {
+      "problem_no": 17,
+      "problem": "Zero GCPs Used in Bundle",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (flag-only)",
+      "covered_by": "no_gcps_used_flag_score (CV14) + PROC_NO_GCPS_USED"
+    },
+    {
+      "problem_no": 18,
+      "problem": "Insufficient GCP Count",
+      "severity": "CRITICAL",
+      "frequency": "COMMON",
+      "disposition": "OWNED (inherited from GCP#3)",
+      "covered_by": "gcp_count_in_bundle_score (CV7)"
+    },
+    {
+      "problem_no": 19,
+      "problem": "GCP RMSE Exceeds Target",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "gcp_rmse_score (CV2)"
+    },
+    {
+      "problem_no": 20,
+      "problem": "CP RMSE Exceeds Target",
+      "severity": "CATASTROPHIC",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (moment-of-truth)",
+      "covered_by": "cp_rmse_score (CV1) — PRIMARY indicator"
+    },
+    {
+      "problem_no": 21,
+      "problem": "Z Residual Disproportionate to XY",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "z_xy_residual_ratio_score (CV10)"
+    },
+    {
+      "problem_no": 22,
+      "problem": "Per-CP Outlier Residuals",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (covers PP#32 + CP#14)",
+      "covered_by": "per_cp_outlier_score (CV3)"
+    },
+    {
+      "problem_no": 23,
+      "problem": "Per-Marker Image Pixel Error",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "per_marker_pix_error_score (CV11)"
+    },
+    {
+      "problem_no": 24,
+      "problem": "Insufficient CPs for Statistical Confidence",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "OWNED (inherited from PP#29)",
+      "covered_by": "cp_count_statistical_score (CV6)"
+    },
+    {
+      "problem_no": 25,
+      "problem": "CP/GCP Role Swap",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (covers CP#26+CP#29+GCP#21)",
+      "covered_by": "marker_role_consistency_score (CV4) — both directions"
+    },
+    {
+      "problem_no": 26,
+      "problem": "GCP Coordinate Typo in Agisoft",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (inherited from GCP#12)",
+      "covered_by": "gcp_coord_consistency_score (CV5) — cross-source"
+    },
+    {
+      "problem_no": 27,
+      "problem": "GCPs Clustered in Bundle",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (inherited from GCP#4)",
+      "covered_by": "gcp_bundle_distribution_score (CV8)"
+    },
+    {
+      "problem_no": 28,
+      "problem": "GCPs No Vertical Coverage",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (inherited from GCP#5)",
+      "covered_by": "gcp_vertical_coverage_score (CV9)"
+    },
+    {
+      "problem_no": 29,
+      "problem": "Reconstruction Drift Despite Adequate Control",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (inherited from GCP#22)",
+      "covered_by": "reconstruction_drift_composite_score (CV12)"
+    },
+    {
+      "problem_no": 30,
+      "problem": "Output CRS Geographic Not Projected",
+      "severity": "CRITICAL",
+      "frequency": "VERY COMMON",
+      "disposition": "OWNED",
+      "covered_by": "output_crs_projection_score (DO2)"
+    },
+    {
+      "problem_no": 31,
+      "problem": "Output CRS Mismatch with Project",
+      "severity": "CATASTROPHIC",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (gate)",
+      "covered_by": "output_crs_project_match_score (DO1) — HARD GATE"
+    },
+    {
+      "problem_no": 32,
+      "problem": "DEM Resolution Inappropriate",
+      "severity": "MEDIUM",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "dem_resolution_score (DO6)"
+    },
+    {
+      "problem_no": 33,
+      "problem": "Software Version Drift",
+      "severity": "MEDIUM",
+      "frequency": "RARE",
+      "disposition": "OWNED (v1 advisory)",
+      "covered_by": "software_version_score (DO8) — v1 advisory only"
+    },
+    {
+      "problem_no": 34,
+      "problem": "Deliverable File Set Incomplete",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "deliverable_completeness_score (DO7)"
+    },
+    {
+      "problem_no": 35,
+      "problem": "Per-Deliverable Fitness for Customer Use",
+      "severity": "INFORMATIONAL",
+      "frequency": "N/A",
+      "disposition": "OWNED_BY_DELIVERY_LAYER",
+      "covered_by": "Future delivery layer — documented limitation"
+    },
+    {
+      "problem_no": 36,
+      "problem": "Processing CRS/Geoid Internal Transform Wrong",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (new in v0.2)",
+      "covered_by": "internal_transform_consistency_score (DO3) — cross-source"
+    },
+    {
+      "problem_no": 37,
+      "problem": "Localized Reconstruction Collapse",
+      "severity": "HIGH",
+      "frequency": "COMMON (mining)",
+      "disposition": "OWNED (v1 partial)",
+      "covered_by": "localized_reconstruction_score (IM7) — v1 global proxies; v2 density-map parsing"
+    },
+    {
+      "problem_no": 38,
+      "problem": "Dense Cloud / DEM Holes Interpolated",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (new in v0.2)",
+      "covered_by": "dem_void_interpolation_score (DO5)"
+    },
+    {
+      "problem_no": 39,
+      "problem": "DSM Delivered as DTM (No Ground Classification)",
+      "severity": "HIGH",
+      "frequency": "COMMON (infra/vegetated)",
+      "disposition": "OWNED (new in v0.2)",
+      "covered_by": "dtm_classification_score (DO4)"
+    }
+  ],
+  "per_deliverable_views": [
+    {
+      "view_id": "VIEW_ORTHO",
+      "view_name": "ortho_score",
+      "display_name": "Orthomosaic Confidence Score",
+      "deliverable_file": "Orthomosaic raster (.tif/.tiff)",
+      "required_input_field": "deliverable_ortho_present",
+      "null_when_missing_reason": "ortho_file_not_uploaded",
+      "question": "Given the same processing evidence, what is the quality story specifically for the orthomosaic?",
+      "emphasis": "Horizontal positional accuracy; image matching quality; bundle adjustment integrity; output frame correctness.",
+      "null_handling": "Returns null with reason=ortho_file_not_uploaded when ortho file absent. processing_score itself still computes normally.",
+      "weight_map": [
+        [
+          "ba_reprojection_score",
+          0.1
+        ],
+        [
+          "camera_alignment_score",
+          0.1
+        ],
+        [
+          "camera_position_ensemble_score",
+          0.07
+        ],
+        [
+          "self_calibration_quality_score",
+          0.03
+        ],
+        [
+          "alignment_accuracy_setting_score",
+          0.08
+        ],
+        [
+          "tiepoint_density_score",
+          0.07
+        ],
+        [
+          "tiepoint_multiplicity_score",
+          0.05
+        ],
+        [
+          "cp_rmse_score",
+          0.15
+        ],
+        [
+          "gcp_rmse_score",
+          0.07
+        ],
+        [
+          "per_cp_outlier_score",
+          0.05
+        ],
+        [
+          "marker_role_consistency_score",
+          0.03
+        ],
+        [
+          "gcp_coord_consistency_score",
+          0.02
+        ],
+        [
+          "output_crs_project_match_score",
+          0.1
+        ],
+        [
+          "output_crs_projection_score",
+          0.05
+        ],
+        [
+          "internal_transform_consistency_score",
+          0.03
+        ]
+      ]
+    },
+    {
+      "view_id": "VIEW_DSM",
+      "view_name": "dsm_score",
+      "display_name": "Digital Surface Model Confidence Score",
+      "deliverable_file": "DSM raster (.tif/.tiff)",
+      "required_input_field": "deliverable_dsm_present",
+      "null_when_missing_reason": "dsm_file_not_uploaded",
+      "question": "Given the same processing evidence, what is the quality story specifically for the DSM?",
+      "emphasis": "Vertical accuracy; depth map quality; filtering mode appropriateness; void interpolation handling.",
+      "null_handling": "Returns null with reason=dsm_file_not_uploaded when DSM file absent.",
+      "weight_map": [
+        [
+          "ba_reprojection_score",
+          0.08
+        ],
+        [
+          "camera_alignment_score",
+          0.05
+        ],
+        [
+          "camera_position_ensemble_score",
+          0.05
+        ],
+        [
+          "depth_quality_setting_score",
+          0.15
+        ],
+        [
+          "filtering_mode_appropriateness_score",
+          0.1
+        ],
+        [
+          "tiepoint_density_score",
+          0.05
+        ],
+        [
+          "localized_reconstruction_score",
+          0.07
+        ],
+        [
+          "cp_rmse_score",
+          0.12
+        ],
+        [
+          "z_xy_residual_ratio_score",
+          0.05
+        ],
+        [
+          "gcp_rmse_score",
+          0.05
+        ],
+        [
+          "gcp_vertical_coverage_score",
+          0.03
+        ],
+        [
+          "per_cp_outlier_score",
+          0.05
+        ],
+        [
+          "output_crs_project_match_score",
+          0.08
+        ],
+        [
+          "dem_void_interpolation_score",
+          0.05
+        ],
+        [
+          "dem_resolution_score",
+          0.02
+        ]
+      ]
+    },
+    {
+      "view_id": "VIEW_DTM",
+      "view_name": "dtm_score",
+      "display_name": "Digital Terrain Model Confidence Score",
+      "deliverable_file": "DTM raster (.tif/.tiff)",
+      "required_input_field": "deliverable_dtm_present",
+      "null_when_missing_reason": "dtm_file_not_uploaded",
+      "question": "Given the same processing evidence, what is the quality story specifically for the DTM (ground-only terrain)?",
+      "emphasis": "Ground classification ran; filtering mode for vegetation; vertical accuracy; void interpolation.",
+      "null_handling": "Returns null with reason=dtm_file_not_uploaded when DTM file absent.",
+      "weight_map": [
+        [
+          "ba_reprojection_score",
+          0.06
+        ],
+        [
+          "camera_alignment_score",
+          0.04
+        ],
+        [
+          "depth_quality_setting_score",
+          0.1
+        ],
+        [
+          "filtering_mode_appropriateness_score",
+          0.12
+        ],
+        [
+          "localized_reconstruction_score",
+          0.05
+        ],
+        [
+          "cp_rmse_score",
+          0.1
+        ],
+        [
+          "z_xy_residual_ratio_score",
+          0.06
+        ],
+        [
+          "gcp_rmse_score",
+          0.05
+        ],
+        [
+          "gcp_vertical_coverage_score",
+          0.04
+        ],
+        [
+          "per_cp_outlier_score",
+          0.03
+        ],
+        [
+          "dtm_classification_score",
+          0.2
+        ],
+        [
+          "output_crs_project_match_score",
+          0.07
+        ],
+        [
+          "dem_void_interpolation_score",
+          0.05
+        ],
+        [
+          "dem_resolution_score",
+          0.03
+        ]
+      ]
+    },
+    {
+      "view_id": "VIEW_POINT_CLOUD",
+      "view_name": "point_cloud_score",
+      "display_name": "Dense Point Cloud Confidence Score",
+      "deliverable_file": "Dense point cloud (.las/.laz/.ply)",
+      "required_input_field": "deliverable_point_cloud_present",
+      "null_when_missing_reason": "point_cloud_file_not_uploaded",
+      "question": "Given the same processing evidence, what is the quality story specifically for the dense point cloud?",
+      "emphasis": "Point density (depth quality drives this); filtering; tie point integrity; 3D positional accuracy.",
+      "null_handling": "Returns null with reason=point_cloud_file_not_uploaded when file absent.",
+      "weight_map": [
+        [
+          "ba_reprojection_score",
+          0.08
+        ],
+        [
+          "camera_alignment_score",
+          0.07
+        ],
+        [
+          "camera_position_ensemble_score",
+          0.05
+        ],
+        [
+          "depth_quality_setting_score",
+          0.18
+        ],
+        [
+          "filtering_mode_appropriateness_score",
+          0.08
+        ],
+        [
+          "tiepoint_density_score",
+          0.08
+        ],
+        [
+          "tiepoint_multiplicity_score",
+          0.06
+        ],
+        [
+          "localized_reconstruction_score",
+          0.04
+        ],
+        [
+          "cp_rmse_score",
+          0.12
+        ],
+        [
+          "gcp_rmse_score",
+          0.05
+        ],
+        [
+          "per_cp_outlier_score",
+          0.04
+        ],
+        [
+          "z_xy_residual_ratio_score",
+          0.03
+        ],
+        [
+          "output_crs_project_match_score",
+          0.08
+        ],
+        [
+          "output_crs_projection_score",
+          0.04
+        ]
+      ]
+    },
+    {
+      "view_id": "VIEW_MESH_3D",
+      "view_name": "mesh_3d_score",
+      "display_name": "3D Textured Mesh Confidence Score",
+      "deliverable_file": "3D mesh model (.obj/.ply/.fbx)",
+      "required_input_field": "deliverable_mesh_3d_present",
+      "null_when_missing_reason": "mesh_3d_file_not_uploaded",
+      "question": "Given the same processing evidence, what is the quality story specifically for the 3D mesh?",
+      "emphasis": "Surface completeness; depth quality; tie point multi-view; camera alignment continuity.",
+      "null_handling": "Returns null with reason=mesh_3d_file_not_uploaded when file absent.",
+      "weight_map": [
+        [
+          "ba_reprojection_score",
+          0.08
+        ],
+        [
+          "camera_alignment_score",
+          0.1
+        ],
+        [
+          "camera_position_ensemble_score",
+          0.05
+        ],
+        [
+          "depth_quality_setting_score",
+          0.15
+        ],
+        [
+          "tiepoint_density_score",
+          0.08
+        ],
+        [
+          "tiepoint_multiplicity_score",
+          0.08
+        ],
+        [
+          "filtering_mode_appropriateness_score",
+          0.06
+        ],
+        [
+          "localized_reconstruction_score",
+          0.05
+        ],
+        [
+          "cp_rmse_score",
+          0.1
+        ],
+        [
+          "gcp_rmse_score",
+          0.05
+        ],
+        [
+          "per_cp_outlier_score",
+          0.04
+        ],
+        [
+          "output_crs_project_match_score",
+          0.08
+        ],
+        [
+          "output_crs_projection_score",
+          0.04
+        ],
+        [
+          "dem_void_interpolation_score",
+          0.04
+        ]
+      ]
+    }
+  ]
+}

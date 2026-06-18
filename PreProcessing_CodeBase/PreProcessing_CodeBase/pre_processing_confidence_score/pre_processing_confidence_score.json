@@ -1,0 +1,2999 @@
+{
+  "_meta": {
+    "title": "pre_processing_confidence_score",
+    "version": "1.1.0",
+    "previous": "v0.2 problems sheet (locked as v1.0)",
+    "workflow": "Evidence-based",
+    "phase": "single (computed once at pre-processing stage)",
+    "generated_at": "2026-06-01T07:26:35Z",
+    "runtime_independence": "Computed entirely from pre-processing artifacts (geotagged images, GCP coord file, CP coord file) + processing manifest + optional processing report + external sources. Does not read drone_score, base_station_score, gcp_score, or check_point_score outputs at runtime.",
+    "design_summary": "Four-block evidence-based pre-processing confidence chain with separate verification_status field. CBMI does not perform processing \u2014 chain evaluates artifacts and declared/optional processing provenance. Tiered evidence with graceful degradation when reports are not uploaded. Path-aware indicators evaluate only when their applies_to_paths matches the operator-declared workflow. CP-related quality reported as verification_status rather than gating the score \u2014 surveys can be high-quality without check points.",
+    "id_prefixes": {
+      "SRC_PP_": "source file",
+      "L1F_PP_": "source field",
+      "L2D_PP_": "derived field",
+      "L3I_PP_": "indicator",
+      "BB_PP_": "building block",
+      "FLG_PP_": "flag"
+    },
+    "counts": {
+      "source_files": 5,
+      "source_fields": 62,
+      "derived_fields": 37,
+      "indicators": 38,
+      "new_indicators_in_v11": 4,
+      "building_blocks": 4,
+      "per_artifact_views": 3,
+      "flags": 67,
+      "new_flags_in_v11": 10,
+      "problems": 42
+    },
+    "extends": "1.0.0 (no breaking changes; additive only)",
+    "change_summary": "v1.1 adds three per-artifact scores as views over existing indicators: geotag_artifact_score, gcp_coord_artifact_score, cp_coord_artifact_score. Adds 4 new indicators for CP-numeric scoring (used by cp_coord_artifact_score AND verification_status). Adds 10 new flags for CP-specific thresholds. NO CHANGES to v1.0 indicator weights, block structure, pre_processing_score formula, or verification_status logic."
+  },
+  "pre_processing_score": {
+    "score_id": "pre_processing_score",
+    "display_name": "Pre-Processing Confidence Score",
+    "workflow": "Evidence-based (CBMI does not perform processing; chain evaluates artifacts + manifest)",
+    "phase": "single (computed once; never revised)",
+    "formula_expression": "0.35*reference_frame_score + 0.30*geotag_integrity_score + 0.25*gcp_coord_trust_score + 0.10*survey_design_score",
+    "aggregator": "block-of-blocks; within-block weighted averages with redistribution when evidence absent or path-N/A",
+    "global_gate_condition": "PP_WRONG_CRS_DATUM OR PP_WRONG_PROJECTION OR PP_GCP_AUTONOMOUS_PATH",
+    "global_gate_action": "Sets pre_processing_score = 0. The named flag fires with severity CATASTROPHIC.",
+    "verification_status_field": "Separate categorical field reporting CP-related quality. VALUES: VERIFIED, UNVERIFIED_NO_CPS, UNVERIFIED_INSUFFICIENT_CPS, UNVERIFIED_CP_CLUSTERED, UNVERIFIED_CP_NOT_INDEPENDENT, UNVERIFIED_CP_TRUST_LOW. NEVER score-gating. PP_NO_INDEPENDENT_VERIFICATION flag (CRITICAL-informational) fires when verification_status != VERIFIED. Reasoning: surveys can be high-quality without check points; absence of verification does not invalidate the survey quality.",
+    "null_handling": "No null state. Score always computes from the four scoring blocks. The CP situation is reported via verification_status, not as a null.",
+    "scope_note": "Evidence-based confidence score for pre-processing outputs. CBMI does NOT perform processing \u2014 this chain evaluates artifacts (geotagged images, GCP coord file, CP coord file) and a declared processing manifest. Optional processing report deepens diagnostic depth. Runtime-independent of drone_score, base_station_score, gcp_score, check_point_score \u2014 does not read their outputs. Cross-subsystem coupling (e.g., \"CP reliability degraded by base risk\") belongs in future capture_score.",
+    "source_file_set": "Geotagged image set, GCP coord file, CP coord file, processing manifest. Optional processing report.",
+    "paths_supported": "AUTONOMOUS / PUBLISHED_BENCHMARK / CORS / CLOUD / CUSTOMER_SUPPLIED / LOCAL_BASE_PPK (path-aware indicators only evaluate when their applies_to_paths matches)",
+    "known_limitations": "False fix / antenna PCO errors that do not manifest in \u03c3 are NOT detectable from artifact evidence alone \u2014 caught downstream at processing-stage check-point residuals. Processing-report-dependent indicators (cors_data_continuity, time_sync_residual, gcp_residual, cors_station_health) score as advisory only when report is not uploaded \u2014 operational reality is that reports are not reliably uploaded. Settings-actuality validation requires uploaded processing report (Approach 2). Without report, chain validates declared settings only (Approach 1) \u2014 operator-declarative misrepresentation not detectable. Approach 3 (independent project-type validation against expected settings) deferred to v2 \u2014 requires CBMI to maintain expected-settings reference per project type. Software-version scoring deferred to v2 (SD5) \u2014 v1 carries known-buggy-versions flag as advisory only with zero scoring weight; real scoring when CBMI maintains buggy-version list. Approximately 6 of the 42 catalogued problems are NOT detected by pre_processing_score: target washed away (handed to processing_score), stockpile toe ambiguity (handed to volume analytics), monsoon flight artifacts (cross-handoff to drone chain), and others. Documented in problem_coverage_map. Vegetation DTM unreliability is an inherent photogrammetry limitation \u2014 chain documents but cannot remove. Undisclosed site localization not detectable from artifact evidence \u2014 only detectable when operator addresses it in manifest (declared-only). CRS/projection sanity checks compare against survey bounding box for plausibility; cannot verify absolute correctness when bounding box itself is in wrong frame."
+  },
+  "pre_processing_score_blocks": [
+    {
+      "block_id": "BB_PP_REF",
+      "block_name": "reference_frame_score",
+      "weight": 0.35
+    },
+    {
+      "block_id": "BB_PP_GEO",
+      "block_name": "geotag_integrity_score",
+      "weight": 0.3
+    },
+    {
+      "block_id": "BB_PP_GCT",
+      "block_name": "gcp_coord_trust_score",
+      "weight": 0.25
+    },
+    {
+      "block_id": "BB_PP_SD",
+      "block_name": "survey_design_score",
+      "weight": 0.1
+    }
+  ],
+  "building_blocks": [
+    {
+      "block_id": "BB_PP_REF",
+      "block_name": "reference_frame_score",
+      "display_name": "Reference Frame Integrity",
+      "weight_in_pre_processing_score": 0.35,
+      "question": "Are all artifacts in the same, declared, correct reference frame?",
+      "failure_owner": "Pre-processing software setup + processing manifest",
+      "operator_action": "Verify CRS/datum/geoid/projection/units declarations match project requirement",
+      "aggregator": "weighted average of indicator scores",
+      "indicators_within": "ref_frame_declared_score(0.30), geoid_model_declared_score(0.20), height_mode_declared_score(0.15), projection_declared_score(0.10), output_crs_metadata_score(0.10), units_declared_score(0.05), customer_coord_crs_declared_score(0.05), localization_disclosed_score(0.03), provenance_consistency_score(0.02)",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "PP_WRONG_CRS_DATUM OR PP_WRONG_PROJECTION",
+      "gate_action": "reference_frame_score = 0. Zeros pre_processing_score via block-of-blocks."
+    },
+    {
+      "block_id": "BB_PP_GEO",
+      "block_name": "geotag_integrity_score",
+      "display_name": "Geotag Integrity",
+      "weight_in_pre_processing_score": 0.3,
+      "question": "Are the geotagged images trustworthy as photogrammetry input?",
+      "failure_owner": "Drone PPK processing software + base/CORS data",
+      "operator_action": "Reprocess with correct base/CORS pairing; verify per-image solution status",
+      "aggregator": "weighted average of indicator scores (with weight redistribution when evidence absent)",
+      "indicators_within": "base_pairing_score(0.25), geotag_solution_quality_score(0.20), geotag_completeness_score(0.15), geotag_baseline_score(0.10), session_overlap_score(0.10), overlap_texture_score(0.08), antenna_pco_score(0.05), sensor_metadata_consistency_score(0.03), cors_data_continuity_score(0.02), time_sync_residual_score(0.01), monsoon_flight_artifact_score(0.01)",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": ""
+    },
+    {
+      "block_id": "BB_PP_GCT",
+      "block_name": "gcp_coord_trust_score",
+      "display_name": "GCP Coordinate Trust",
+      "weight_in_pre_processing_score": 0.25,
+      "question": "Are the GCP coordinates trustworthy as absolute-accuracy anchors?",
+      "failure_owner": "GCP processing software + processing path selection",
+      "operator_action": "Reprocess via PPK/CORS; require customer accuracy declaration",
+      "aggregator": "weighted average; GCT1 \u03c3 uses mean \u2212 0.25 \u00d7 (100 \u2212 min) across GCPs internally",
+      "indicators_within": "gcp_sigma_score(0.30), gcp_processing_path_score(0.25), gcp_customer_accuracy_declared_score(0.15), gcp_id_reconciliation_score(0.10), gcp_coord_age_score(0.10), coord_parse_sanity_score(0.05), gcp_residual_score(0.03), cors_station_health_score(0.02)",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "PP_GCP_AUTONOMOUS_PATH",
+      "gate_action": "gcp_coord_trust_score = 0. Zeros pre_processing_score via block-of-blocks."
+    },
+    {
+      "block_id": "BB_PP_SD",
+      "block_name": "survey_design_score",
+      "display_name": "Survey Design Adequacy (GCP-only)",
+      "weight_in_pre_processing_score": 0.1,
+      "question": "Was the GCP layout adequate for the site extent?",
+      "failure_owner": "Survey planning + operator deployment",
+      "operator_action": "Deploy additional GCPs; redistribute; ensure target visibility",
+      "aggregator": "weighted average of indicator scores",
+      "indicators_within": "gcp_count_score(0.40), gcp_distribution_score(0.35), target_visibility_score(0.15), vegetation_dtm_declared_score(0.05), software_version_score(0.05)",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": ""
+    }
+  ],
+  "indicators": [
+    {
+      "indicator_id": "L3I_PP_001",
+      "indicator_name": "ref_frame_declared_score",
+      "display_name": "CRS / Datum Declaration vs Project",
+      "building_block_id": "BB_PP_REF",
+      "weight_in_block": 0.3,
+      "covers_problems": "#1",
+      "input_derived_fields": "crs_match_project",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "crs_match_project=False",
+      "gate_action": "reference_frame_score=0; FLAG: PP_WRONG_CRS_DATUM (CATASTROPHIC). Zeros pre_processing_score.",
+      "justification": "SHEET",
+      "threshold_summary": "declared CRS/datum matches project across all artifacts \u2192 100; mismatch \u2192 0 + FLAG: PP_WRONG_CRS_DATUM.",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_002",
+      "indicator_name": "geoid_model_declared_score",
+      "display_name": "Geoid Model Declaration vs Project",
+      "building_block_id": "BB_PP_REF",
+      "weight_in_block": 0.2,
+      "covers_problems": "#2",
+      "input_derived_fields": "geoid_match_project",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "declared geoid matches project + consistent across artifacts \u2192 100; mismatch \u2192 0 + FLAG: PP_GEOID_MISMATCH.",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_003",
+      "indicator_name": "height_mode_declared_score",
+      "display_name": "Height Mode Declaration",
+      "building_block_id": "BB_PP_REF",
+      "weight_in_block": 0.15,
+      "covers_problems": "#3",
+      "input_derived_fields": "height_mode_consistency",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "all artifacts same height_mode AND matches project \u2192 100; inconsistent \u2192 30 + FLAG: PP_HEIGHT_MODE_INCONSISTENT; project mismatch \u2192 0 + FLAG: PP_HEIGHT_MODE_WRONG.",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_004",
+      "indicator_name": "projection_declared_score",
+      "display_name": "Projection Declaration vs Survey Location",
+      "building_block_id": "BB_PP_REF",
+      "weight_in_block": 0.1,
+      "covers_problems": "#7",
+      "input_derived_fields": "projection_match_location",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "projection_match_location=False",
+      "gate_action": "reference_frame_score=0; FLAG: PP_WRONG_PROJECTION (CATASTROPHIC). Zeros pre_processing_score.",
+      "justification": "SHEET",
+      "threshold_summary": "projection consistent with site bounding box \u2192 100; mismatch \u2192 0 + FLAG: PP_WRONG_PROJECTION.",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_005",
+      "indicator_name": "output_crs_metadata_score",
+      "display_name": "Output CRS Metadata in Artifacts",
+      "building_block_id": "BB_PP_REF",
+      "weight_in_block": 0.1,
+      "covers_problems": "#6",
+      "input_derived_fields": "output_crs_metadata_present",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "CRS metadata present in each artifact AND matches declared \u2192 100; missing \u2192 50 + FLAG: PP_OUTPUT_CRS_MISSING; mismatch \u2192 0 + FLAG: PP_OUTPUT_CRS_MISMATCH.",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_006",
+      "indicator_name": "units_declared_score",
+      "display_name": "Units Declaration vs Project",
+      "building_block_id": "BB_PP_REF",
+      "weight_in_block": 0.05,
+      "covers_problems": "#8",
+      "input_derived_fields": "units_match_project",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "units declared + match project + consistent \u2192 100; mismatch \u2192 0 + FLAG: PP_UNITS_MISMATCH.",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_007",
+      "indicator_name": "customer_coord_crs_declared_score",
+      "display_name": "Customer-Supplied Coord CRS",
+      "building_block_id": "BB_PP_REF",
+      "weight_in_block": 0.05,
+      "covers_problems": "#4",
+      "input_derived_fields": "customer_coord_crs_consistent",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "customer-supplied GCP file declares CRS + matches project \u2192 100; missing \u2192 30 + FLAG: PP_CUSTOMER_COORDS_NO_CRS; mismatch \u2192 0 + FLAG: PP_CUSTOMER_COORDS_WRONG_CRS. N/A when not customer-supplied (weight redistributes).",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "CUSTOMER_SUPPLIED"
+    },
+    {
+      "indicator_id": "L3I_PP_008",
+      "indicator_name": "localization_disclosed_score",
+      "display_name": "Site Localization Disclosure",
+      "building_block_id": "BB_PP_REF",
+      "weight_in_block": 0.02,
+      "covers_problems": "#5",
+      "input_derived_fields": "localization_disclosed",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "localization disclosed (whether applied or not) \u2192 100; not disclosed \u2192 60 + FLAG: PP_LOCALIZATION_UNDISCLOSED (HIGH).",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_009",
+      "indicator_name": "provenance_consistency_score",
+      "display_name": "Realization/Epoch Provenance Consistency",
+      "building_block_id": "BB_PP_REF",
+      "weight_in_block": 0.01,
+      "covers_problems": "#42",
+      "input_derived_fields": "provenance_realization_consistent",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "all control declares same realization/epoch \u2192 100; mixed \u2192 50 + FLAG: PP_MIXED_PROVENANCE.",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_010",
+      "indicator_name": "base_pairing_score",
+      "display_name": "Drone-Base File Pairing",
+      "building_block_id": "BB_PP_GEO",
+      "weight_in_block": 0.25,
+      "covers_problems": "#33",
+      "input_derived_fields": "drone_session_within_base_window",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (silent CATASTROPHIC inside block \u2014 heavily weighted)",
+      "threshold_summary": "drone session within base window AND base_file_id matches \u2192 100; outside OR mismatched \u2192 0 + FLAG: PP_WRONG_BASE_PAIRED.",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "LOCAL_BASE_PPK"
+    },
+    {
+      "indicator_id": "L3I_PP_011",
+      "indicator_name": "geotag_solution_quality_score",
+      "display_name": "PPK Solution Quality (Per-Image)",
+      "building_block_id": "BB_PP_GEO",
+      "weight_in_block": 0.2,
+      "covers_problems": "#9",
+      "input_derived_fields": "fraction_geotags_fixed",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "fraction Q=1 \u22650.95 \u2192 100; 0.80-0.95 \u2192 70 + FLAG: PP_GEOTAG_PARTIAL_FIX; <0.80 \u2192 30 + FLAG: PP_GEOTAG_POOR_FIX; <0.50 \u2192 0 + FLAG: PP_GEOTAG_NOT_FIXED.",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "LOCAL_BASE_PPK / CORS / CLOUD"
+    },
+    {
+      "indicator_id": "L3I_PP_012",
+      "indicator_name": "geotag_completeness_score",
+      "display_name": "Geotag Completeness vs Captures",
+      "building_block_id": "BB_PP_GEO",
+      "weight_in_block": 0.15,
+      "covers_problems": "#10",
+      "input_derived_fields": "geotag_completeness_fraction",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "\u22650.99 \u2192 100; 0.95-0.99 \u2192 80; 0.80-0.95 \u2192 50 + FLAG: PP_GEOTAGS_INCOMPLETE; <0.80 \u2192 0 + FLAG: PP_GEOTAGS_SEVERELY_INCOMPLETE.",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_013",
+      "indicator_name": "geotag_baseline_score",
+      "display_name": "Baseline to Base/CORS (Drone PPK)",
+      "building_block_id": "BB_PP_GEO",
+      "weight_in_block": 0.1,
+      "covers_problems": "#11",
+      "input_derived_fields": "baseline_length_km",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "\u22645km \u2192 100; 5-10km \u2192 88; 10-20km \u2192 70 + FLAG: PP_LONG_BASELINE; 20-40km \u2192 40 + FLAG: PP_EXCESSIVE_BASELINE; >40km \u2192 20.",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "LOCAL_BASE_PPK / CORS"
+    },
+    {
+      "indicator_id": "L3I_PP_014",
+      "indicator_name": "session_overlap_score",
+      "display_name": "Drone-Base Session Overlap",
+      "building_block_id": "BB_PP_GEO",
+      "weight_in_block": 0.1,
+      "covers_problems": "#13",
+      "input_derived_fields": "session_overlap_fraction",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "=1.0 \u2192 100; 0.95-1.0 \u2192 80; 0.80-0.95 \u2192 50 + FLAG: PP_PARTIAL_BASE_OVERLAP; <0.80 \u2192 30 + FLAG: PP_INSUFFICIENT_OVERLAP.",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "LOCAL_BASE_PPK / CORS"
+    },
+    {
+      "indicator_id": "L3I_PP_015",
+      "indicator_name": "overlap_texture_score",
+      "display_name": "Image Overlap / Tie-Point Density",
+      "building_block_id": "BB_PP_GEO",
+      "weight_in_block": 0.08,
+      "covers_problems": "#37",
+      "input_derived_fields": "overlap_texture_proxy",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (mining-specific gap)",
+      "threshold_summary": "declared overlap \u226575/65 \u2192 100; 65-75/55-65 \u2192 70; <65/<55 \u2192 40 + FLAG: PP_SPARSE_TIEPOINTS_RISK. Tie-point density (report) replaces declared when available.",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_016",
+      "indicator_name": "antenna_pco_score",
+      "display_name": "Antenna PCO Declaration vs Actual",
+      "building_block_id": "BB_PP_GEO",
+      "weight_in_block": 0.05,
+      "covers_problems": "#14",
+      "input_derived_fields": "antenna_pco_match",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "match \u2192 100; mismatch \u2192 50 + FLAG: PP_ANTENNA_PCO_MISMATCH.",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "LOCAL_BASE_PPK / CORS"
+    },
+    {
+      "indicator_id": "L3I_PP_017",
+      "indicator_name": "sensor_metadata_consistency_score",
+      "display_name": "Sensor Metadata Cross-Check",
+      "building_block_id": "BB_PP_GEO",
+      "weight_in_block": 0.03,
+      "covers_problems": "#34",
+      "input_derived_fields": "sensor_metadata_consistent",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "EXIF camera = manifest = flight log \u2192 100; any mismatch \u2192 50 + FLAG: PP_SENSOR_METADATA_MISMATCH.",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_018",
+      "indicator_name": "cors_data_continuity_score",
+      "display_name": "CORS Data Continuity During Flight",
+      "building_block_id": "BB_PP_GEO",
+      "weight_in_block": 0.02,
+      "covers_problems": "#12",
+      "input_derived_fields": "cors_data_continuity",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "continuous \u2192 100; minor gaps \u2192 70 + FLAG: PP_CORS_MINOR_GAP; major gaps \u2192 30 + FLAG: PP_CORS_MAJOR_GAP. Advisory when report absent (weight redistributes within block).",
+      "evidence_required": "detailed_manifest_with_report",
+      "applies_to_paths": "CORS"
+    },
+    {
+      "indicator_id": "L3I_PP_019",
+      "indicator_name": "time_sync_residual_score",
+      "display_name": "Drone-Base Time-Sync Residuals",
+      "building_block_id": "BB_PP_GEO",
+      "weight_in_block": 0.01,
+      "covers_problems": "#15",
+      "input_derived_fields": "time_sync_residual_magnitude",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "<100ms \u2192 100; 100ms-1s \u2192 70 + FLAG: PP_TIME_SYNC_DRIFT; >1s \u2192 30 + FLAG: PP_TIME_SYNC_SEVERE. Advisory when report absent.",
+      "evidence_required": "detailed_manifest_with_report",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_020",
+      "indicator_name": "monsoon_flight_artifact_score",
+      "display_name": "Adverse Flight Conditions Declaration",
+      "building_block_id": "BB_PP_GEO",
+      "weight_in_block": 0.01,
+      "covers_problems": "#41",
+      "input_derived_fields": "flight_conditions_adverse",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (cross-handoff to drone chain)",
+      "threshold_summary": "declared adverse \u2192 flag PP_FLIGHT_CONDITION_RISK (advisory) \u2192 70; clear \u2192 100. Cross-handoff to drone chain documented.",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_021",
+      "indicator_name": "gcp_sigma_score",
+      "display_name": "GCP Coordinate Sigma vs Target",
+      "building_block_id": "BB_PP_GCT",
+      "weight_in_block": 0.3,
+      "covers_problems": "#16",
+      "input_derived_fields": "gcp_sigma_relative_to_target",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (primary trust anchor \u2014 per-point with mean \u2212 k\u00b7worst)",
+      "threshold_summary": "per-GCP: \u03c3_h \u2264 target \u2192 100; 1-2\u00d7 \u2192 70 + FLAG: PP_GCP_SIGMA_MARGINAL; 2-5\u00d7 \u2192 30 + FLAG: PP_GCP_SIGMA_HIGH; >5\u00d7 \u2192 0 + FLAG: PP_GCP_SIGMA_REJECT. Aggregated via mean \u2212 0.25 \u00d7 (100 \u2212 min).",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_022",
+      "indicator_name": "gcp_processing_path_score",
+      "display_name": "GCP Processing Path Acceptable",
+      "building_block_id": "BB_PP_GCT",
+      "weight_in_block": 0.25,
+      "covers_problems": "#17",
+      "input_derived_fields": "gcp_path_acceptable",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "gcp_path_acceptable=False",
+      "gate_action": "GCP Coord Trust block = 0; FLAG: PP_GCP_AUTONOMOUS_PATH (CATASTROPHIC). Zeros pre_processing_score.",
+      "justification": "SHEET",
+      "threshold_summary": "AUTONOMOUS \u2192 0 + FLAG: PP_GCP_AUTONOMOUS_PATH; LOCAL_BASE_PPK / CORS / CLOUD / PUBLISHED_BENCHMARK \u2192 100; CUSTOMER_SUPPLIED \u2192 GCT3 takes over.",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_023",
+      "indicator_name": "gcp_customer_accuracy_declared_score",
+      "display_name": "Customer-Supplied GCP Accuracy Declaration",
+      "building_block_id": "BB_PP_GCT",
+      "weight_in_block": 0.15,
+      "covers_problems": "#18",
+      "input_derived_fields": "gcp_customer_accuracy_adequate",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "declared + meets target \u2192 100; declared but inadequate \u2192 30 + FLAG: PP_GCP_CUSTOMER_INADEQUATE; not declared \u2192 30 + FLAG: PP_GCP_CUSTOMER_NO_ACCURACY_CLAIM (CRITICAL reviewer-blocking). N/A when not customer-supplied (weight redistributes).",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "CUSTOMER_SUPPLIED"
+    },
+    {
+      "indicator_id": "L3I_PP_024",
+      "indicator_name": "gcp_id_reconciliation_score",
+      "display_name": "GCP ID Cross-Artifact Consistency",
+      "building_block_id": "BB_PP_GCT",
+      "weight_in_block": 0.1,
+      "covers_problems": "#19",
+      "input_derived_fields": "gcp_id_reconciliation",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "all match \u2192 100; minor \u2192 70 + FLAG: PP_GCP_ID_PARTIAL_MISMATCH; major \u2192 30 + FLAG: PP_GCP_ID_MISMATCH.",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_025",
+      "indicator_name": "gcp_coord_age_score",
+      "display_name": "GCP Coord Determination Date Staleness",
+      "building_block_id": "BB_PP_GCT",
+      "weight_in_block": 0.1,
+      "covers_problems": "#21",
+      "input_derived_fields": "gcp_coord_age_days",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "<30d \u2192 100; 30-180d \u2192 80; 180-365d \u2192 50 + FLAG: PP_GCP_COORDS_AGED; >365d \u2192 30 + FLAG: PP_GCP_COORDS_STALE. N/A when not customer-supplied.",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "CUSTOMER_SUPPLIED"
+    },
+    {
+      "indicator_id": "L3I_PP_026",
+      "indicator_name": "coord_parse_sanity_score",
+      "display_name": "Coordinate Parse Sanity (axis swap / decimal)",
+      "building_block_id": "BB_PP_GCT",
+      "weight_in_block": 0.05,
+      "covers_problems": "#40",
+      "input_derived_fields": "coord_parse_bbox_sanity",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (concrete sibling of #24)",
+      "threshold_summary": "parsed coords within declared bounding box \u2192 100; out-of-box / axis-swap signature \u2192 0 + FLAG: PP_COORD_MISPARSE.",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_027",
+      "indicator_name": "gcp_residual_score",
+      "display_name": "GCP Residuals from Processing Report",
+      "building_block_id": "BB_PP_GCT",
+      "weight_in_block": 0.03,
+      "covers_problems": "#20",
+      "input_derived_fields": "gcp_residuals_within_tolerance",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "all within tolerance \u2192 100; few outliers \u2192 70 + FLAG: PP_GCP_RESIDUAL_OUTLIERS; many \u2192 30 + FLAG: PP_GCP_RESIDUAL_FAILURES. Advisory when report absent (weight redistributes within block).",
+      "evidence_required": "detailed_manifest_with_report",
+      "applies_to_paths": "LOCAL_BASE_PPK / CORS"
+    },
+    {
+      "indicator_id": "L3I_PP_028",
+      "indicator_name": "cors_station_health_score",
+      "display_name": "CORS Station Health During Observation",
+      "building_block_id": "BB_PP_GCT",
+      "weight_in_block": 0.02,
+      "covers_problems": "#22",
+      "input_derived_fields": "cors_station_health_acceptable",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "good \u2192 100; degraded \u2192 50 + FLAG: PP_CORS_STATION_DEGRADED; poor \u2192 0 + FLAG: PP_CORS_STATION_UNHEALTHY. Advisory when report absent.",
+      "evidence_required": "detailed_manifest_with_report",
+      "applies_to_paths": "CORS"
+    },
+    {
+      "indicator_id": "L3I_PP_029",
+      "indicator_name": "gcp_count_score",
+      "display_name": "GCP Count vs Reconstruction Extent",
+      "building_block_id": "BB_PP_SD",
+      "weight_in_block": 0.4,
+      "covers_problems": "#27",
+      "input_derived_fields": "gcp_count_adequate",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "adequate ratio \u2192 100; marginal \u2192 70 + FLAG: PP_GCP_COUNT_MARGINAL; insufficient \u2192 30 + FLAG: PP_GCP_COUNT_INSUFFICIENT.",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_030",
+      "indicator_name": "gcp_distribution_score",
+      "display_name": "GCP Spatial Distribution",
+      "building_block_id": "BB_PP_SD",
+      "weight_in_block": 0.35,
+      "covers_problems": "#28",
+      "input_derived_fields": "gcp_distribution_coverage",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "\u226580% extent coverage \u2192 100; partial \u2192 60 + FLAG: PP_GCP_CLUSTERED; severely clustered \u2192 30 + FLAG: PP_GCP_SEVERELY_CLUSTERED.",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_031",
+      "indicator_name": "target_visibility_score",
+      "display_name": "Target Pixel Visibility at GSD",
+      "building_block_id": "BB_PP_SD",
+      "weight_in_block": 0.15,
+      "covers_problems": "#31",
+      "input_derived_fields": "target_pixels_at_gsd",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "\u22653 px \u2192 100; 2-3 \u2192 60 + FLAG: PP_TARGET_MARGINAL; <2 \u2192 30 + FLAG: PP_TARGET_INVISIBLE.",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_032",
+      "indicator_name": "vegetation_dtm_declared_score",
+      "display_name": "Vegetation / DTM Reliability",
+      "building_block_id": "BB_PP_SD",
+      "weight_in_block": 0.05,
+      "covers_problems": "#38",
+      "input_derived_fields": "vegetation_dtm_risk",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "vegetated + DTM-claimed \u2192 30 + FLAG: PP_VEG_DTM_UNRELIABLE (advisory); else 100.",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_033",
+      "indicator_name": "software_version_score",
+      "display_name": "Processing Software Version",
+      "building_block_id": "BB_PP_SD",
+      "weight_in_block": 0.05,
+      "covers_problems": "#35",
+      "input_derived_fields": "software_version_in_buggy_list",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (v1: advisory only; v2 once buggy-list maintained)",
+      "threshold_summary": "v1: declared \u2192 100; in buggy list \u2192 flag PP_BUGGY_SOFTWARE_VERSION (advisory, zero scoring weight in v1). v2: real scoring.",
+      "evidence_required": "declared_manifest",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_034",
+      "indicator_name": "settings_consistency_score",
+      "display_name": "Manifest-Declared vs Report-Actual Settings (Approach 2)",
+      "building_block_id": "BB_PP_REF",
+      "weight_in_block": 0.02,
+      "covers_problems": "#36",
+      "input_derived_fields": "settings_declared_vs_actual_consistent",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "manifest-declared settings match processing-report-actual \u2192 100; mismatch \u2192 30 + FLAG: PP_SETTINGS_DECLARED_ACTUAL_MISMATCH. Advisory only when report absent (weight redistributes within block).",
+      "evidence_required": "detailed_manifest_with_report",
+      "applies_to_paths": "ALL_PATHS"
+    },
+    {
+      "indicator_id": "L3I_PP_035",
+      "indicator_name": "cp_sigma_score",
+      "display_name": "CP Coordinate Sigma vs Target",
+      "building_block_id": null,
+      "weight_in_block": null,
+      "covers_problems": "#23",
+      "input_derived_fields": "cp_sigma_relative_to_target",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (parallels gcp_sigma_score; per-point primary with mean \u2212 0.25 \u00d7 (100 \u2212 min))",
+      "threshold_summary": "per-CP: \u03c3_h \u2264 accuracy_target \u2192 100; 1-2\u00d7 \u2192 70 + FLAG: PP_CP_SIGMA_MARGINAL; 2-5\u00d7 \u2192 30 + FLAG: PP_CP_SIGMA_HIGH; >5\u00d7 \u2192 0 + FLAG: PP_CP_SIGMA_REJECT. Aggregated mean \u2212 0.25 \u00d7 (100 \u2212 min) across all CPs.",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "ALL_PATHS",
+      "view_only": "TRUE",
+      "used_by_views": "cp_coord_artifact_score",
+      "used_by_score": "verification_status (numeric input)"
+    },
+    {
+      "indicator_id": "L3I_PP_036",
+      "indicator_name": "cp_count_score",
+      "display_name": "CP Designated Count Adequacy",
+      "building_block_id": null,
+      "weight_in_block": null,
+      "covers_problems": "#29",
+      "input_derived_fields": "cp_designated_count",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (ASPRS minimum guidance)",
+      "threshold_summary": "cp_count \u226520 \u2192 100; 10-19 \u2192 80; 5-9 \u2192 60 + FLAG: PP_CP_COUNT_STATISTICAL_WEAK; 1-4 \u2192 30 + FLAG: PP_CP_COUNT_INSUFFICIENT; 0 \u2192 0 + FLAG: PP_NO_CHECK_POINTS.",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "ALL_PATHS",
+      "view_only": "TRUE",
+      "used_by_views": "cp_coord_artifact_score",
+      "used_by_score": "verification_status (numeric input)"
+    },
+    {
+      "indicator_id": "L3I_PP_037",
+      "indicator_name": "cp_distribution_score",
+      "display_name": "CP Spatial Distribution",
+      "building_block_id": null,
+      "weight_in_block": null,
+      "covers_problems": "#30",
+      "input_derived_fields": "cp_distribution_coverage",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "CP coverage \u226580% of extent \u2192 100; 60-80% \u2192 70 + FLAG: PP_CP_CLUSTERED; <60% \u2192 30 + FLAG: PP_CP_SEVERELY_CLUSTERED.",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "ALL_PATHS",
+      "view_only": "TRUE",
+      "used_by_views": "cp_coord_artifact_score",
+      "used_by_score": "verification_status (numeric input)"
+    },
+    {
+      "indicator_id": "L3I_PP_038",
+      "indicator_name": "cp_gcp_independence_score",
+      "display_name": "CP-GCP Spatial Independence",
+      "building_block_id": null,
+      "weight_in_block": null,
+      "covers_problems": "#25",
+      "input_derived_fields": "cp_gcp_spatial_independence",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (tunable threshold \u2014 correlation length scales with GSD/density/terrain)",
+      "threshold_summary": "min CP-GCP distance \u226550m \u2192 100; 10-50m \u2192 70 + FLAG: PP_CP_GCP_TOO_CLOSE; <10m \u2192 30 + FLAG: PP_CP_GCP_OVERLAPPING.",
+      "evidence_required": "artifact_only",
+      "applies_to_paths": "ALL_PATHS",
+      "view_only": "TRUE",
+      "used_by_views": "cp_coord_artifact_score",
+      "used_by_score": "verification_status (numeric input)"
+    }
+  ],
+  "derived_fields": [
+    {
+      "derived_id": "L2D_PP_001",
+      "derived_name": "crs_match_project",
+      "formula_expression": "declared_crs_per_artifact == project_required_crs for ALL artifacts",
+      "meaning": "Whether declared CRS/datum matches project requirement across all artifacts. Hard-gate input.",
+      "input_field_names": "declared_crs_per_artifact;project_required_crs",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_002",
+      "derived_name": "geoid_match_project",
+      "formula_expression": "declared_geoid_per_artifact == project_required_geoid AND consistent across artifacts",
+      "meaning": "Geoid declaration matches project and is internally consistent.",
+      "input_field_names": "declared_geoid_per_artifact;project_required_geoid",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_003",
+      "derived_name": "height_mode_consistency",
+      "formula_expression": "all artifacts declare same height_mode AND matches project_required_height_mode",
+      "meaning": "Height mode internal consistency + match to project.",
+      "input_field_names": "declared_height_mode_per_artifact;project_required_height_mode",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_004",
+      "derived_name": "projection_match_location",
+      "formula_expression": "declared_projection consistent with survey site bounding box (zone correct)",
+      "meaning": "Projection sanity check against site coordinates. Hard-gate input.",
+      "input_field_names": "declared_projection;reconstruction_extent_polygon",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_005",
+      "derived_name": "output_crs_metadata_present",
+      "formula_expression": "each output artifact has CRS metadata AND matches declared_crs_per_artifact",
+      "meaning": "Direct artifact evidence \u2014 CRS metadata in EXIF/coord-file headers.",
+      "input_field_names": "crs_in_exif;crs_in_coord_file_header;declared_crs_per_artifact",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_006",
+      "derived_name": "units_match_project",
+      "formula_expression": "declared_units == project_required_units AND consistent",
+      "meaning": "Units consistency + match to project.",
+      "input_field_names": "declared_units_per_artifact;project_required_units",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_007",
+      "derived_name": "customer_coord_crs_consistent",
+      "formula_expression": "when CUSTOMER_SUPPLIED path: customer_supplied_coord_crs declared AND matches project",
+      "meaning": "Applies only on customer-supplied path; N/A otherwise.",
+      "input_field_names": "customer_supplied_coord_crs;project_required_crs;declared_path_gcp",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_008",
+      "derived_name": "localization_disclosed",
+      "formula_expression": "localization_applied_declared IS NOT NULL (operator addressed it, regardless of True/False)",
+      "meaning": "Fires flag on undisclosed only \u2014 not on declared-localized.",
+      "input_field_names": "localization_applied_declared",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_009",
+      "derived_name": "provenance_realization_consistent",
+      "formula_expression": "realization_epoch_per_artifact all match",
+      "meaning": "All control sources use same ITRF realization and epoch.",
+      "input_field_names": "realization_epoch_per_artifact",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_010",
+      "derived_name": "drone_session_within_base_window",
+      "formula_expression": "(drone_session_start_utc >= base_session_start_utc) AND (drone_session_end_utc <= base_session_end_utc) AND base_file_id matches expected",
+      "meaning": "PPK base-pairing check.",
+      "input_field_names": "drone_session_start_utc;drone_session_end_utc;base_session_start_utc;base_session_end_utc;base_file_id",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_011",
+      "derived_name": "fraction_geotags_fixed",
+      "formula_expression": "(count where per_geotag_fix_status=FIXED) / geotag_count",
+      "meaning": "Fraction of images with FIXED solution. Per-image aggregation.",
+      "input_field_names": "per_geotag_fix_status;geotag_count",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_012",
+      "derived_name": "geotag_completeness_fraction",
+      "formula_expression": "geotag_count / captured_image_count",
+      "meaning": "Fraction of captured images that received geotags.",
+      "input_field_names": "geotag_count;captured_image_count",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_013",
+      "derived_name": "session_overlap_fraction",
+      "formula_expression": "(min(drone_end, base_end) - max(drone_start, base_start)) / (drone_end - drone_start)",
+      "meaning": "Fraction of drone flight covered by base/CORS recording.",
+      "input_field_names": "drone_session_start_utc;drone_session_end_utc;base_session_start_utc;base_session_end_utc",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_014",
+      "derived_name": "antenna_pco_match",
+      "formula_expression": "declared_antenna_per_artifact (manifest) == antenna actually used (from device export when available)",
+      "meaning": "Antenna PCO declaration vs actual.",
+      "input_field_names": "declared_antenna_per_artifact",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_015",
+      "derived_name": "sensor_metadata_consistent",
+      "formula_expression": "camera_serial (EXIF) == camera declared in manifest == camera in flight log",
+      "meaning": "Cross-artifact sensor consistency.",
+      "input_field_names": "camera_serial",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_016",
+      "derived_name": "cors_data_continuity",
+      "formula_expression": "cors_epoch_coverage_during_flight from processing report (when uploaded)",
+      "meaning": "CORS continuity during flight window \u2014 report-dependent.",
+      "input_field_names": "cors_epoch_coverage_during_flight",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_017",
+      "derived_name": "time_sync_residual_magnitude",
+      "formula_expression": "statistics from time_sync_residuals (report-dependent)",
+      "meaning": "Time-sync drift magnitude.",
+      "input_field_names": "time_sync_residuals",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_018",
+      "derived_name": "overlap_texture_proxy",
+      "formula_expression": "min(planned_forward_overlap, planned_side_overlap) AND optional tiepoint_density",
+      "meaning": "Overlap from manifest; tie-point density when report present.",
+      "input_field_names": "planned_forward_overlap;planned_side_overlap;tiepoint_density",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_019",
+      "derived_name": "flight_conditions_adverse",
+      "formula_expression": "flight_conditions_declared in {hazy, monsoon, thermal-prone}",
+      "meaning": "Declared adverse conditions \u2014 cross-handoff to drone chain.",
+      "input_field_names": "flight_conditions_declared",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_020",
+      "derived_name": "gcp_sigma_relative_to_target",
+      "formula_expression": "per_gcp_sigma_h / accuracy_target_m, per-GCP",
+      "meaning": "Per-GCP \u03c3 as multiple of survey accuracy target. Primary trust indicator. Aggregated via mean \u2212 0.25 \u00d7 (100 \u2212 min).",
+      "input_field_names": "per_gcp_sigma_h;accuracy_target_m",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_021",
+      "derived_name": "cp_sigma_relative_to_target",
+      "formula_expression": "per_cp_sigma_h / accuracy_target_m, per-CP",
+      "meaning": "Per-CP \u03c3 as multiple of accuracy target. Feeds verification_status.",
+      "input_field_names": "per_cp_sigma_h;accuracy_target_m",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_022",
+      "derived_name": "gcp_path_acceptable",
+      "formula_expression": "declared_path_gcp != AUTONOMOUS",
+      "meaning": "AUTONOMOUS path \u2192 catastrophic gate.",
+      "input_field_names": "declared_path_gcp",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_023",
+      "derived_name": "gcp_customer_accuracy_adequate",
+      "formula_expression": "when CUSTOMER_SUPPLIED: customer_accuracy_claim present AND meets accuracy_target_m",
+      "meaning": "Customer-supplied accuracy adequacy. Reviewer-blocking when absent.",
+      "input_field_names": "customer_accuracy_claim;accuracy_target_m;declared_path_gcp",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_024",
+      "derived_name": "gcp_id_reconciliation",
+      "formula_expression": "gcp_ids in coord file match gcp_ids in form/manifest",
+      "meaning": "Cross-artifact ID consistency.",
+      "input_field_names": "gcp_id",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_025",
+      "derived_name": "gcp_coord_age_days",
+      "formula_expression": "(flight_date - gcp_coord_determination_date) in days, when CUSTOMER_SUPPLIED",
+      "meaning": "Staleness of customer-supplied GCP coords.",
+      "input_field_names": "gcp_coord_determination_date;flight_date;declared_path_gcp",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_026",
+      "derived_name": "coord_parse_bbox_sanity",
+      "formula_expression": "parsed gcp_position falls within reconstruction_extent_polygon (with reasonable margin)",
+      "meaning": "Bounding-box sanity check catches axis-swap / unit-misparse.",
+      "input_field_names": "gcp_position;reconstruction_extent_polygon",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_027",
+      "derived_name": "gcp_residuals_within_tolerance",
+      "formula_expression": "all per_gcp_residuals within tolerance (report-dependent)",
+      "meaning": "GCP residual outlier detection \u2014 report-dependent.",
+      "input_field_names": "per_gcp_residuals",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_028",
+      "derived_name": "cors_station_health_acceptable",
+      "formula_expression": "cors_quality_metrics (report-dependent)",
+      "meaning": "CORS station health during observation window.",
+      "input_field_names": "cors_quality_metrics",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_029",
+      "derived_name": "gcp_count_adequate",
+      "formula_expression": "gcp_count vs reconstruction_extent_m2 ratio (industry guidance)",
+      "meaning": "GCP count sufficiency.",
+      "input_field_names": "gcp_id;reconstruction_extent_m2",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_030",
+      "derived_name": "gcp_distribution_coverage",
+      "formula_expression": "fraction of reconstruction_extent_polygon covered by GCP convex hull / grid",
+      "meaning": "Spatial coverage of GCPs vs reconstruction extent.",
+      "input_field_names": "gcp_position;reconstruction_extent_polygon",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_031",
+      "derived_name": "target_pixels_at_gsd",
+      "formula_expression": "target_size_cm / planned_gsd_cm",
+      "meaning": "Target pixel size for ODM detection.",
+      "input_field_names": "target_size_cm;planned_gsd_cm",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_032",
+      "derived_name": "vegetation_dtm_risk",
+      "formula_expression": "site_cover_declared=vegetated AND dtm_in_deliverables=True",
+      "meaning": "DTM-on-vegetation risk.",
+      "input_field_names": "site_cover_declared;dtm_in_deliverables",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_033",
+      "derived_name": "settings_declared_vs_actual_consistent",
+      "formula_expression": "when processing report uploaded: report_actual_settings match manifest declarations",
+      "meaning": "Approach 2: validates manifest-declared settings against processing-report-actual settings. Report-dependent.",
+      "input_field_names": "report_actual_settings;declared_geoid_per_artifact;declared_crs_per_artifact;declared_height_mode_per_artifact;declared_antenna_per_artifact",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_034",
+      "derived_name": "software_version_in_buggy_list",
+      "formula_expression": "declared_software_version_per_artifact in CBMI known-buggy-versions list (v2)",
+      "meaning": "v1: advisory only, zero scoring weight. v2: real scoring when list maintained.",
+      "input_field_names": "declared_software_per_artifact;declared_software_version_per_artifact",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_035",
+      "derived_name": "cp_designated_count",
+      "formula_expression": "count of CP records in CP Coord File",
+      "meaning": "CP count for verification_status determination.",
+      "input_field_names": "cp_id",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_036",
+      "derived_name": "cp_distribution_coverage",
+      "formula_expression": "fraction of reconstruction_extent_polygon covered by CP convex hull",
+      "meaning": "CP spatial coverage for verification_status.",
+      "input_field_names": "cp_position;reconstruction_extent_polygon",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_PP_037",
+      "derived_name": "cp_gcp_spatial_independence",
+      "formula_expression": "min pairwise distance from any CP to any GCP",
+      "meaning": "CP-GCP spatial independence for verification_status.",
+      "input_field_names": "cp_position;gcp_position",
+      "kind": "scoring"
+    }
+  ],
+  "source_fields": [
+    {
+      "field_id": "L1F_PP_001",
+      "field_name": "image_id",
+      "file_id": "SRC_PP_GEOTAGS",
+      "category": "Identity",
+      "meaning": "Per-image identifier (filename/sequence number).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_002",
+      "field_name": "geotag_position",
+      "file_id": "SRC_PP_GEOTAGS",
+      "category": "Position",
+      "meaning": "Per-image position from EXIF or sidecar.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_003",
+      "field_name": "per_geotag_fix_status",
+      "file_id": "SRC_PP_GEOTAGS",
+      "category": "Quality",
+      "meaning": "Per-image fix quality flag (Q=1 FIXED, Q=2 FLOAT, Q=5 AUTONOMOUS, etc).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_004",
+      "field_name": "geotag_count",
+      "file_id": "SRC_PP_GEOTAGS",
+      "category": "Identity",
+      "meaning": "Total number of geotagged images in the set.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_005",
+      "field_name": "crs_in_exif",
+      "file_id": "SRC_PP_GEOTAGS",
+      "category": "Reference",
+      "meaning": "CRS metadata in EXIF or sidecar.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_006",
+      "field_name": "image_capture_utc",
+      "file_id": "SRC_PP_GEOTAGS",
+      "category": "Timing",
+      "meaning": "Image acquisition time from EXIF.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_007",
+      "field_name": "camera_serial",
+      "file_id": "SRC_PP_GEOTAGS",
+      "category": "Identity",
+      "meaning": "Camera serial number from EXIF \u2014 for cross-check vs manifest.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_008",
+      "field_name": "gcp_id",
+      "file_id": "SRC_PP_GCP_COORDS",
+      "category": "Identity",
+      "meaning": "Per-GCP identifier.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_009",
+      "field_name": "gcp_position",
+      "file_id": "SRC_PP_GCP_COORDS",
+      "category": "Position",
+      "meaning": "Per-GCP processed coordinate.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_010",
+      "field_name": "per_gcp_sigma_h",
+      "file_id": "SRC_PP_GCP_COORDS",
+      "category": "Quality",
+      "meaning": "Per-GCP horizontal \u03c3 from processing.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_011",
+      "field_name": "per_gcp_sigma_v",
+      "file_id": "SRC_PP_GCP_COORDS",
+      "category": "Quality",
+      "meaning": "Per-GCP vertical \u03c3 from processing.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_012",
+      "field_name": "crs_in_coord_file_header",
+      "file_id": "SRC_PP_GCP_COORDS",
+      "category": "Reference",
+      "meaning": "CRS metadata in the GCP coord file header.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_013",
+      "field_name": "cp_id",
+      "file_id": "SRC_PP_CP_COORDS",
+      "category": "Identity",
+      "meaning": "Per-CP identifier.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_014",
+      "field_name": "cp_position",
+      "file_id": "SRC_PP_CP_COORDS",
+      "category": "Position",
+      "meaning": "Per-CP processed coordinate.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_015",
+      "field_name": "per_cp_sigma_h",
+      "file_id": "SRC_PP_CP_COORDS",
+      "category": "Quality",
+      "meaning": "Per-CP horizontal \u03c3 from processing.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_016",
+      "field_name": "per_cp_sigma_v",
+      "file_id": "SRC_PP_CP_COORDS",
+      "category": "Quality",
+      "meaning": "Per-CP vertical \u03c3 from processing.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_017",
+      "field_name": "project_required_crs",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Project",
+      "meaning": "Required CRS / datum for the survey deliverable.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_018",
+      "field_name": "project_required_geoid",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Project",
+      "meaning": "Required geoid model.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_019",
+      "field_name": "project_required_height_mode",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Project",
+      "meaning": "Required height mode (orthometric / ellipsoidal).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_020",
+      "field_name": "project_required_units",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Project",
+      "meaning": "Required linear units (m / US Survey ft / Intl ft).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_021",
+      "field_name": "project_required_projection",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Project",
+      "meaning": "Required projection (zone, false-easting/northing).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_022",
+      "field_name": "accuracy_target_m",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Project",
+      "meaning": "Survey accuracy target (e.g., 0.02 m for cm-grade).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_023",
+      "field_name": "declared_crs_per_artifact",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Reference",
+      "meaning": "CRS declared per artifact (geotag / GCP / CP).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_024",
+      "field_name": "declared_geoid_per_artifact",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Reference",
+      "meaning": "Geoid model declared per artifact.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_025",
+      "field_name": "declared_height_mode_per_artifact",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Reference",
+      "meaning": "Height mode declared per artifact.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_026",
+      "field_name": "declared_units_per_artifact",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Reference",
+      "meaning": "Units declared per artifact.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_027",
+      "field_name": "declared_projection",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Reference",
+      "meaning": "Projection declared.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_028",
+      "field_name": "realization_epoch_per_artifact",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Reference",
+      "meaning": "ITRF realization and epoch declared per artifact.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_029",
+      "field_name": "localization_applied_declared",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Reference",
+      "meaning": "Boolean: was site localization applied? Required field \u2014 undisclosed (null) \u2192 flag fires.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_030",
+      "field_name": "customer_supplied_coord_crs",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Reference",
+      "meaning": "CRS declaration for customer-supplied coordinates.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_031",
+      "field_name": "customer_accuracy_claim",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Reference",
+      "meaning": "Customer-supplied accuracy claim (with vs without value).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_032",
+      "field_name": "declared_path_geotag",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Path",
+      "meaning": "Path category for drone PPK: LOCAL_BASE_PPK / CORS / CLOUD / OTHER.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_033",
+      "field_name": "declared_path_gcp",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Path",
+      "meaning": "Path category for GCP: AUTONOMOUS / LOCAL_BASE_PPK / CORS / CLOUD / PUBLISHED_BENCHMARK / CUSTOMER_SUPPLIED.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_034",
+      "field_name": "declared_path_cp",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Path",
+      "meaning": "Path category for CP (mostly inherited from capture).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_035",
+      "field_name": "declared_software_per_artifact",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Software",
+      "meaning": "Software used per artifact (TBC / Emlid Studio / RTKLIB / Cloud / Custom).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_036",
+      "field_name": "declared_software_version_per_artifact",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Software",
+      "meaning": "Software version.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_037",
+      "field_name": "declared_antenna_per_artifact",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Setup",
+      "meaning": "Antenna model declared per artifact (for PCO).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_038",
+      "field_name": "baseline_length_km",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Setup",
+      "meaning": "Distance from drone/GCP rover to base/CORS.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_039",
+      "field_name": "captured_image_count",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Identity",
+      "meaning": "Count of images captured (for completeness check vs geotag_count).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_040",
+      "field_name": "planned_forward_overlap",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Flight Plan",
+      "meaning": "Declared forward overlap (%).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_041",
+      "field_name": "planned_side_overlap",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Flight Plan",
+      "meaning": "Declared side overlap (%).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_042",
+      "field_name": "site_cover_declared",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Site",
+      "meaning": "Declared site ground cover (open / vegetated / mixed).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_043",
+      "field_name": "dtm_in_deliverables",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Deliverable",
+      "meaning": "Boolean: is DTM in the project deliverables?",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_044",
+      "field_name": "target_size_cm",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Target",
+      "meaning": "Declared GCP/CP target physical size.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_045",
+      "field_name": "planned_gsd_cm",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Flight Plan",
+      "meaning": "Planned ground sample distance.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_046",
+      "field_name": "target_type",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Target",
+      "meaning": "Target physical type.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_047",
+      "field_name": "base_file_id",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Identity",
+      "meaning": "Identifier for the base RINEX file used in PPK.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_048",
+      "field_name": "drone_session_start_utc",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Timing",
+      "meaning": "Drone flight start (UTC).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_049",
+      "field_name": "drone_session_end_utc",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Timing",
+      "meaning": "Drone flight end (UTC).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_050",
+      "field_name": "base_session_start_utc",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Timing",
+      "meaning": "Base recording start (UTC).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_051",
+      "field_name": "base_session_end_utc",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Timing",
+      "meaning": "Base recording end (UTC).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_052",
+      "field_name": "gcp_coord_determination_date",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Provenance",
+      "meaning": "Date GCP coordinates were determined (for staleness check).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_053",
+      "field_name": "flight_date",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Provenance",
+      "meaning": "Date of drone flight (for delta to coord-determination date).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_054",
+      "field_name": "reconstruction_extent_m2",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Site",
+      "meaning": "Surveyed reconstruction extent (area).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_055",
+      "field_name": "reconstruction_extent_polygon",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Site",
+      "meaning": "Geometry of reconstruction extent for distribution checks.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_056",
+      "field_name": "flight_conditions_declared",
+      "file_id": "SRC_PP_MANIFEST",
+      "category": "Site",
+      "meaning": "Declared flight conditions (clear / hazy / monsoon / thermal-prone).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_057",
+      "field_name": "cors_epoch_coverage_during_flight",
+      "file_id": "SRC_PP_REPORT",
+      "category": "Quality",
+      "meaning": "From processing report: CORS coverage during drone flight window.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_058",
+      "field_name": "time_sync_residuals",
+      "file_id": "SRC_PP_REPORT",
+      "category": "Quality",
+      "meaning": "From processing report: drone-base time-sync residual statistics.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_059",
+      "field_name": "per_gcp_residuals",
+      "file_id": "SRC_PP_REPORT",
+      "category": "Quality",
+      "meaning": "From processing report: per-GCP residuals from adjustment.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_060",
+      "field_name": "cors_quality_metrics",
+      "file_id": "SRC_PP_REPORT",
+      "category": "Quality",
+      "meaning": "From processing report: CORS station health during obs window.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_061",
+      "field_name": "report_actual_settings",
+      "file_id": "SRC_PP_REPORT",
+      "category": "Reference",
+      "meaning": "From processing report: settings actually used (datum, geoid, antenna, tolerances).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_PP_062",
+      "field_name": "tiepoint_density",
+      "file_id": "SRC_PP_REPORT",
+      "category": "Quality",
+      "meaning": "From processing report: tie-point density measurements.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    }
+  ],
+  "source_files": [
+    {
+      "file_id": "SRC_PP_GEOTAGS",
+      "file_name": "Geotagged Image Set",
+      "subsystem": "Pre-processing output (PPK)",
+      "file_extensions": ".jpg/.tif (EXIF) + optional .csv/.txt sidecar",
+      "physical_source": "Output of drone PPK processing in TBC / Emlid Studio / RTKLIB / cloud",
+      "how_to_obtain": "Pre-processing produces geotagged images with embedded position (EXIF GPS tags or sidecar file). CBMI reads geotag position, per-image fix status, count, CRS metadata, timestamps.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": "Per-image artifact. Q-flag conventions are software-agnostic (Q=1 = FIXED). When sidecar accompanies image, may include per-image \u03c3."
+    },
+    {
+      "file_id": "SRC_PP_GCP_COORDS",
+      "file_name": "GCP Coordinate File",
+      "subsystem": "Pre-processing output (GCP processing)",
+      "file_extensions": ".csv / .txt / .pos (vendor-specific)",
+      "physical_source": "Output of GCP coordinate processing (PPK / CORS / cloud / customer-supplied)",
+      "how_to_obtain": "Pre-processing produces per-GCP coordinates with \u03c3 values. CBMI reads per-point ID, position, \u03c3_h, \u03c3_v.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": "Per-point structure. \u03c3 is the universal anchor for trust scoring."
+    },
+    {
+      "file_id": "SRC_PP_CP_COORDS",
+      "file_name": "Check-Point Coordinate File",
+      "subsystem": "Pre-processing output (CP processing)",
+      "file_extensions": ".csv / .txt (vendor-specific)",
+      "physical_source": "Output of check-point coordinate processing (mostly inherited from RTK capture)",
+      "how_to_obtain": "Per-CP coordinates with \u03c3 values. Feeds verification_status, not pre_processing_score.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": "When absent (no CPs designated) \u2192 verification_status=UNVERIFIED_NO_CPS; pre_processing_score still computes from other blocks."
+    },
+    {
+      "file_id": "SRC_PP_MANIFEST",
+      "file_name": "Processing Manifest",
+      "subsystem": "Operator-declared processing provenance",
+      "file_extensions": ".json (pp_manifest.json)",
+      "physical_source": "Filled by operator at survey upload",
+      "how_to_obtain": "Operator declares path categories, software/version, CRS/datum/geoid/height-mode, baseline, mountpoints, antenna models, accuracy targets, customer-supplied accuracy claims. Required for declared_manifest tier indicators.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": "Manifest design bounds what the chain can detect. Approach 1 baked in here. Operator-declarative (not verified against actuality unless processing report present)."
+    },
+    {
+      "file_id": "SRC_PP_REPORT",
+      "file_name": "Processing Report (optional)",
+      "subsystem": "Optional rich evidence",
+      "file_extensions": ".pdf / .xml / .txt (TBC adjustment report / Emlid Studio log / RTKLIB status)",
+      "physical_source": "Generated by processing software during pre-processing",
+      "how_to_obtain": "Operator uploads optionally. When present, enables detailed_manifest_with_report tier indicators (CORS continuity, time-sync, settings consistency, GCP residuals, CORS station health). When absent, those indicators score as advisory only.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": "v1: TBC parser baked in. Emlid Studio and RTKLIB parsers deferred to v2. Report-absent reality: not reliably uploaded."
+    }
+  ],
+  "flags": [
+    {
+      "flag_id": "FLG_PP_001",
+      "flag_name": "PP_WRONG_CRS_DATUM",
+      "raised_by_type": "indicator_gate",
+      "condition": "crs_match_project=False",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#1",
+      "meaning": "Declared CRS/datum does not match project requirement. Zeros pre_processing_score.",
+      "raised_at_stage": "global_gate"
+    },
+    {
+      "flag_id": "FLG_PP_002",
+      "flag_name": "PP_WRONG_PROJECTION",
+      "raised_by_type": "indicator_gate",
+      "condition": "projection_match_location=False",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#7",
+      "meaning": "Declared projection inconsistent with survey location. Zeros pre_processing_score.",
+      "raised_at_stage": "global_gate"
+    },
+    {
+      "flag_id": "FLG_PP_003",
+      "flag_name": "PP_GCP_AUTONOMOUS_PATH",
+      "raised_by_type": "indicator_gate",
+      "condition": "gcp_path_acceptable=False",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#17",
+      "meaning": "GCP processing path declared as AUTONOMOUS \u2014 unfit for survey-grade control. Zeros pre_processing_score via gcp_coord_trust_score=0.",
+      "raised_at_stage": "global_gate"
+    },
+    {
+      "flag_id": "FLG_PP_004",
+      "flag_name": "PP_GEOID_MISMATCH",
+      "raised_by_type": "indicator",
+      "condition": "geoid_match_project=False",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#2",
+      "meaning": "Geoid model mismatch with project or inconsistent across artifacts.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_005",
+      "flag_name": "PP_HEIGHT_MODE_INCONSISTENT",
+      "raised_by_type": "indicator",
+      "condition": "height_mode inconsistent across artifacts",
+      "severity": "CRITICAL",
+      "covers_problems": "#3",
+      "meaning": "Height mode declarations disagree across artifacts.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_006",
+      "flag_name": "PP_HEIGHT_MODE_WRONG",
+      "raised_by_type": "indicator",
+      "condition": "height_mode mismatch with project requirement",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#3",
+      "meaning": "Height mode mismatch with project.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_007",
+      "flag_name": "PP_OUTPUT_CRS_MISSING",
+      "raised_by_type": "indicator",
+      "condition": "crs_in_artifact metadata absent",
+      "severity": "CRITICAL",
+      "covers_problems": "#6",
+      "meaning": "Output artifact missing CRS metadata.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_008",
+      "flag_name": "PP_OUTPUT_CRS_MISMATCH",
+      "raised_by_type": "indicator",
+      "condition": "crs_in_artifact != declared_crs",
+      "severity": "CRITICAL",
+      "covers_problems": "#6",
+      "meaning": "Output artifact CRS metadata disagrees with declared CRS.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_009",
+      "flag_name": "PP_UNITS_MISMATCH",
+      "raised_by_type": "indicator",
+      "condition": "units mismatch",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#8",
+      "meaning": "Declared units mismatch with project or inconsistent.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_010",
+      "flag_name": "PP_CUSTOMER_COORDS_NO_CRS",
+      "raised_by_type": "indicator",
+      "condition": "customer_supplied_coord_crs absent",
+      "severity": "CRITICAL",
+      "covers_problems": "#4",
+      "meaning": "Customer-supplied GCP coordinates without CRS declaration.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_011",
+      "flag_name": "PP_CUSTOMER_COORDS_WRONG_CRS",
+      "raised_by_type": "indicator",
+      "condition": "customer_supplied_coord_crs mismatch",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#4",
+      "meaning": "Customer-supplied GCPs declared in wrong CRS.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_012",
+      "flag_name": "PP_LOCALIZATION_UNDISCLOSED",
+      "raised_by_type": "indicator",
+      "condition": "localization_disclosed=False",
+      "severity": "HIGH",
+      "covers_problems": "#5",
+      "meaning": "Site localization disclosure missing from manifest.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_013",
+      "flag_name": "PP_MIXED_PROVENANCE",
+      "raised_by_type": "indicator",
+      "condition": "provenance_realization_consistent=False",
+      "severity": "MEDIUM",
+      "covers_problems": "#42",
+      "meaning": "Control sources use different ITRF realizations or epochs.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_014",
+      "flag_name": "PP_SETTINGS_DECLARED_ACTUAL_MISMATCH",
+      "raised_by_type": "indicator",
+      "condition": "manifest-declared settings != report-actual settings",
+      "severity": "HIGH",
+      "covers_problems": "#36",
+      "meaning": "Approach 2 check: manifest declarations contradict processing-report actuals. Report-dependent.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_015",
+      "flag_name": "PP_WRONG_BASE_PAIRED",
+      "raised_by_type": "indicator",
+      "condition": "drone_session not within base window OR base_file_id mismatch",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#33",
+      "meaning": "Wrong base RINEX paired with drone PPK \u2014 silent within-block CAT.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_016",
+      "flag_name": "PP_GEOTAG_PARTIAL_FIX",
+      "raised_by_type": "indicator",
+      "condition": "0.80 <= fraction_fixed < 0.95",
+      "severity": "HIGH",
+      "covers_problems": "#9",
+      "meaning": "Partial PPK fix across geotag set.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_017",
+      "flag_name": "PP_GEOTAG_POOR_FIX",
+      "raised_by_type": "indicator",
+      "condition": "0.50 <= fraction_fixed < 0.80",
+      "severity": "CRITICAL",
+      "covers_problems": "#9",
+      "meaning": "Poor PPK fix across geotag set.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_018",
+      "flag_name": "PP_GEOTAG_NOT_FIXED",
+      "raised_by_type": "indicator",
+      "condition": "fraction_fixed < 0.50",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#9",
+      "meaning": "Less than half of geotags achieved FIXED solution.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_019",
+      "flag_name": "PP_GEOTAGS_INCOMPLETE",
+      "raised_by_type": "indicator",
+      "condition": "0.80 <= completeness < 0.95",
+      "severity": "HIGH",
+      "covers_problems": "#10",
+      "meaning": "Geotag count below captured image count.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_020",
+      "flag_name": "PP_GEOTAGS_SEVERELY_INCOMPLETE",
+      "raised_by_type": "indicator",
+      "condition": "completeness < 0.80",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#10",
+      "meaning": "Severe geotag gap \u2014 many images without position.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_021",
+      "flag_name": "PP_LONG_BASELINE",
+      "raised_by_type": "indicator",
+      "condition": "baseline 10-20 km",
+      "severity": "HIGH",
+      "covers_problems": "#11",
+      "meaning": "Distance-dependent error baked into geotags.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_022",
+      "flag_name": "PP_EXCESSIVE_BASELINE",
+      "raised_by_type": "indicator",
+      "condition": "baseline > 20 km",
+      "severity": "CRITICAL",
+      "covers_problems": "#11",
+      "meaning": "Excessive baseline \u2014 accuracy claim should be downgraded.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_023",
+      "flag_name": "PP_PARTIAL_BASE_OVERLAP",
+      "raised_by_type": "indicator",
+      "condition": "0.80 <= session_overlap < 0.95",
+      "severity": "HIGH",
+      "covers_problems": "#13",
+      "meaning": "Partial overlap between drone flight and base recording.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_024",
+      "flag_name": "PP_INSUFFICIENT_OVERLAP",
+      "raised_by_type": "indicator",
+      "condition": "session_overlap < 0.80",
+      "severity": "CRITICAL",
+      "covers_problems": "#13",
+      "meaning": "Drone flight largely outside base recording window.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_025",
+      "flag_name": "PP_SPARSE_TIEPOINTS_RISK",
+      "raised_by_type": "indicator",
+      "condition": "planned_overlap below threshold",
+      "severity": "HIGH",
+      "covers_problems": "#37",
+      "meaning": "Overlap insufficient for low-texture terrain \u2014 mining-specific.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_026",
+      "flag_name": "PP_ANTENNA_PCO_MISMATCH",
+      "raised_by_type": "indicator",
+      "condition": "antenna_pco_match=False",
+      "severity": "HIGH",
+      "covers_problems": "#14",
+      "meaning": "Declared antenna model mismatches device-actual.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_027",
+      "flag_name": "PP_SENSOR_METADATA_MISMATCH",
+      "raised_by_type": "indicator",
+      "condition": "sensor_metadata_consistent=False",
+      "severity": "HIGH",
+      "covers_problems": "#34",
+      "meaning": "EXIF / manifest / flight-log camera disagreement.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_028",
+      "flag_name": "PP_CORS_MINOR_GAP",
+      "raised_by_type": "indicator",
+      "condition": "minor CORS epoch gaps",
+      "severity": "HIGH",
+      "covers_problems": "#12",
+      "meaning": "CORS data has minor gaps during flight (report-dependent).",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_029",
+      "flag_name": "PP_CORS_MAJOR_GAP",
+      "raised_by_type": "indicator",
+      "condition": "major CORS epoch gaps",
+      "severity": "CRITICAL",
+      "covers_problems": "#12",
+      "meaning": "CORS data has major gaps during flight (report-dependent).",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_030",
+      "flag_name": "PP_TIME_SYNC_DRIFT",
+      "raised_by_type": "indicator",
+      "condition": "100ms-1s time-sync residual",
+      "severity": "HIGH",
+      "covers_problems": "#15",
+      "meaning": "Time-sync drift detected (report-dependent).",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_031",
+      "flag_name": "PP_TIME_SYNC_SEVERE",
+      "raised_by_type": "indicator",
+      "condition": ">1s time-sync residual",
+      "severity": "CRITICAL",
+      "covers_problems": "#15",
+      "meaning": "Severe time-sync drift (report-dependent).",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_032",
+      "flag_name": "PP_FLIGHT_CONDITION_RISK",
+      "raised_by_type": "advisory",
+      "condition": "flight_conditions_declared=adverse",
+      "severity": "HIGH (advisory)",
+      "covers_problems": "#41",
+      "meaning": "Declared adverse flight conditions; cross-handoff to drone chain.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_033",
+      "flag_name": "PP_GCP_SIGMA_MARGINAL",
+      "raised_by_type": "indicator",
+      "condition": "\u03c3_h 1-2\u00d7 target",
+      "severity": "HIGH",
+      "covers_problems": "#16",
+      "meaning": "GCP \u03c3 at 1-2\u00d7 target.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_034",
+      "flag_name": "PP_GCP_SIGMA_HIGH",
+      "raised_by_type": "indicator",
+      "condition": "\u03c3_h 2-5\u00d7 target",
+      "severity": "CRITICAL",
+      "covers_problems": "#16",
+      "meaning": "GCP \u03c3 at 2-5\u00d7 target.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_035",
+      "flag_name": "PP_GCP_SIGMA_REJECT",
+      "raised_by_type": "indicator",
+      "condition": "\u03c3_h > 5\u00d7 target",
+      "severity": "CRITICAL",
+      "covers_problems": "#16",
+      "meaning": "GCP \u03c3 catastrophically high \u2014 point not usable as control.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_036",
+      "flag_name": "PP_GCP_CUSTOMER_INADEQUATE",
+      "raised_by_type": "indicator",
+      "condition": "customer_accuracy_claim < target",
+      "severity": "CRITICAL",
+      "covers_problems": "#18",
+      "meaning": "Customer-declared GCP accuracy claim inadequate for project.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_037",
+      "flag_name": "PP_GCP_CUSTOMER_NO_ACCURACY_CLAIM",
+      "raised_by_type": "indicator (reviewer-blocking)",
+      "condition": "customer_accuracy_claim absent",
+      "severity": "CRITICAL",
+      "covers_problems": "#18",
+      "meaning": "Customer-supplied GCPs without accuracy claim \u2014 reviewer-blocking.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_038",
+      "flag_name": "PP_GCP_ID_PARTIAL_MISMATCH",
+      "raised_by_type": "indicator",
+      "condition": "minor ID mismatches between coord file and form",
+      "severity": "HIGH",
+      "covers_problems": "#19",
+      "meaning": "Some GCP IDs disagree between coord file and form.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_039",
+      "flag_name": "PP_GCP_ID_MISMATCH",
+      "raised_by_type": "indicator",
+      "condition": "major ID mismatches",
+      "severity": "HIGH",
+      "covers_problems": "#19",
+      "meaning": "GCP ID disagreement is major \u2014 provenance integrity questioned.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_040",
+      "flag_name": "PP_GCP_COORDS_AGED",
+      "raised_by_type": "indicator",
+      "condition": "GCP coords 180-365 days old",
+      "severity": "HIGH",
+      "covers_problems": "#21",
+      "meaning": "Customer-supplied GCP coordinates aging \u2014 marks may have moved.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_041",
+      "flag_name": "PP_GCP_COORDS_STALE",
+      "raised_by_type": "indicator",
+      "condition": "GCP coords > 365 days old",
+      "severity": "HIGH",
+      "covers_problems": "#21",
+      "meaning": "Customer-supplied GCP coordinates stale.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_042",
+      "flag_name": "PP_COORD_MISPARSE",
+      "raised_by_type": "indicator",
+      "condition": "parsed coords outside declared bounding box",
+      "severity": "HIGH",
+      "covers_problems": "#40",
+      "meaning": "Axis-swap or decimal misparse detected via bounding-box sanity.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_043",
+      "flag_name": "PP_GCP_RESIDUAL_OUTLIERS",
+      "raised_by_type": "indicator",
+      "condition": "some GCP residuals exceed tolerance (report-dependent)",
+      "severity": "HIGH",
+      "covers_problems": "#20",
+      "meaning": "GCP residual outliers in processing report.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_044",
+      "flag_name": "PP_GCP_RESIDUAL_FAILURES",
+      "raised_by_type": "indicator",
+      "condition": "many GCP residuals exceed tolerance (report-dependent)",
+      "severity": "CRITICAL",
+      "covers_problems": "#20",
+      "meaning": "Multiple GCP residual failures.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_045",
+      "flag_name": "PP_CORS_STATION_DEGRADED",
+      "raised_by_type": "indicator",
+      "condition": "CORS quality metrics degraded",
+      "severity": "HIGH",
+      "covers_problems": "#22",
+      "meaning": "CORS station had degraded performance during obs window.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_046",
+      "flag_name": "PP_CORS_STATION_UNHEALTHY",
+      "raised_by_type": "indicator",
+      "condition": "CORS quality metrics poor",
+      "severity": "CRITICAL",
+      "covers_problems": "#22",
+      "meaning": "CORS station unhealthy during obs window.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_047",
+      "flag_name": "PP_GCP_COUNT_MARGINAL",
+      "raised_by_type": "indicator",
+      "condition": "GCP count marginal for extent",
+      "severity": "HIGH",
+      "covers_problems": "#27",
+      "meaning": "GCP count is borderline for site extent.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_048",
+      "flag_name": "PP_GCP_COUNT_INSUFFICIENT",
+      "raised_by_type": "indicator",
+      "condition": "GCP count insufficient for extent",
+      "severity": "CRITICAL",
+      "covers_problems": "#27",
+      "meaning": "GCP count insufficient for site extent.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_049",
+      "flag_name": "PP_GCP_CLUSTERED",
+      "raised_by_type": "indicator",
+      "condition": "GCP distribution partial",
+      "severity": "HIGH",
+      "covers_problems": "#28",
+      "meaning": "GCPs not well-distributed across reconstruction extent.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_050",
+      "flag_name": "PP_GCP_SEVERELY_CLUSTERED",
+      "raised_by_type": "indicator",
+      "condition": "GCP distribution severely clustered",
+      "severity": "CRITICAL",
+      "covers_problems": "#28",
+      "meaning": "GCPs severely clustered.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_051",
+      "flag_name": "PP_TARGET_MARGINAL",
+      "raised_by_type": "indicator",
+      "condition": "target 2-3 px at GSD",
+      "severity": "HIGH",
+      "covers_problems": "#31",
+      "meaning": "Target borderline visible at planned GSD.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_052",
+      "flag_name": "PP_TARGET_INVISIBLE",
+      "raised_by_type": "indicator",
+      "condition": "target < 2 px at GSD",
+      "severity": "CRITICAL",
+      "covers_problems": "#31",
+      "meaning": "Target too small at planned GSD \u2014 likely undetectable.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_053",
+      "flag_name": "PP_VEG_DTM_UNRELIABLE",
+      "raised_by_type": "advisory",
+      "condition": "vegetated + DTM-claimed",
+      "severity": "HIGH (advisory)",
+      "covers_problems": "#38",
+      "meaning": "Vegetated site with DTM in deliverables \u2014 DTM is canopy, not terrain.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_054",
+      "flag_name": "PP_BUGGY_SOFTWARE_VERSION",
+      "raised_by_type": "advisory",
+      "condition": "software in known-buggy list (v2)",
+      "severity": "MEDIUM (advisory, zero weight in v1)",
+      "covers_problems": "#35",
+      "meaning": "Software version with known bugs (v1: catalogued only; v2: scored).",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_055",
+      "flag_name": "PP_NO_INDEPENDENT_VERIFICATION",
+      "raised_by_type": "informational",
+      "condition": "verification_status != VERIFIED",
+      "severity": "CRITICAL (informational)",
+      "covers_problems": "#26",
+      "meaning": "Survey was not independently verified. Score still valid but unverified \u2014 see verification_status field.",
+      "raised_at_stage": "verification_status"
+    },
+    {
+      "flag_id": "FLG_PP_056",
+      "flag_name": "PP_STAGE2_TARGET_DETECTION_FAILURE",
+      "raised_by_type": "handoff",
+      "condition": "OWNED_BY_PROCESSING",
+      "severity": "HIGH",
+      "covers_problems": "#32",
+      "meaning": "Target washed away \u2014 detected at processing stage via ODM. Documented as known limitation.",
+      "raised_at_stage": "handoff"
+    },
+    {
+      "flag_id": "FLG_PP_057",
+      "flag_name": "PP_STOCKPILE_BOUNDARY_DISPUTE",
+      "raised_by_type": "handoff",
+      "condition": "OWNED_BY_ANALYTICS",
+      "severity": "HIGH",
+      "covers_problems": "#39",
+      "meaning": "Stockpile toe/base-plane ambiguity. Cross-handoff to volume analytics.",
+      "raised_at_stage": "handoff"
+    },
+    {
+      "flag_id": "FLG_PP_058",
+      "flag_name": "PP_CP_SIGMA_MARGINAL",
+      "raised_by_type": "indicator",
+      "condition": "\u03c3_h 1-2\u00d7 target on CP",
+      "severity": "HIGH",
+      "covers_problems": "#23",
+      "meaning": "CP \u03c3 at 1-2\u00d7 target \u2014 marginal verification quality.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_059",
+      "flag_name": "PP_CP_SIGMA_HIGH",
+      "raised_by_type": "indicator",
+      "condition": "\u03c3_h 2-5\u00d7 target on CP",
+      "severity": "CRITICAL",
+      "covers_problems": "#23",
+      "meaning": "CP \u03c3 at 2-5\u00d7 target \u2014 degraded verification quality.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_060",
+      "flag_name": "PP_CP_SIGMA_REJECT",
+      "raised_by_type": "indicator",
+      "condition": "\u03c3_h > 5\u00d7 target on CP",
+      "severity": "CRITICAL",
+      "covers_problems": "#23",
+      "meaning": "CP \u03c3 catastrophically high \u2014 point not usable for verification.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_061",
+      "flag_name": "PP_CP_COUNT_STATISTICAL_WEAK",
+      "raised_by_type": "indicator",
+      "condition": "5 \u2264 cp_count < 10",
+      "severity": "HIGH",
+      "covers_problems": "#29",
+      "meaning": "CP count below statistical sufficiency threshold for defensible RMSE claim.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_062",
+      "flag_name": "PP_CP_COUNT_INSUFFICIENT",
+      "raised_by_type": "indicator",
+      "condition": "cp_count < 5",
+      "severity": "CRITICAL",
+      "covers_problems": "#29",
+      "meaning": "Very few check points \u2014 RMSE claim statistically indefensible.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_063",
+      "flag_name": "PP_CP_CLUSTERED",
+      "raised_by_type": "indicator",
+      "condition": "60% \u2264 coverage < 80%",
+      "severity": "HIGH",
+      "covers_problems": "#30",
+      "meaning": "CPs partially clustered geographically.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_064",
+      "flag_name": "PP_CP_SEVERELY_CLUSTERED",
+      "raised_by_type": "indicator",
+      "condition": "coverage < 60%",
+      "severity": "CRITICAL",
+      "covers_problems": "#30",
+      "meaning": "CPs severely clustered \u2014 verification limited to local area.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_065",
+      "flag_name": "PP_CP_GCP_TOO_CLOSE",
+      "raised_by_type": "indicator",
+      "condition": "min CP-GCP distance 10-50m",
+      "severity": "HIGH",
+      "covers_problems": "#25",
+      "meaning": "CPs not spatially independent \u2014 within correlation length of GCPs.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_066",
+      "flag_name": "PP_CP_GCP_OVERLAPPING",
+      "raised_by_type": "indicator",
+      "condition": "min CP-GCP distance < 10m",
+      "severity": "CRITICAL",
+      "covers_problems": "#25",
+      "meaning": "CPs essentially co-located with GCPs \u2014 independence catastrophically compromised.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_PP_067",
+      "flag_name": "PP_NO_CHECK_POINTS",
+      "raised_by_type": "indicator",
+      "condition": "cp_count = 0",
+      "severity": "CRITICAL",
+      "covers_problems": "#26",
+      "meaning": "No designated check points. cp_coord_artifact_score = null. verification_status = UNVERIFIED_NO_CPS. pre_processing_score unaffected.",
+      "raised_at_stage": "null_handler"
+    }
+  ],
+  "problem_coverage_map": [
+    {
+      "problem_no": 1,
+      "problem": "Wrong CRS / Datum Declared",
+      "severity": "CATASTROPHIC",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "ref_frame_declared_score + PP_WRONG_CRS_DATUM gate"
+    },
+    {
+      "problem_no": 2,
+      "problem": "Geoid Model Mismatch",
+      "severity": "CATASTROPHIC",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "geoid_model_declared_score + PP_GEOID_MISMATCH"
+    },
+    {
+      "problem_no": 3,
+      "problem": "Height Mode Confusion",
+      "severity": "CATASTROPHIC",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "height_mode_declared_score"
+    },
+    {
+      "problem_no": 4,
+      "problem": "Pre-Surveyed GCP in Wrong CRS",
+      "severity": "CATASTROPHIC",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "customer_coord_crs_declared_score (CUSTOMER_SUPPLIED path only)"
+    },
+    {
+      "problem_no": 5,
+      "problem": "Site Calibration Applied Without Disclosure",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL (COMMON for construction)",
+      "disposition": "OWNED",
+      "covered_by": "localization_disclosed_score \u2014 fires on undisclosed only"
+    },
+    {
+      "problem_no": 6,
+      "problem": "Output CRS Metadata Missing or Wrong",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "output_crs_metadata_score"
+    },
+    {
+      "problem_no": 7,
+      "problem": "Wrong UTM Zone / Projection",
+      "severity": "CATASTROPHIC",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "projection_declared_score + PP_WRONG_PROJECTION gate"
+    },
+    {
+      "problem_no": 8,
+      "problem": "Units Confusion (Meters vs Feet)",
+      "severity": "CATASTROPHIC",
+      "frequency": "RARE",
+      "disposition": "OWNED",
+      "covered_by": "units_declared_score"
+    },
+    {
+      "problem_no": 9,
+      "problem": "PPK Solution Did Not Converge",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "geotag_solution_quality_score"
+    },
+    {
+      "problem_no": 10,
+      "problem": "Geotag Count != Captured Image Count",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "geotag_completeness_score"
+    },
+    {
+      "problem_no": 11,
+      "problem": "Excessive Baseline (PPK)",
+      "severity": "CRITICAL",
+      "frequency": "COMMON (India)",
+      "disposition": "OWNED",
+      "covered_by": "geotag_baseline_score"
+    },
+    {
+      "problem_no": 12,
+      "problem": "CORS Data Gap During Flight",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (advisory when report absent)",
+      "covered_by": "cors_data_continuity_score (report-dependent)"
+    },
+    {
+      "problem_no": 13,
+      "problem": "Drone Session Times Don't Align with Base",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "session_overlap_score"
+    },
+    {
+      "problem_no": 14,
+      "problem": "Wrong Antenna PCO in PPK",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "antenna_pco_score (declared_manifest evidence tier)"
+    },
+    {
+      "problem_no": 15,
+      "problem": "Time-Sync Drift Drone/Base",
+      "severity": "CRITICAL",
+      "frequency": "RARE",
+      "disposition": "OWNED (advisory when report absent)",
+      "covered_by": "time_sync_residual_score (report-dependent)"
+    },
+    {
+      "problem_no": 16,
+      "problem": "GCP Sigma Exceeds Target",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "gcp_sigma_score (per-point primary + mean \u2212 k\u00b7worst)"
+    },
+    {
+      "problem_no": 17,
+      "problem": "GCP Processing Path Autonomous",
+      "severity": "CATASTROPHIC",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "gcp_processing_path_score + PP_GCP_AUTONOMOUS_PATH gate"
+    },
+    {
+      "problem_no": 18,
+      "problem": "GCP Accuracy Undeclared",
+      "severity": "CRITICAL",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "gcp_customer_accuracy_declared_score (reviewer-blocking)"
+    },
+    {
+      "problem_no": 19,
+      "problem": "GCP IDs Don't Match Form",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "gcp_id_reconciliation_score"
+    },
+    {
+      "problem_no": 20,
+      "problem": "GCP Residuals Exceed Tolerance",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (advisory when report absent)",
+      "covered_by": "gcp_residual_score (report-dependent)"
+    },
+    {
+      "problem_no": 21,
+      "problem": "Stale GCP Coords Reused",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL (COMMON for mining)",
+      "disposition": "OWNED",
+      "covered_by": "gcp_coord_age_score (CUSTOMER_SUPPLIED path)"
+    },
+    {
+      "problem_no": 22,
+      "problem": "CORS Station Health Poor",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (advisory when report absent)",
+      "covered_by": "cors_station_health_score (report-dependent)"
+    },
+    {
+      "problem_no": 23,
+      "problem": "CP Sigma Exceeds Target",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED_BY_VERIFICATION_STATUS",
+      "covered_by": "Feeds verification_status, not pre_processing_score"
+    },
+    {
+      "problem_no": 24,
+      "problem": "CP Coord File Format Inconsistency",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED_BY_VERIFICATION_STATUS",
+      "covered_by": "Feeds verification_status"
+    },
+    {
+      "problem_no": 25,
+      "problem": "CP Not Spatially Independent from GCPs",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "OWNED_BY_VERIFICATION_STATUS",
+      "covered_by": "UNVERIFIED_CP_NOT_INDEPENDENT"
+    },
+    {
+      "problem_no": 26,
+      "problem": "No Check Points Designated",
+      "severity": "CATASTROPHIC",
+      "frequency": "VERY COMMON",
+      "disposition": "OWNED_BY_VERIFICATION_STATUS",
+      "covered_by": "UNVERIFIED_NO_CPS + PP_NO_INDEPENDENT_VERIFICATION flag"
+    },
+    {
+      "problem_no": 27,
+      "problem": "Insufficient GCP Count",
+      "severity": "CRITICAL",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "gcp_count_score"
+    },
+    {
+      "problem_no": 28,
+      "problem": "GCPs Clustered",
+      "severity": "CRITICAL",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "gcp_distribution_score"
+    },
+    {
+      "problem_no": 29,
+      "problem": "Too Few Check Points",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "OWNED_BY_VERIFICATION_STATUS",
+      "covered_by": "UNVERIFIED_INSUFFICIENT_CPS"
+    },
+    {
+      "problem_no": 30,
+      "problem": "CPs Clustered",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "OWNED_BY_VERIFICATION_STATUS",
+      "covered_by": "UNVERIFIED_CP_CLUSTERED"
+    },
+    {
+      "problem_no": 31,
+      "problem": "Target Not Visible at GSD",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "target_visibility_score"
+    },
+    {
+      "problem_no": 32,
+      "problem": "Stage-2 Target Detection Failure",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED_BY_PROCESSING",
+      "covered_by": "Future processing_score. PP_STAGE2_TARGET_DETECTION_FAILURE handoff flag."
+    },
+    {
+      "problem_no": 33,
+      "problem": "Wrong Base File Paired with Drone PPK",
+      "severity": "CATASTROPHIC",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "base_pairing_score (silent CAT inside Geotag Integrity)"
+    },
+    {
+      "problem_no": 34,
+      "problem": "Sensor Metadata Mismatch",
+      "severity": "HIGH",
+      "frequency": "RARE",
+      "disposition": "OWNED",
+      "covered_by": "sensor_metadata_consistency_score"
+    },
+    {
+      "problem_no": 35,
+      "problem": "Buggy Software Version",
+      "severity": "MEDIUM",
+      "frequency": "RARE",
+      "disposition": "OWNED (advisory only in v1)",
+      "covered_by": "software_version_score (v1 advisory; v2 real scoring)"
+    },
+    {
+      "problem_no": 36,
+      "problem": "Software Settings Declared vs Actual Mismatch",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (advisory when report absent)",
+      "covered_by": "settings_consistency_score + PP_SETTINGS_DECLARED_ACTUAL_MISMATCH (Approach 2; report-dependent; advisory when report absent)"
+    },
+    {
+      "problem_no": 37,
+      "problem": "Sparse Tie Points / Low-Texture Terrain",
+      "severity": "CRITICAL",
+      "frequency": "COMMON (mining)",
+      "disposition": "OWNED",
+      "covered_by": "overlap_texture_score"
+    },
+    {
+      "problem_no": 38,
+      "problem": "Vegetation DTM Unreliable",
+      "severity": "HIGH",
+      "frequency": "COMMON (infra)",
+      "disposition": "OWNED",
+      "covered_by": "vegetation_dtm_declared_score (advisory)"
+    },
+    {
+      "problem_no": 39,
+      "problem": "Stockpile Toe / Base-Plane Ambiguity",
+      "severity": "HIGH",
+      "frequency": "VERY COMMON (mining)",
+      "disposition": "OWNED_BY_ANALYTICS",
+      "covered_by": "Future volume analytics. PP_STOCKPILE_BOUNDARY_DISPUTE handoff flag."
+    },
+    {
+      "problem_no": 40,
+      "problem": "Coordinate File Misparse",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "coord_parse_sanity_score"
+    },
+    {
+      "problem_no": 41,
+      "problem": "Monsoon / Thermal Flight Artifacts",
+      "severity": "HIGH",
+      "frequency": "COMMON (seasonal)",
+      "disposition": "OWNED (cross-handoff to drone)",
+      "covered_by": "monsoon_flight_artifact_score (declared advisory)"
+    },
+    {
+      "problem_no": 42,
+      "problem": "Mixed Source GCP/CP Provenance",
+      "severity": "MEDIUM",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "provenance_consistency_score"
+    }
+  ],
+  "per_artifact_views": [
+    {
+      "view_id": "VIEW_PP_GEOTAG",
+      "view_name": "geotag_artifact_score",
+      "display_name": "Geotag Artifact Fitness Score",
+      "question": "Is the geotagged image set fit as a pre-processing output (clean inputs for photogrammetry)?",
+      "consumes_indicators": [
+        [
+          "ref_frame_declared_score",
+          0.08
+        ],
+        [
+          "geoid_model_declared_score",
+          0.04
+        ],
+        [
+          "height_mode_declared_score",
+          0.03
+        ],
+        [
+          "projection_declared_score",
+          0.03
+        ],
+        [
+          "output_crs_metadata_score",
+          0.04
+        ],
+        [
+          "units_declared_score",
+          0.01
+        ],
+        [
+          "localization_disclosed_score",
+          0.01
+        ],
+        [
+          "settings_consistency_score",
+          0.01
+        ],
+        [
+          "base_pairing_score",
+          0.18
+        ],
+        [
+          "geotag_solution_quality_score",
+          0.14
+        ],
+        [
+          "geotag_completeness_score",
+          0.11
+        ],
+        [
+          "geotag_baseline_score",
+          0.07
+        ],
+        [
+          "session_overlap_score",
+          0.07
+        ],
+        [
+          "overlap_texture_score",
+          0.06
+        ],
+        [
+          "antenna_pco_score",
+          0.04
+        ],
+        [
+          "sensor_metadata_consistency_score",
+          0.02
+        ],
+        [
+          "cors_data_continuity_score",
+          0.02
+        ],
+        [
+          "time_sync_residual_score",
+          0.02
+        ],
+        [
+          "monsoon_flight_artifact_score",
+          0.01
+        ],
+        [
+          "software_version_score",
+          0.01
+        ]
+      ],
+      "global_gates": [
+        "PP_WRONG_CRS_DATUM",
+        "PP_WRONG_PROJECTION"
+      ]
+    },
+    {
+      "view_id": "VIEW_PP_GCP_COORD",
+      "view_name": "gcp_coord_artifact_score",
+      "display_name": "GCP Coordinate Artifact Fitness Score",
+      "question": "Is the GCP coordinate file fit as a pre-processing output (clean control input for photogrammetry)?",
+      "consumes_indicators": [
+        [
+          "ref_frame_declared_score",
+          0.07
+        ],
+        [
+          "geoid_model_declared_score",
+          0.04
+        ],
+        [
+          "height_mode_declared_score",
+          0.03
+        ],
+        [
+          "projection_declared_score",
+          0.02
+        ],
+        [
+          "output_crs_metadata_score",
+          0.02
+        ],
+        [
+          "units_declared_score",
+          0.01
+        ],
+        [
+          "customer_coord_crs_declared_score",
+          0.01
+        ],
+        [
+          "localization_disclosed_score",
+          0.01
+        ],
+        [
+          "provenance_consistency_score",
+          0.01
+        ],
+        [
+          "gcp_sigma_score",
+          0.19
+        ],
+        [
+          "gcp_processing_path_score",
+          0.14
+        ],
+        [
+          "gcp_customer_accuracy_declared_score",
+          0.05
+        ],
+        [
+          "gcp_id_reconciliation_score",
+          0.05
+        ],
+        [
+          "gcp_coord_age_score",
+          0.04
+        ],
+        [
+          "coord_parse_sanity_score",
+          0.03
+        ],
+        [
+          "gcp_residual_score",
+          0.02
+        ],
+        [
+          "cors_station_health_score",
+          0.01
+        ],
+        [
+          "gcp_count_score",
+          0.09
+        ],
+        [
+          "gcp_distribution_score",
+          0.08
+        ],
+        [
+          "target_visibility_score",
+          0.05
+        ],
+        [
+          "cors_data_continuity_score",
+          0.01
+        ],
+        [
+          "settings_consistency_score",
+          0.01
+        ],
+        [
+          "software_version_score",
+          0.01
+        ]
+      ],
+      "global_gates": [
+        "PP_WRONG_CRS_DATUM",
+        "PP_WRONG_PROJECTION",
+        "PP_GCP_AUTONOMOUS_PATH"
+      ]
+    },
+    {
+      "view_id": "VIEW_PP_CP_COORD",
+      "view_name": "cp_coord_artifact_score",
+      "display_name": "CP Coordinate Artifact Fitness Score",
+      "question": "Is the check-point coordinate file fit as a pre-processing output (independent verification artifact)?",
+      "consumes_indicators": [
+        [
+          "ref_frame_declared_score",
+          0.1
+        ],
+        [
+          "geoid_model_declared_score",
+          0.06
+        ],
+        [
+          "height_mode_declared_score",
+          0.05
+        ],
+        [
+          "projection_declared_score",
+          0.03
+        ],
+        [
+          "output_crs_metadata_score",
+          0.03
+        ],
+        [
+          "units_declared_score",
+          0.01
+        ],
+        [
+          "localization_disclosed_score",
+          0.01
+        ],
+        [
+          "provenance_consistency_score",
+          0.01
+        ],
+        [
+          "cp_sigma_score",
+          0.3
+        ],
+        [
+          "cp_count_score",
+          0.18
+        ],
+        [
+          "cp_distribution_score",
+          0.13
+        ],
+        [
+          "cp_gcp_independence_score",
+          0.09
+        ]
+      ],
+      "global_gates": [
+        "PP_WRONG_CRS_DATUM",
+        "PP_WRONG_PROJECTION"
+      ],
+      "null_handling": "When cp_designated_count = 0, cp_coord_artifact_score = null. Verification_status reports UNVERIFIED_NO_CPS. The pre_processing_score is unaffected (already locked)."
+    }
+  ]
+}

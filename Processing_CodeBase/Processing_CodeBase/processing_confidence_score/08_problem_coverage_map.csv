@@ -1,0 +1,40 @@
+problem_no,problem,severity,frequency,disposition,covered_by
+1,Bundle Adjustment Failed to Converge,CATASTROPHIC,RARE,OWNED,ba_reprojection_score (BA1) + PROC_BA_CONVERGENCE_FAIL
+2,Camera Alignment Failures,CRITICAL,OCCASIONAL,OWNED,camera_alignment_score (BA2)
+3,Ill-Conditioned Self-Calibration,MEDIUM (v0.2 downgrade),COMMON,OWNED (compound),self_calibration_quality_score (BA7) — compound condition
+4,Precalibrated Status Mismatch,HIGH,OCCASIONAL,OWNED,precalibration_loaded_score (BA5)
+5,Camera Model Mismatch,HIGH,RARE,OWNED (inherited from drone),camera_model_consistency_score (BA6)
+6,Optimization Parameters Incomplete,LOW (v1.0 pressure-test downgrade),OCCASIONAL,OWNED,optimization_completeness_score (BA4)
+7,Excessive Max Reprojection Error,MEDIUM (v0.2 downgrade),COMMON,OWNED (advisory),max_reproj_outlier_score (BA8) — advisory
+8,Per-Camera Position Outliers,HIGH,OCCASIONAL,OWNED (v1 ensemble only),camera_position_ensemble_score (BA3) — per-camera deferred to v2
+9,Insufficient Tie Points,HIGH,OCCASIONAL,OWNED,tiepoint_density_score (IM3)
+10,Low Tie Point Multiplicity,HIGH,OCCASIONAL,OWNED,tiepoint_multiplicity_score (IM4)
+11,Alignment Accuracy Too Low,CRITICAL,OCCASIONAL,OWNED,alignment_accuracy_setting_score (IM1)
+12,Depth Map Quality Too Low,CRITICAL,COMMON,OWNED,depth_quality_setting_score (IM2)
+13,Filtering Mode Inappropriate,HIGH,COMMON,OWNED,filtering_mode_appropriateness_score (IM5)
+14,Marker Image-Pair Count Insufficient,HIGH,OCCASIONAL,OWNED,marker_image_coverage_score (IM6)
+15,Atmospheric Artifact Suspected,HIGH,OCCASIONAL,OWNED (cross-handoff),atmospheric_artifact_composite_score (IM8) — cross-handoff to drone chain
+16,Zero Markers At All,CATASTROPHIC,RARE,OWNED (flag-only),no_markers_at_all_flag_score (CV13) + PROC_NO_MARKERS_AT_ALL
+17,Zero GCPs Used in Bundle,CRITICAL,OCCASIONAL,OWNED (flag-only),no_gcps_used_flag_score (CV14) + PROC_NO_GCPS_USED
+18,Insufficient GCP Count,CRITICAL,COMMON,OWNED (inherited from GCP#3),gcp_count_in_bundle_score (CV7)
+19,GCP RMSE Exceeds Target,CRITICAL,OCCASIONAL,OWNED,gcp_rmse_score (CV2)
+20,CP RMSE Exceeds Target,CATASTROPHIC,OCCASIONAL,OWNED (moment-of-truth),cp_rmse_score (CV1) — PRIMARY indicator
+21,Z Residual Disproportionate to XY,HIGH,COMMON,OWNED,z_xy_residual_ratio_score (CV10)
+22,Per-CP Outlier Residuals,HIGH,OCCASIONAL,OWNED (covers PP#32 + CP#14),per_cp_outlier_score (CV3)
+23,Per-Marker Image Pixel Error,HIGH,OCCASIONAL,OWNED,per_marker_pix_error_score (CV11)
+24,Insufficient CPs for Statistical Confidence,HIGH,COMMON,OWNED (inherited from PP#29),cp_count_statistical_score (CV6)
+25,CP/GCP Role Swap,CRITICAL,OCCASIONAL,OWNED (covers CP#26+CP#29+GCP#21),marker_role_consistency_score (CV4) — both directions
+26,GCP Coordinate Typo in Agisoft,CRITICAL,OCCASIONAL,OWNED (inherited from GCP#12),gcp_coord_consistency_score (CV5) — cross-source
+27,GCPs Clustered in Bundle,HIGH,OCCASIONAL,OWNED (inherited from GCP#4),gcp_bundle_distribution_score (CV8)
+28,GCPs No Vertical Coverage,HIGH,OCCASIONAL,OWNED (inherited from GCP#5),gcp_vertical_coverage_score (CV9)
+29,Reconstruction Drift Despite Adequate Control,HIGH,OCCASIONAL,OWNED (inherited from GCP#22),reconstruction_drift_composite_score (CV12)
+30,Output CRS Geographic Not Projected,CRITICAL,VERY COMMON,OWNED,output_crs_projection_score (DO2)
+31,Output CRS Mismatch with Project,CATASTROPHIC,OCCASIONAL,OWNED (gate),output_crs_project_match_score (DO1) — HARD GATE
+32,DEM Resolution Inappropriate,MEDIUM,OCCASIONAL,OWNED,dem_resolution_score (DO6)
+33,Software Version Drift,MEDIUM,RARE,OWNED (v1 advisory),software_version_score (DO8) — v1 advisory only
+34,Deliverable File Set Incomplete,HIGH,OCCASIONAL,OWNED,deliverable_completeness_score (DO7)
+35,Per-Deliverable Fitness for Customer Use,INFORMATIONAL,N/A,OWNED_BY_DELIVERY_LAYER,Future delivery layer — documented limitation
+36,Processing CRS/Geoid Internal Transform Wrong,CRITICAL,OCCASIONAL,OWNED (new in v0.2),internal_transform_consistency_score (DO3) — cross-source
+37,Localized Reconstruction Collapse,HIGH,COMMON (mining),OWNED (v1 partial),localized_reconstruction_score (IM7) — v1 global proxies; v2 density-map parsing
+38,Dense Cloud / DEM Holes Interpolated,HIGH,OCCASIONAL,OWNED (new in v0.2),dem_void_interpolation_score (DO5)
+39,DSM Delivered as DTM (No Ground Classification),HIGH,COMMON (infra/vegetated),OWNED (new in v0.2),dtm_classification_score (DO4)

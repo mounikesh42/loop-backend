@@ -1,0 +1,68 @@
+flag_id,flag_name,raised_by_type,condition,severity,covers_problems,meaning,raised_at_stage
+FLG_PP_001,PP_WRONG_CRS_DATUM,indicator_gate,crs_match_project=False,CATASTROPHIC,#1,Declared CRS/datum does not match project requirement. Zeros pre_processing_score.,global_gate
+FLG_PP_002,PP_WRONG_PROJECTION,indicator_gate,projection_match_location=False,CATASTROPHIC,#7,Declared projection inconsistent with survey location. Zeros pre_processing_score.,global_gate
+FLG_PP_003,PP_GCP_AUTONOMOUS_PATH,indicator_gate,gcp_path_acceptable=False,CATASTROPHIC,#17,GCP processing path declared as AUTONOMOUS — unfit for survey-grade control. Zeros pre_processing_score via gcp_coord_trust_score=0.,global_gate
+FLG_PP_004,PP_GEOID_MISMATCH,indicator,geoid_match_project=False,CATASTROPHIC,#2,Geoid model mismatch with project or inconsistent across artifacts.,threshold
+FLG_PP_005,PP_HEIGHT_MODE_INCONSISTENT,indicator,height_mode inconsistent across artifacts,CRITICAL,#3,Height mode declarations disagree across artifacts.,threshold
+FLG_PP_006,PP_HEIGHT_MODE_WRONG,indicator,height_mode mismatch with project requirement,CATASTROPHIC,#3,Height mode mismatch with project.,threshold
+FLG_PP_007,PP_OUTPUT_CRS_MISSING,indicator,crs_in_artifact metadata absent,CRITICAL,#6,Output artifact missing CRS metadata.,threshold
+FLG_PP_008,PP_OUTPUT_CRS_MISMATCH,indicator,crs_in_artifact != declared_crs,CRITICAL,#6,Output artifact CRS metadata disagrees with declared CRS.,threshold
+FLG_PP_009,PP_UNITS_MISMATCH,indicator,units mismatch,CATASTROPHIC,#8,Declared units mismatch with project or inconsistent.,threshold
+FLG_PP_010,PP_CUSTOMER_COORDS_NO_CRS,indicator,customer_supplied_coord_crs absent,CRITICAL,#4,Customer-supplied GCP coordinates without CRS declaration.,threshold
+FLG_PP_011,PP_CUSTOMER_COORDS_WRONG_CRS,indicator,customer_supplied_coord_crs mismatch,CATASTROPHIC,#4,Customer-supplied GCPs declared in wrong CRS.,threshold
+FLG_PP_012,PP_LOCALIZATION_UNDISCLOSED,indicator,localization_disclosed=False,HIGH,#5,Site localization disclosure missing from manifest.,threshold
+FLG_PP_013,PP_MIXED_PROVENANCE,indicator,provenance_realization_consistent=False,MEDIUM,#42,Control sources use different ITRF realizations or epochs.,threshold
+FLG_PP_014,PP_SETTINGS_DECLARED_ACTUAL_MISMATCH,indicator,manifest-declared settings != report-actual settings,HIGH,#36,Approach 2 check: manifest declarations contradict processing-report actuals. Report-dependent.,threshold
+FLG_PP_015,PP_WRONG_BASE_PAIRED,indicator,drone_session not within base window OR base_file_id mismatch,CATASTROPHIC,#33,Wrong base RINEX paired with drone PPK — silent within-block CAT.,threshold
+FLG_PP_016,PP_GEOTAG_PARTIAL_FIX,indicator,0.80 <= fraction_fixed < 0.95,HIGH,#9,Partial PPK fix across geotag set.,threshold
+FLG_PP_017,PP_GEOTAG_POOR_FIX,indicator,0.50 <= fraction_fixed < 0.80,CRITICAL,#9,Poor PPK fix across geotag set.,threshold
+FLG_PP_018,PP_GEOTAG_NOT_FIXED,indicator,fraction_fixed < 0.50,CATASTROPHIC,#9,Less than half of geotags achieved FIXED solution.,threshold
+FLG_PP_019,PP_GEOTAGS_INCOMPLETE,indicator,0.80 <= completeness < 0.95,HIGH,#10,Geotag count below captured image count.,threshold
+FLG_PP_020,PP_GEOTAGS_SEVERELY_INCOMPLETE,indicator,completeness < 0.80,CATASTROPHIC,#10,Severe geotag gap — many images without position.,threshold
+FLG_PP_021,PP_LONG_BASELINE,indicator,baseline 10-20 km,HIGH,#11,Distance-dependent error baked into geotags.,threshold
+FLG_PP_022,PP_EXCESSIVE_BASELINE,indicator,baseline > 20 km,CRITICAL,#11,Excessive baseline — accuracy claim should be downgraded.,threshold
+FLG_PP_023,PP_PARTIAL_BASE_OVERLAP,indicator,0.80 <= session_overlap < 0.95,HIGH,#13,Partial overlap between drone flight and base recording.,threshold
+FLG_PP_024,PP_INSUFFICIENT_OVERLAP,indicator,session_overlap < 0.80,CRITICAL,#13,Drone flight largely outside base recording window.,threshold
+FLG_PP_025,PP_SPARSE_TIEPOINTS_RISK,indicator,planned_overlap below threshold,HIGH,#37,Overlap insufficient for low-texture terrain — mining-specific.,threshold
+FLG_PP_026,PP_ANTENNA_PCO_MISMATCH,indicator,antenna_pco_match=False,HIGH,#14,Declared antenna model mismatches device-actual.,threshold
+FLG_PP_027,PP_SENSOR_METADATA_MISMATCH,indicator,sensor_metadata_consistent=False,HIGH,#34,EXIF / manifest / flight-log camera disagreement.,threshold
+FLG_PP_028,PP_CORS_MINOR_GAP,indicator,minor CORS epoch gaps,HIGH,#12,CORS data has minor gaps during flight (report-dependent).,threshold
+FLG_PP_029,PP_CORS_MAJOR_GAP,indicator,major CORS epoch gaps,CRITICAL,#12,CORS data has major gaps during flight (report-dependent).,threshold
+FLG_PP_030,PP_TIME_SYNC_DRIFT,indicator,100ms-1s time-sync residual,HIGH,#15,Time-sync drift detected (report-dependent).,threshold
+FLG_PP_031,PP_TIME_SYNC_SEVERE,indicator,>1s time-sync residual,CRITICAL,#15,Severe time-sync drift (report-dependent).,threshold
+FLG_PP_032,PP_FLIGHT_CONDITION_RISK,advisory,flight_conditions_declared=adverse,HIGH (advisory),#41,Declared adverse flight conditions; cross-handoff to drone chain.,threshold
+FLG_PP_033,PP_GCP_SIGMA_MARGINAL,indicator,σ_h 1-2× target,HIGH,#16,GCP σ at 1-2× target.,threshold
+FLG_PP_034,PP_GCP_SIGMA_HIGH,indicator,σ_h 2-5× target,CRITICAL,#16,GCP σ at 2-5× target.,threshold
+FLG_PP_035,PP_GCP_SIGMA_REJECT,indicator,σ_h > 5× target,CRITICAL,#16,GCP σ catastrophically high — point not usable as control.,threshold
+FLG_PP_036,PP_GCP_CUSTOMER_INADEQUATE,indicator,customer_accuracy_claim < target,CRITICAL,#18,Customer-declared GCP accuracy claim inadequate for project.,threshold
+FLG_PP_037,PP_GCP_CUSTOMER_NO_ACCURACY_CLAIM,indicator (reviewer-blocking),customer_accuracy_claim absent,CRITICAL,#18,Customer-supplied GCPs without accuracy claim — reviewer-blocking.,threshold
+FLG_PP_038,PP_GCP_ID_PARTIAL_MISMATCH,indicator,minor ID mismatches between coord file and form,HIGH,#19,Some GCP IDs disagree between coord file and form.,threshold
+FLG_PP_039,PP_GCP_ID_MISMATCH,indicator,major ID mismatches,HIGH,#19,GCP ID disagreement is major — provenance integrity questioned.,threshold
+FLG_PP_040,PP_GCP_COORDS_AGED,indicator,GCP coords 180-365 days old,HIGH,#21,Customer-supplied GCP coordinates aging — marks may have moved.,threshold
+FLG_PP_041,PP_GCP_COORDS_STALE,indicator,GCP coords > 365 days old,HIGH,#21,Customer-supplied GCP coordinates stale.,threshold
+FLG_PP_042,PP_COORD_MISPARSE,indicator,parsed coords outside declared bounding box,HIGH,#40,Axis-swap or decimal misparse detected via bounding-box sanity.,threshold
+FLG_PP_043,PP_GCP_RESIDUAL_OUTLIERS,indicator,some GCP residuals exceed tolerance (report-dependent),HIGH,#20,GCP residual outliers in processing report.,threshold
+FLG_PP_044,PP_GCP_RESIDUAL_FAILURES,indicator,many GCP residuals exceed tolerance (report-dependent),CRITICAL,#20,Multiple GCP residual failures.,threshold
+FLG_PP_045,PP_CORS_STATION_DEGRADED,indicator,CORS quality metrics degraded,HIGH,#22,CORS station had degraded performance during obs window.,threshold
+FLG_PP_046,PP_CORS_STATION_UNHEALTHY,indicator,CORS quality metrics poor,CRITICAL,#22,CORS station unhealthy during obs window.,threshold
+FLG_PP_047,PP_GCP_COUNT_MARGINAL,indicator,GCP count marginal for extent,HIGH,#27,GCP count is borderline for site extent.,threshold
+FLG_PP_048,PP_GCP_COUNT_INSUFFICIENT,indicator,GCP count insufficient for extent,CRITICAL,#27,GCP count insufficient for site extent.,threshold
+FLG_PP_049,PP_GCP_CLUSTERED,indicator,GCP distribution partial,HIGH,#28,GCPs not well-distributed across reconstruction extent.,threshold
+FLG_PP_050,PP_GCP_SEVERELY_CLUSTERED,indicator,GCP distribution severely clustered,CRITICAL,#28,GCPs severely clustered.,threshold
+FLG_PP_051,PP_TARGET_MARGINAL,indicator,target 2-3 px at GSD,HIGH,#31,Target borderline visible at planned GSD.,threshold
+FLG_PP_052,PP_TARGET_INVISIBLE,indicator,target < 2 px at GSD,CRITICAL,#31,Target too small at planned GSD — likely undetectable.,threshold
+FLG_PP_053,PP_VEG_DTM_UNRELIABLE,advisory,vegetated + DTM-claimed,HIGH (advisory),#38,"Vegetated site with DTM in deliverables — DTM is canopy, not terrain.",threshold
+FLG_PP_054,PP_BUGGY_SOFTWARE_VERSION,advisory,software in known-buggy list (v2),"MEDIUM (advisory, zero weight in v1)",#35,Software version with known bugs (v1: catalogued only; v2: scored).,threshold
+FLG_PP_055,PP_NO_INDEPENDENT_VERIFICATION,informational,verification_status != VERIFIED,CRITICAL (informational),#26,Survey was not independently verified. Score still valid but unverified — see verification_status field.,verification_status
+FLG_PP_056,PP_STAGE2_TARGET_DETECTION_FAILURE,handoff,OWNED_BY_PROCESSING,HIGH,#32,Target washed away — detected at processing stage via ODM. Documented as known limitation.,handoff
+FLG_PP_057,PP_STOCKPILE_BOUNDARY_DISPUTE,handoff,OWNED_BY_ANALYTICS,HIGH,#39,Stockpile toe/base-plane ambiguity. Cross-handoff to volume analytics.,handoff
+FLG_PP_058,PP_CP_SIGMA_MARGINAL,indicator,σ_h 1-2× target on CP,HIGH,#23,CP σ at 1-2× target — marginal verification quality.,threshold
+FLG_PP_059,PP_CP_SIGMA_HIGH,indicator,σ_h 2-5× target on CP,CRITICAL,#23,CP σ at 2-5× target — degraded verification quality.,threshold
+FLG_PP_060,PP_CP_SIGMA_REJECT,indicator,σ_h > 5× target on CP,CRITICAL,#23,CP σ catastrophically high — point not usable for verification.,threshold
+FLG_PP_061,PP_CP_COUNT_STATISTICAL_WEAK,indicator,5 ≤ cp_count < 10,HIGH,#29,CP count below statistical sufficiency threshold for defensible RMSE claim.,threshold
+FLG_PP_062,PP_CP_COUNT_INSUFFICIENT,indicator,cp_count < 5,CRITICAL,#29,Very few check points — RMSE claim statistically indefensible.,threshold
+FLG_PP_063,PP_CP_CLUSTERED,indicator,60% ≤ coverage < 80%,HIGH,#30,CPs partially clustered geographically.,threshold
+FLG_PP_064,PP_CP_SEVERELY_CLUSTERED,indicator,coverage < 60%,CRITICAL,#30,CPs severely clustered — verification limited to local area.,threshold
+FLG_PP_065,PP_CP_GCP_TOO_CLOSE,indicator,min CP-GCP distance 10-50m,HIGH,#25,CPs not spatially independent — within correlation length of GCPs.,threshold
+FLG_PP_066,PP_CP_GCP_OVERLAPPING,indicator,min CP-GCP distance < 10m,CRITICAL,#25,CPs essentially co-located with GCPs — independence catastrophically compromised.,threshold
+FLG_PP_067,PP_NO_CHECK_POINTS,indicator,cp_count = 0,CRITICAL,#26,No designated check points. cp_coord_artifact_score = null. verification_status = UNVERIFIED_NO_CPS. pre_processing_score unaffected.,null_handler

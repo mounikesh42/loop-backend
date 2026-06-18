@@ -1,0 +1,4 @@
+block_id,block_name,weight
+BB_BASE_COMPLETE,base_completeness_integrity_score,0.45
+BB_BASE_SETUP,base_setup_confidence_score,0.35
+BB_BASE_ENV,base_observation_environment_score,0.2

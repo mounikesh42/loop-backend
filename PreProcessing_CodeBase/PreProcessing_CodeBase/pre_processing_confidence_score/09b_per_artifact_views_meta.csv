@@ -1,0 +1,4 @@
+view_id,view_name,display_name,question,indicator_count,inherited_gates,null_handling
+VIEW_PP_GEOTAG,geotag_artifact_score,Geotag Artifact Fitness Score,Is the geotagged image set fit as a pre-processing output (clean inputs for photogrammetry)?,20,PP_WRONG_CRS_DATUM; PP_WRONG_PROJECTION,N/A
+VIEW_PP_GCP_COORD,gcp_coord_artifact_score,GCP Coordinate Artifact Fitness Score,Is the GCP coordinate file fit as a pre-processing output (clean control input for photogrammetry)?,23,PP_WRONG_CRS_DATUM; PP_WRONG_PROJECTION; PP_GCP_AUTONOMOUS_PATH,N/A
+VIEW_PP_CP_COORD,cp_coord_artifact_score,CP Coordinate Artifact Fitness Score,Is the check-point coordinate file fit as a pre-processing output (independent verification artifact)?,12,PP_WRONG_CRS_DATUM; PP_WRONG_PROJECTION,"When cp_designated_count = 0, cp_coord_artifact_score = null. Verification_status reports UNVERIFIED_NO_CPS. The pre_processing_score is unaffected (already locked)."

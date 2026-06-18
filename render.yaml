@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: loop-backend
+    env: docker
+    plan: standard
+    disk:
+      name: loop-data
+      mountPath: /var/data
+      sizeGB: 10
+    envVars:
+      - key: LOOP_UPLOAD_ROOT
+        value: /var/data/uploads
+      - key: LOOP_JOBS_DB
+        value: /var/data/jobs.db
+      - key: LOOP_PIPELINE_DB
+        value: /var/data/pipeline.db
+      - key: LOOP_UPLOAD_RETENTION_DAYS
+        value: "30"
+      - key: LOOP_PIPELINE_TIMEOUT_SECONDS
+        value: "1800"

@@ -1,0 +1,183 @@
+{
+  "count": 11,
+  "indicators": [
+    {
+      "band_matched": "perfect_coverage",
+      "building_block": "BB_BASE_COMPLETE",
+      "condition": "coverage=1.0 AND pre>=120s AND post>=60s",
+      "flags_raised": [],
+      "gate_triggered": false,
+      "id": "L3I_BASE_001",
+      "input_values": {
+        "coverage_ratio": 1.0,
+        "post_buffer_sec": 79.8,
+        "pre_buffer_sec": 122.6
+      },
+      "name": "coverage_score",
+      "score": 54.0,
+      "weight_in_block": 0.35
+    },
+    {
+      "band_matched": "clean",
+      "building_block": "BB_BASE_COMPLETE",
+      "condition": "completed_normally=True AND shutdowns=0 AND battery_min_ok",
+      "flags_raised": [],
+      "gate_triggered": false,
+      "id": "L3I_BASE_002",
+      "input_values": {
+        "battery_min_pct": 68.0,
+        "raw_log_download_confirmed": true,
+        "session_completed_normally": true,
+        "unexpected_shutdown_count": 0
+      },
+      "name": "integrity_score",
+      "score": 58.0,
+      "weight_in_block": 0.3
+    },
+    {
+      "band_matched": "format_complete_dual_freq",
+      "building_block": "BB_BASE_COMPLETE",
+      "condition": "version supported AND header complete AND dual-freq",
+      "flags_raised": [],
+      "gate_triggered": false,
+      "id": "L3I_BASE_003",
+      "input_values": {
+        "dual_freq_available": true,
+        "header_complete": true,
+        "rinex_version": "3.03",
+        "rinex_version_supported": true
+      },
+      "name": "format_score",
+      "score":38.0,
+      "weight_in_block": 0.2
+    },
+    {
+      "band_matched": "clean_continuity",
+      "building_block": "BB_BASE_COMPLETE",
+      "condition": "no gaps AND slips_per_hour<100.0",
+      "flags_raised": [],
+      "gate_triggered": false,
+      "id": "L3I_BASE_004",
+      "input_values": {
+        "any_gap_gt_60s": false,
+        "cycle_slip_count": 139,
+        "cycle_slips_per_hour": 96.0,
+        "gap_gt_5s_count": 0
+      },
+      "name": "continuity_score",
+      "score": 46.0,
+      "weight_in_block": 0.15
+    },
+    {
+      "band_matched": "gold_standard",
+      "building_block": "BB_BASE_SETUP",
+      "condition": "VERTICAL AND measured_to=ARP AND height_count>=3 AND RINEX-agreement OK-or-skipped",
+      "flags_raised": [],
+      "gate_triggered": false,
+      "id": "L3I_BASE_005",
+      "input_values": {
+        "antenna_height_agreement": null,
+        "antenna_height_m": 1.847,
+        "antenna_measurement_type": "VERTICAL",
+        "height_measured_count": 3,
+        "measured_to_reference": "ARP"
+      },
+      "name": "antenna_height_documented_score",
+      "score": 60.0,
+      "weight_in_block": 0.55
+    },
+    {
+      "band_matched": "verified_known_mark",
+      "building_block": "BB_BASE_SETUP",
+      "condition": "over known mark AND verified by 2nd person",
+      "flags_raised": [],
+      "gate_triggered": false,
+      "id": "L3I_BASE_006",
+      "input_values": {
+        "monument_id": "BM-NH-014",
+        "over_known_mark": true,
+        "verified_by_second_person": true
+      },
+      "name": "setup_verification_score",
+      "score": 44.0,
+      "weight_in_block": 0.3
+    },
+    {
+      "band_matched": "type_match",
+      "building_block": "BB_BASE_SETUP",
+      "condition": "form antenna_model matches RINEX antenna_type",
+      "flags_raised": [],
+      "gate_triggered": false,
+      "id": "L3I_BASE_007",
+      "input_values": {
+        "antenna_type_match": true
+      },
+      "name": "antenna_type_match_score",
+      "score": 49.0,
+      "weight_in_block": 0.15
+    },
+    {
+      "band_matched": "low_variance",
+      "building_block": "BB_BASE_ENV",
+      "condition": "mean per-sat C/N0 std < 2.5 dB-Hz",
+      "flags_raised": [],
+      "gate_triggered": false,
+      "id": "L3I_BASE_008",
+      "input_values": {
+        "mean_of_per_sat_cn0_std_dbhz": 2.45,
+        "thresholds_dbhz": {
+          "high": 4.0,
+          "low": 2.5
+        }
+      },
+      "name": "multipath_score",
+      "score": 42.0,
+      "weight_in_block": 0.45
+    },
+    {
+      "band_matched": "dual_freq_fallback",
+      "building_block": "BB_BASE_ENV",
+      "condition": "dual_freq=True → iono mitigation available regardless of Kp",
+      "flags_raised": [],
+      "gate_triggered": false,
+      "id": "L3I_BASE_009",
+      "input_values": {
+        "dual_freq_available": true,
+        "kp_high_threshold": 5.0,
+        "kp_index": null,
+        "kp_status": "API_UNAVAILABLE"
+      },
+      "name": "ionospheric_risk_score",
+      "score": 56.0,
+      "weight_in_block": 0.2
+    },
+    {
+      "band_matched": "pdop_excellent",
+      "building_block": "BB_BASE_ENV",
+      "condition": "mean_pdop<2",
+      "flags_raised": [],
+      "gate_triggered": false,
+      "id": "L3I_BASE_010",
+      "input_values": {
+        "mean_pdop": 1.087
+      },
+      "name": "pdop_score",
+      "score": 51.0,
+      "weight_in_block": 0.2
+    },
+    {
+      "band_matched": "fast_acquisition",
+      "building_block": "BB_BASE_ENV",
+      "condition": "<60s",
+      "flags_raised": [],
+      "gate_triggered": false,
+      "id": "L3I_BASE_011",
+      "input_values": {
+        "base_acquisition_time_sec": 0.0
+      },
+      "name": "acquisition_score",
+      "score": 55.0,
+      "weight_in_block": 0.15
+    }
+  ]
+}

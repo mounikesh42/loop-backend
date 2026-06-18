@@ -1,0 +1,20 @@
+flag_id,flag_name,raised_by_id,raised_by_type,condition,severity,meaning,raised_at_stage
+FLG_001,CRITICAL_IMAGE_FAILURE,L3I_IMG_001,indicator,image_validity_score < 30 (internal gate),CRITICAL,No recoverable survey data — too many corrupted/unreadable images. Causes image_capture_score = 0 and drone_score = 0.,internal_gate
+FLG_002,INSUFFICIENT_OVERLAP,L3I_IMG_003,indicator,"min(image_computed_overlap_fwd_pct, image_computed_overlap_lat_pct) < 40%",HIGH,Actual image positions do not provide enough overlap for photogrammetric reconstruction.,threshold_band
+FLG_003,MIXED_IMAGE_FORMAT,L3I_IMG_004,indicator,Images are a mix of DNG and JPG formats,MEDIUM,Inconsistent radiometric quality across the dataset.,threshold_band
+FLG_004,HIGH_EXPOSURE_VARIATION,L3I_IMG_005,indicator,exposure_consistency_ratio (CV) >= 0.35,MEDIUM,Lighting changed significantly during the survey — radiometric calibration affected.,threshold_band
+FLG_005,RINEX_CRITICAL_GAP,L3I_GNSS_004,indicator,critical_gap_present == True (gap >= 60s),CRITICAL,A RINEX recording gap of 60s+ effectively breaks the carrier phase solution. Hard rule zeros rover_continuity_score.,threshold_band
+FLG_006,SLOW_ROVER_ACQUISITION,L3I_GNSS_005,indicator,rover_acquisition_time_sec >= 300,MEDIUM,Rover took over 5 minutes to reach stable tracking — limited pre-flight convergence time.,threshold_band
+FLG_007,POOR_SKY_VIEW_DURING_FLIGHT,L3I_GNSS_006,indicator,max_pdop_during_flight >= 8.0,HIGH,Satellite geometry was poor during the flight — significant sky obstruction.,threshold_band
+FLG_008,COVERAGE_GAP,L3I_FC_001,indicator,area_coverage_ratio < 0.88,CRITICAL,Planned survey area not fully flown. Unflown area cannot be recovered without re-flight.,threshold_band
+FLG_009,HIGH_WIND_SURVEY,L3I_FC_005,indicator,mean_wind_speed_ms >= 12,MEDIUM,Survey flown in wind exceeding safe operating limits — image blur and unstable flight.,threshold_band
+FLG_010,WIND_API_FALLBACK,L3I_FC_005,indicator,Open-Meteo API unavailable; ATT-derived proxy band == unknown,LOW,Wind speed could not be confirmed from API and BIN attitude proxy was inconclusive — wind_condition_score derived from fallback band only.,threshold_band
+FLG_011,HIGH_ALTITUDE_VARIANCE,L3I_FC_006,indicator,altitude_variance_m >= 20,HIGH,Significant altitude fluctuation during cruise — GSD inconsistent across the site.,threshold_band
+FLG_012,SELF_CALIBRATED_LENS,L3I_CAL_001,indicator,calibration_source == 'SELF_CALIBRATED',MEDIUM,ODM estimated lens parameters from the images themselves — circular dependency with the reconstruction.,threshold_band
+FLG_013,NO_CALIBRATION_FILE,L3I_CAL_001,indicator,calibration_source is absent,HIGH,No calibration file present at all.,threshold_band
+FLG_014,CALIBRATION_CAMERA_MISMATCH,L3I_CAL_002,indicator,camera_make_match == False (in CAL_CONF context),HIGH,Calibration file is for a different camera than the one used in this survey.,threshold_band
+FLG_015,CALIBRATION_POTENTIALLY_OUTDATED,L3I_CAL_003,indicator,calibration_age_months >= 36,MEDIUM,Calibration older than 36 months — lens parameters may have drifted.,threshold_band
+FLG_016,CALIBRATION_DATE_UNKNOWN,L3I_CAL_003,indicator,calibration_date is unknown/null,MEDIUM,Calibration date cannot be determined — recency cannot be assessed.,threshold_band
+FLG_017,DRONE_CRITICAL_FAILURE,drone_score,score,image_capture_score == 0,CRITICAL,Drone produced no recoverable data. drone_score=0. All downstream processing stops.,global_gate
+FLG_018,CAM_RECORDS_MISSING,L1F_BIN_CAM_006,source_field,cam_records_present == False,MEDIUM,No CAM records found in the BIN. PPK falls back to less-precise EXIF timestamps for epoch matching. (Was MRK_FILE_MISSING.),pre_score_ingestion
+FLG_019,CAM_COUNT_MISMATCH,L2D_BIN_005,derived,cam_image_count_match == False,MEDIUM,Number of CAM shutter records in the BIN does not match total_images on the SD card. Indicates a recording error or missing images.,pre_score_ingestion
