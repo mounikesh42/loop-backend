@@ -6,9 +6,9 @@ var stage=0,zoomT=0,zoomTarget=0,slideT=0,slideTarget=0;
 var activeGate=-1,activePlanet=-1;
 var CX=0,CY=0,lastMaxR=200,lastRot=[0,0,0];
 
-// Flask API served from E:\CB\LOOP\apicalls\api.py.
-// Override before app.js loads with: window.LOOP_API_ORIGIN = "http://host:port";
-var LOOP_API_ORIGIN = (window.LOOP_API_ORIGIN || "http://127.0.0.1:5000").replace(/\/$/, "");
+// Flask API served from the same origin by default.
+// Override before app.js loads with: window.LOOP_API_ORIGIN = "https://host";
+var LOOP_API_ORIGIN = (window.LOOP_API_ORIGIN || "").replace(/\/$/, "");
 function loopApiUrl(path){
   return LOOP_API_ORIGIN + path;
 }
@@ -8574,10 +8574,12 @@ var LOAD_PENDING_IS_FOLDER=false;
 var LOAD_JOB_ID=null;
 var LOAD_JOB_TIMER=null;
 var LOAD_VALIDATING=false;
+var LOAD_UPLOAD_CHAIN=Promise.resolve();
 
 function setLoadJobStatus(msg){
   var el=document.getElementById('ld-job');
   if(el) el.textContent=msg||'No backend job';
+  console.log('[load]', msg||'No backend job');
 }
 
 function setLoadChip(btn){
@@ -8600,7 +8602,14 @@ function triggerLoad(itemId){
     grp.items.forEach(function(it){if(it.id===itemId)item=it;});
   });
   LOAD_PENDING_IS_FOLDER=!!(item && (/folder/i.test(item.fmt||'') || ['base_rinex','ant_setup','anchor_session','gcp_rinex','checkpoint_points','raw_images','rover_rinex','mrk'].indexOf(item.id)>=0));
-  document.getElementById(LOAD_PENDING_IS_FOLDER?'ld-folderinput':'ld-fileinput').click();
+  var picker=document.getElementById(LOAD_PENDING_IS_FOLDER?'ld-folderinput':'ld-fileinput');
+  if(!picker){
+    setLoadJobStatus('Upload picker not found.');
+    return;
+  }
+  picker.value='';
+  setLoadJobStatus('Choose files for '+(item?item.name:itemId)+'...');
+  picker.click();
 }
 
 // quick file size formatter
@@ -8638,11 +8647,7 @@ function pollLoadJob(jobId){
     });
 }
 
-function submitLoadFilesToBackend(files,inputId){
-  var selected=[];
-  for(var i=0;i<files.length;i++) selected.push(files[i]);
-  if(!selected.length) return;
-
+function uploadFilesToCurrentJob(selected,inputId,summary){
   var body=new FormData();
   body.append('input_id',inputId||'');
   selected.forEach(function(file){
@@ -8651,21 +8656,65 @@ function submitLoadFilesToBackend(files,inputId){
   setLoadJobStatus('Uploading to backend...');
 
   var url=LOAD_JOB_ID?loopApiUrl('/api/jobs/'+encodeURIComponent(LOAD_JOB_ID)+'/files'):loopApiUrl('/api/jobs');
-  fetch(url,{method:'POST',body:body})
+  return fetch(url,{method:'POST',body:body})
     .then(function(res){
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      return res.json();
+      return res.text().then(function(text){
+        if(!res.ok) throw new Error(extractLoadError(text) || ('HTTP '+res.status));
+        return text?JSON.parse(text):{};
+      });
     })
     .then(function(created){
       LOAD_JOB_ID=created.job_id || created.id;
+      LOAD_STATE[inputId]=summary;
       setLoadJobStatus('Upload ready · job '+LOAD_JOB_ID.slice(0,8));
+      renderLoad();
     })
     .catch(function(err){
       setLoadJobStatus('Upload failed: '+(err.message||String(err)));
     });
 }
 
-function validateLoadSystem(systemName){
+function submitLoadFilesToBackend(files,inputId,summary){
+  var selected=[];
+  for(var i=0;i<files.length;i++) selected.push(files[i]);
+  if(!selected.length) return;
+  setLoadJobStatus('Queued upload for '+inputId+'...');
+  LOAD_UPLOAD_CHAIN=LOAD_UPLOAD_CHAIN.then(function(){
+    return uploadFilesToCurrentJob(selected,inputId,summary);
+  });
+  return LOAD_UPLOAD_CHAIN;
+}
+
+function extractLoadError(text){
+  if(!text) return '';
+  try{
+    var doc=new DOMParser().parseFromString(text,'text/html');
+    var p=doc.querySelector('p');
+    if(p && p.textContent) return p.textContent;
+  }catch(e){}
+  try{
+    var obj=JSON.parse(text);
+    return obj.description || obj.error || obj.message || text;
+  }catch(e){}
+  return text;
+}
+
+function loadGroupForSystem(systemName){
+  for(var i=0;i<LOAD_SYSTEMS.length;i++){
+    if(LOAD_SYSTEMS[i].sys===systemName) return LOAD_SYSTEMS[i];
+  }
+  return null;
+}
+
+function missingRequiredLoadItems(systemName){
+  var grp=loadGroupForSystem(systemName);
+  if(!grp) return [];
+  return grp.items.filter(function(it){
+    return !it.optional && !LOAD_STATE[it.id];
+  });
+}
+
+function validateLoadSystemNow(systemName){
   var targetBySystem={
     'Base Station':'base_station',
     'Drone':'drone',
@@ -8679,6 +8728,11 @@ function validateLoadSystem(systemName){
     setLoadJobStatus('Upload '+systemName+' files first.');
     return;
   }
+  var missing=missingRequiredLoadItems(systemName);
+  if(missing.length){
+    setLoadJobStatus('Missing required '+systemName+' input: '+missing.map(function(it){return it.name;}).join(', '));
+    return;
+  }
   LOAD_VALIDATING=true;
   setLoadJobStatus('Validating '+systemName+'...');
   renderLoad();
@@ -8688,8 +8742,10 @@ function validateLoadSystem(systemName){
     body:JSON.stringify({target:target})
   })
     .then(function(res){
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      return res.json();
+      return res.text().then(function(text){
+        if(!res.ok) throw new Error(extractLoadError(text) || ('HTTP '+res.status));
+        return text?JSON.parse(text):{};
+      });
     })
     .then(function(created){
       setLoadJobStatus('Job '+created.job_id.slice(0,8)+' queued');
@@ -8704,19 +8760,37 @@ function validateLoadSystem(systemName){
     });
 }
 
+function validateLoadSystem(systemName){
+  if(LOAD_VALIDATING) return;
+  setLoadJobStatus('Waiting for uploads to finish before validating...');
+  LOAD_UPLOAD_CHAIN.then(function(){
+    validateLoadSystemNow(systemName);
+  });
+}
+window.validateLoadSystem=validateLoadSystem;
+
 function onLoadFileChosen(e){
   var files=e.target.files;
-  if(!files || !files.length || !LOAD_PENDING_ID) return;
+  if(!files || !files.length){
+    setLoadJobStatus('No files selected.');
+    return;
+  }
+  if(!LOAD_PENDING_ID){
+    setLoadJobStatus('No upload row selected. Click Upload again.');
+    return;
+  }
   var f=files[0];
+  var summary;
   // if multiple selected (e.g. raw images folder), aggregate
   if(files.length>1){
     var total=0; for(var i=0;i<files.length;i++) total+=files[i].size;
     var firstName=f.webkitRelativePath || f.name;
-    LOAD_STATE[LOAD_PENDING_ID]={fn:files.length+' files ('+firstName+', ...)', sz:fmtBytes(total)};
+    summary={fn:files.length+' files ('+firstName+', ...)', sz:fmtBytes(total)};
   } else {
-    LOAD_STATE[LOAD_PENDING_ID]={fn:(f.webkitRelativePath || f.name), sz:fmtBytes(f.size)};
+    summary={fn:(f.webkitRelativePath || f.name), sz:fmtBytes(f.size)};
   }
-  submitLoadFilesToBackend(files,LOAD_PENDING_ID);
+  setLoadJobStatus('Selected '+files.length+' file'+(files.length===1?'':'s')+' for '+LOAD_PENDING_ID+'. Uploading...');
+  submitLoadFilesToBackend(files,LOAD_PENDING_ID,summary);
   LOAD_PENDING_ID=null;
   LOAD_PENDING_IS_FOLDER=false;
   e.target.value=''; // reset so same file can be picked again
@@ -8734,10 +8808,16 @@ function renderLoad(){
     var rowsHtml='';
     var sectionVisible=0;
     var sectionUploaded=0;
+    var sectionRequired=0;
+    var sectionRequiredUploaded=0;
     grp.items.forEach(function(it){
       total++;
       var st=loadStatusOf(it);
       if(st==='uploaded') sectionUploaded++;
+      if(!it.optional){
+        sectionRequired++;
+        if(st==='uploaded') sectionRequiredUploaded++;
+      }
       if(LOAD_QUERY){
         var hay=(it.name+' '+it.fmt+' '+(LOAD_STATE[it.id]?LOAD_STATE[it.id].fn:'')).toLowerCase();
         if(hay.indexOf(LOAD_QUERY)<0) return;
@@ -8755,7 +8835,7 @@ function renderLoad(){
         +'<td><div class="ld-iname">'+it.name+'</div><div class="ld-iname-fmt">'+it.fmt+'</div></td>'
         +'<td style="text-align:center;"><span class="ld-spill '+st+'">'+statusLbl+'</span></td>'
         +'<td>'+fileCell+'</td>'
-        +'<td style="text-align:center;"><button class="'+upCls+'" onclick="triggerLoad(\''+it.id+'\')">'
+      +'<td style="text-align:center;"><button type="button" class="'+upCls+'" data-load-trigger="'+it.id+'">'
         +'<svg viewBox="0 0 10 10" fill="none"><path d="M5 6.5V1.5M3 3L5 1 7 3M1.5 8.4h7" stroke="currentColor" stroke-width=".9" stroke-linecap="round" stroke-linejoin="round"/></svg>'
         +upLbl+'</button></td>'
         +'</tr>';
@@ -8765,11 +8845,13 @@ function renderLoad(){
     var validateLabel=LOAD_VALIDATING?'Validating':'Validate';
     var canValidate=['Base Station','Drone','Control Point','Check Point'].indexOf(grp.sys)>=0;
     var validateBtn=canValidate
-      ? '<button class="ld-up" style="margin-left:10px"'+validateDisabled+' onclick="validateLoadSystem(\''+grp.sys+'\')">'+validateLabel+'</button>'
+      ? '<button type="button" class="ld-up" style="margin-left:10px"'+validateDisabled+' data-load-validate="'+grp.sys+'">'+validateLabel+'</button>'
       : '';
+    var countText=sectionRequiredUploaded+' / '+sectionRequired+' required uploaded';
+    if(sectionUploaded>sectionRequiredUploaded) countText+=' + '+(sectionUploaded-sectionRequiredUploaded)+' optional';
     html+='<div class="ld-section">'
       +'<div class="ld-shead"><div class="ld-sname">'+grp.sys+'</div>'
-      +'<div class="ld-scount">'+sectionUploaded+' / '+grp.items.length+' uploaded</div>'
+      +'<div class="ld-scount">'+countText+'</div>'
       +validateBtn+'<div class="ld-srule"></div></div>'
       +'<table class="ld-table">'
       +'<thead><tr><th>Required Input</th><th>Status</th><th>File</th><th>Action</th></tr></thead>'
@@ -8789,6 +8871,20 @@ function renderLoad(){
   document.getElementById('ld-prog-fill').style.width=pct+'%';
   document.getElementById('ld-prog-num').textContent=pct+'%';
 }
+
+document.addEventListener('click',function(e){
+  var trigger=e.target.closest && e.target.closest('[data-load-trigger]');
+  if(trigger){
+    e.preventDefault();
+    triggerLoad(trigger.getAttribute('data-load-trigger'));
+    return;
+  }
+  var validate=e.target.closest && e.target.closest('[data-load-validate]');
+  if(validate){
+    e.preventDefault();
+    validateLoadSystem(validate.getAttribute('data-load-validate'));
+  }
+});
 
 
 // ============================================================
@@ -9305,8 +9401,16 @@ buildScoreLabels();
 buildDelView();
 srInitMap();
 buildLayerPanel();
-document.getElementById('ld-fileinput').addEventListener('change',onLoadFileChosen);
-document.getElementById('ld-folderinput').addEventListener('change',onLoadFileChosen);
+var ldFileInput=document.getElementById('ld-fileinput');
+var ldFolderInput=document.getElementById('ld-folderinput');
+if(ldFileInput){
+  ldFileInput.addEventListener('change',onLoadFileChosen);
+  ldFileInput.onchange=onLoadFileChosen;
+}
+if(ldFolderInput){
+  ldFolderInput.addEventListener('change',onLoadFileChosen);
+  ldFolderInput.onchange=onLoadFileChosen;
+}
 // reflect initial Origin state on Load nav badge
 (function(){var nbL=document.getElementById('nbadge-load'); if(nbL && !originComplete()) nbL.classList.add('locked');})();
 initPulses();
@@ -10087,6 +10191,9 @@ function injectLiveScenario(indicators) {
   SCENARIOS.splice(0, SCENARIOS.length, liveScenario);
   currentScenario = liveScenario;
   BASE_API_READY = true;
+  if(window.dsBase){
+    window.dsBase.realScore = computeOverallScore(scores).score;
+  }
 }
 
 function loadLiveScores() {
@@ -10113,6 +10220,7 @@ function loadLiveScores() {
     });
 }
 
+window.loadLiveScores = loadLiveScores;
 loadLiveScores();
 
 })();
