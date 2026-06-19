@@ -2,11 +2,7 @@ services:
   - type: web
     name: loop-backend
     env: docker
-    plan: standard
-    disk:
-      name: loop-data
-      mountPath: /var/data
-      sizeGB: 10
+    plan: free
     envVars:
       - key: LOOP_UPLOAD_ROOT
         value: /var/data/uploads
