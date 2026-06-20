@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="0; url=index.html" />
+    <title>Cesium Base + Drone Animation (merged)</title>
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Cesium.js"></script>
+    <link
+        href="https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Widgets/widgets.css"
+        rel="stylesheet"
+    />
+    <style>
+        html, body, #cesiumContainer {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #toolbar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            font-family: Arial, sans-serif;
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        #toolbar input[type="number"] {
+            width: 100px;
+            margin: 0 8px;
+        }
+
+        #toolbar select {
+            margin-left: 8px;
+            margin-right: 8px;
+        }
+
+        #toolbar label {
+            margin-left: 8px;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+    <p style="font-family:sans-serif;padding:1rem">
+        This demo was merged into
+        <a href="globe_polygons.html">globe_polygons.html</a>
+        (polygons + TiTiler ortho + CTOD DEM + drone).
+    </p>
+    <div id="toolbar">
+        Drone Height (meters):
+        <input type="number" id="heightInput" value="50" />
+        <button onclick="updateHeight()">Apply</button>
+        Base Map:
+        <select id="basemapSelect" onchange="updateBasemap()">
+            <option value="osm" selected>OSM</option>
+            <option value="satellite">Satellite</option>
+            <option value="dark">Dark</option>
+            <option value="topo">Topo</option>
+            <option value="street">Street</option>
+            <option value="light">Light</option>
+        </select>
+        <label>
+            <input type="checkbox" id="loggingToggle" checked onchange="toggleLogging()" />
+            <span id="loggingToggleText">Logging ON</span>
+        </label>
+    </div>
+    <div id="cesiumContainer"></div>
+
+    <script>
+        Cesium.Ion.defaultAccessToken = '';
+
+        const viewer = new Cesium.Viewer('cesiumContainer', {
+            shouldAnimate: true,
+            animation: false,
+            timeline: false,
+            baseLayerPicker: false,
+            geocoder: false,
+            homeButton: false,
+            navigationHelpButton: false,
+            sceneModePicker: false,
+            terrainProvider: new Cesium.EllipsoidTerrainProvider()
+        });
+        viewer.targetFrameRate = 30;
+        viewer.resolutionScale = 0.8;
+
+        function setBasemap(type) {
+            viewer.imageryLayers.removeAll();
+
+            if (type === 'satellite') {
+                viewer.imageryLayers.addImageryProvider(
+                    new Cesium.UrlTemplateImageryProvider({
+                        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                        maximumLevel: 19
+                    })
+                );
+                return;
+            }
+
+            if (type === 'dark') {
+                viewer.imageryLayers.addImageryProvider(
+                    new Cesium.UrlTemplateImageryProvider({
+                        url: 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                        credit: 'CARTO'
+                    })
+                );
+                return;
+            }
+
+            if (type === 'topo') {
+                viewer.imageryLayers.addImageryProvider(
+                    new Cesium.UrlTemplateImageryProvider({
+                        url: 'https://tile.opentopomap.org/{z}/{x}/{y}.png',
+                        credit: 'OpenTopoMap',
+                        maximumLevel: 17
+                    })
+                );
+                return;
+            }
+
+            if (type === 'street') {
+                viewer.imageryLayers.addImageryProvider(
+                    new Cesium.UrlTemplateImageryProvider({
+                        url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+                        maximumLevel: 19
+                    })
+                );
+                return;
+            }
+
+            if (type === 'light') {
+                viewer.imageryLayers.addImageryProvider(
+                    new Cesium.UrlTemplateImageryProvider({
+                        url: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                        credit: 'CARTO'
+                    })
+                );
+                return;
+            }
+
+            viewer.imageryLayers.addImageryProvider(
+                new Cesium.OpenStreetMapImageryProvider({
+                    url: 'https://tile.openstreetmap.org/',
+                    maximumLevel: 22
+                })
+            );
+        }
+
+        function updateBasemap() {
+            const selected = document.getElementById('basemapSelect').value;
+            setBasemap(selected);
+        }
+
+        viewer.scene.globe.baseColor = Cesium.Color.DARKBLUE;
+        viewer.scene.globe.enableLighting = false;
+
+        const points = [
+            { name: 'POINT 1', lon: 78.12969860074783, lat: 17.595137946261278 },
+            { name: 'POINT 2', lon: 78.12983425347552, lat: 17.597078282735762 },
+            { name: 'POINT 3', lon: 78.12890532159167, lat: 17.59664755106395 },
+            { name: 'POINT 4', lon: 78.1283675420036, lat: 17.59587627829712 }
+        ];
+
+        const road = [
+            [78.129111116404502, 17.59584549347468],
+            [78.129111116404502, 17.597024388483813],
+            [78.129118412946283, 17.597372143654301],
+            [78.129340957470632, 17.597389531395255],
+            [78.129278936865475, 17.59623845933249],
+            [78.129282585136394, 17.595803762536921],
+            [78.129424867701118, 17.595807240115434],
+            [78.129450405597368, 17.597393008943239],
+            [78.129640115683685, 17.597406919134535],
+            [78.129592688162091, 17.595796807379692],
+            [78.129760508623065, 17.595817672850579],
+            [78.129771453435765, 17.597386053847192],
+            [78.129928329084038, 17.597399964039017],
+            [78.129844418853551, 17.595807240115434],
+            [78.129972108334741, 17.595848971052394],
+            [78.130045073752555, 17.597375621202623]
+        ];
+
+        const droneEntities = [];
+        let droneEntity = null;
+        const tripodEntities = [];
+        const baseStationEntities = [];
+        const loggingEntities = [];
+        const tripodModelUri = './models/leica_tripod/scene.gltf';
+        const baseStationModelUri = './models/gnss_university_of_applied_sciences_mainz/scene.gltf';
+        const droneModelUri = './models/drone_low_poly/scene.gltf';
+        const tripodHeight = 0.0;
+        const baseStationHeight = 2.43;
+        const signalAndLightHeight = 2.66;
+        const tripodModelScale = 1.7;
+        const baseStationModelScale = 0.0015;
+        const droneModelScale = 0.15;
+        const droneHeightOffset = 0.0;
+        const signalWaveCountPerPoint = 3;
+        const waveRadiusMin = 0.2;
+        const waveRadiusRange = 1.2;
+
+        function addBaseSurveyScene() {
+            points.forEach((point) => {
+                const lon = point.lon;
+                const lat = point.lat;
+                const size = 0.00001;
+
+                const squares = [
+                    { minLon: lon - size, minLat: lat, maxLon: lon, maxLat: lat + size, color: Cesium.Color.BLACK },
+                    { minLon: lon, minLat: lat, maxLon: lon + size, maxLat: lat + size, color: Cesium.Color.WHITE },
+                    { minLon: lon - size, minLat: lat - size, maxLon: lon, maxLat: lat, color: Cesium.Color.WHITE },
+                    { minLon: lon, minLat: lat - size, maxLon: lon + size, maxLat: lat, color: Cesium.Color.BLACK }
+                ];
+
+                squares.forEach((square) => {
+                    viewer.entities.add({
+                        rectangle: {
+                            coordinates: Cesium.Rectangle.fromDegrees(
+                                square.minLon,
+                                square.minLat,
+                                square.maxLon,
+                                square.maxLat
+                            ),
+                            material: square.color,
+                            height: 0.02
+                        }
+                    });
+                });
+
+                for (let i = 0; i < signalWaveCountPerPoint; i++) {
+                    const waveEntity = viewer.entities.add({
+                        position: Cesium.Cartesian3.fromDegrees(lon, lat, signalAndLightHeight),
+                        ellipse: {
+                            semiMinorAxis: new Cesium.CallbackProperty(() => ((Date.now() * 0.0005 + (i * 1.5)) % waveRadiusRange) + waveRadiusMin, false),
+                            semiMajorAxis: new Cesium.CallbackProperty(() => ((Date.now() * 0.0005 + (i * 1.5)) % waveRadiusRange) + waveRadiusMin, false),
+                            height: signalAndLightHeight,
+                            material: new Cesium.ColorMaterialProperty(
+                                new Cesium.CallbackProperty(() => {
+                                    const alpha = 1 - ((Date.now() * 0.0005 + (i * 1.5)) % waveRadiusRange) / waveRadiusRange;
+                                    return Cesium.Color.RED.withAlpha(alpha * 0.35);
+                                }, false)
+                            ),
+                            outline: true,
+                            outlineColor: Cesium.Color.RED,
+                            outlineWidth: 1
+                        }
+                    });
+                    loggingEntities.push(waveEntity);
+                }
+
+                const tripodEntity = viewer.entities.add({
+                    name: `${point.name} Tripod`,
+                    position: Cesium.Cartesian3.fromDegrees(lon, lat, tripodHeight),
+                    model: {
+                        uri: tripodModelUri,
+                        scale: tripodModelScale,
+                        minimumPixelSize: 24,
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+                    }
+                });
+                tripodEntities.push(tripodEntity);
+
+                const baseStationEntity = viewer.entities.add({
+                    name: `${point.name} Leica Base`,
+                    position: Cesium.Cartesian3.fromDegrees(lon, lat, baseStationHeight),
+                    model: {
+                        uri: baseStationModelUri,
+                        scale: baseStationModelScale,
+                        minimumPixelSize: 18,
+                        heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND
+                    }
+                });
+                baseStationEntities.push(baseStationEntity);
+
+                const redLightEntity = viewer.entities.add({
+                    position: Cesium.Cartesian3.fromDegrees(lon, lat, signalAndLightHeight),
+                    point: {
+                        pixelSize: 10,
+                        color: new Cesium.CallbackProperty(() => {
+                            const blink = Math.floor(Date.now() / 350) % 2;
+                            return blink ? Cesium.Color.RED : Cesium.Color.BLACK;
+                        }, false)
+                    }
+                });
+                loggingEntities.push(redLightEntity);
+
+                viewer.entities.add({
+                    position: Cesium.Cartesian3.fromDegrees(lon, lat, 4),
+                    label: {
+                        text: point.name,
+                        font: '16px sans-serif',
+                        fillColor: Cesium.Color.WHITE,
+                        outlineColor: Cesium.Color.BLACK,
+                        outlineWidth: 3,
+                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                        verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+                    }
+                });
+            });
+        }
+
+        function clearDroneEntities() {
+            while (droneEntities.length > 0) {
+                const entity = droneEntities.pop();
+                viewer.entities.remove(entity);
+            }
+            droneEntity = null;
+        }
+
+        function createDroneAnimation(heightOffset) {
+            clearDroneEntities();
+
+            const roadLine = viewer.entities.add({
+                polyline: {
+                    positions: road.map((coord) => Cesium.Cartesian3.fromDegrees(coord[0], coord[1], heightOffset)),
+                    width: 4,
+                    material: Cesium.Color.CYAN
+                }
+            });
+            droneEntities.push(roadLine);
+
+            const property = new Cesium.SampledPositionProperty();
+            const start = Cesium.JulianDate.now();
+
+            road.forEach((coord, index) => {
+                const time = Cesium.JulianDate.addSeconds(start, index * 2, new Cesium.JulianDate());
+                const position = Cesium.Cartesian3.fromDegrees(coord[0], coord[1], heightOffset + droneHeightOffset);
+                property.addSample(time, position);
+            });
+
+            property.setInterpolationOptions({
+                interpolationDegree: 2,
+                interpolationAlgorithm: Cesium.HermitePolynomialApproximation
+            });
+
+            droneEntity = viewer.entities.add({
+                position: property,
+                orientation: new Cesium.VelocityOrientationProperty(property),
+                model: {
+                    uri: droneModelUri,
+                    scale: droneModelScale,
+                    minimumPixelSize: 24,
+                    maximumScale: 200,
+                    runAnimations: false
+                },
+                path: {
+                    material: Cesium.Color.CYAN,
+                    width: 3
+                }
+            });
+            droneEntities.push(droneEntity);
+
+            viewer.clock.startTime = start.clone();
+            viewer.clock.stopTime = Cesium.JulianDate.addSeconds(start, road.length * 2, new Cesium.JulianDate());
+            viewer.clock.currentTime = start.clone();
+            viewer.clock.multiplier = 1;
+            viewer.clock.shouldAnimate = true;
+            viewer.clock.clockRange = Cesium.ClockRange.LOOP_STOP;
+            viewer.trackedEntity = undefined;
+        }
+
+        function updateHeight() {
+            const height = parseFloat(document.getElementById('heightInput').value);
+            createDroneAnimation(Number.isFinite(height) ? height : 50);
+        }
+
+        function toggleLogging() {
+            const enabled = document.getElementById('loggingToggle').checked;
+            loggingEntities.forEach((entity) => {
+                entity.show = enabled;
+            });
+            document.getElementById('loggingToggleText').textContent = enabled ? 'Logging ON' : 'Logging OFF';
+        }
+
+        setBasemap('osm');
+        addBaseSurveyScene();
+        createDroneAnimation(50);
+        viewer.flyTo(viewer.entities, { duration: 3 });
+
+        console.log('Merged base scene + drone animation loaded');
+    </script>
+</body>
+</html>

@@ -1,0 +1,255 @@
+{
+  "type": "FeatureCollection",
+  "name": "Stockpiles",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "SP1",
+        "name": "Stockpile 1",
+        "category": "stockpiles",
+        "material": "Iron ore",
+        "densityTier": 1,
+        "volume_m3": 4280,
+        "weight_t": 17120,
+        "density_t_m3": 4,
+        "confidence": 0.94,
+        "anomalies": []
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                78.12775182969217,
+                17.59629237839574
+              ],
+              [
+                78.1277430492482,
+                17.596569840425534
+              ],
+              [
+                78.12814519358251,
+                17.596541743004796
+              ],
+              [
+                78.12813992531612,
+                17.59624672008704
+              ],
+              [
+                78.12775182969217,
+                17.59629237839574
+              ]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "SP2",
+        "name": "Stockpile 2",
+        "category": "stockpiles",
+        "material": "Iron ore",
+        "densityTier": 1,
+        "volume_m3": 3640,
+        "weight_t": 14560,
+        "density_t_m3": 4,
+        "confidence": 0.91,
+        "anomalies": []
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                78.12855348422758,
+                17.596240573776264
+              ],
+              [
+                78.12874928812835,
+                17.59624759813145
+              ],
+              [
+                78.12874401986195,
+                17.595899014505417
+              ],
+              [
+                78.12855348422758,
+                17.595894624283424
+              ],
+              [
+                78.12855348422758,
+                17.596240573776264
+              ]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "SP3",
+        "name": "Stockpile 3",
+        "category": "stockpiles",
+        "material": "Coal",
+        "densityTier": 1,
+        "volume_m3": 3180,
+        "weight_t": 4452,
+        "density_t_m3": 1.4,
+        "confidence": 0.88,
+        "anomalies": []
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                78.12865445933336,
+                17.596590913491095
+              ],
+              [
+                78.12887572652167,
+                17.59659266957989
+              ],
+              [
+                78.12887133629968,
+                17.59625725661983
+              ],
+              [
+                78.12865006911136,
+                17.596259890753025
+              ],
+              [
+                78.12865445933336,
+                17.596590913491095
+              ]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "SP4",
+        "name": "Stockpile 4",
+        "category": "stockpiles",
+        "material": "Aggregate",
+        "densityTier": 2,
+        "volume_m3": 2480,
+        "weight_t": 3968,
+        "density_t_m3": 1.6,
+        "confidence": 0.72,
+        "anomalies": [
+          {
+            "severity": "warn",
+            "type": "Density tier 2 (soft caveat)",
+            "detail": "Material type not set; site default density used for weight derivation."
+          },
+          {
+            "severity": "warn",
+            "type": "Volume drift vs last survey",
+            "detail": "Volume +6.2% vs 2026-04-12 survey; investigate reshaping."
+          }
+        ]
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                78.1290293842914,
+                17.59868680546929
+              ],
+              [
+                78.12931035849878,
+                17.59861831800624
+              ],
+              [
+                78.12914353006315,
+                17.59802651608194
+              ],
+              [
+                78.12886079976697,
+                17.598130125320914
+              ],
+              [
+                78.1290293842914,
+                17.59868680546929
+              ]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "SP5",
+        "name": "Stockpile 5",
+        "category": "stockpiles",
+        "material": null,
+        "densityTier": 4,
+        "volume_m3": 1440,
+        "weight_t": null,
+        "density_t_m3": null,
+        "confidence": 0.41,
+        "isEstimated": false,
+        "anomalies": [
+          {
+            "severity": "crit",
+            "type": "Density tier 4 — weight omitted",
+            "detail": "No reasonable density determination possible. Weight KPI omitted per Layer 2 §4.6."
+          },
+          {
+            "severity": "warn",
+            "type": "Score drop vs prior survey",
+            "detail": "Site score fell from 62 to 48 (−14 pts) since last analytics run."
+          }
+        ]
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                78.12936128507393,
+                17.594720678923203
+              ],
+              [
+                78.12971250283316,
+                17.594341363743236
+              ],
+              [
+                78.12930157805486,
+                17.594060389535855
+              ],
+              [
+                78.12916811530636,
+                17.594274632368986
+              ],
+              [
+                78.12936128507393,
+                17.594720678923203
+              ]
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

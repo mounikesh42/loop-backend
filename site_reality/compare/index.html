@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hyderabad Mine 7 · Survey Viewer</title>
+    <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --bg: #05070a;
+            --panel: #0a0e14;
+            --text: #ebf2f8;
+            --muted: rgba(235, 242, 248, 0.45);
+            --rule: rgba(200, 215, 228, 0.12);
+            --accent: #94d4e8;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body {
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'IBM Plex Mono', monospace;
+        }
+        .hub {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 48px 24px 64px;
+        }
+        .hub-brand {
+            font-family: 'Barlow', sans-serif;
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: 0.2em;
+            color: var(--accent);
+        }
+        .hub-title {
+            font-family: 'Barlow', sans-serif;
+            font-weight: 600;
+            font-size: 28px;
+            margin-top: 8px;
+        }
+        .hub-sub {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 8px;
+            letter-spacing: 0.06em;
+        }
+        .hub-hint {
+            margin-top: 20px;
+            padding: 12px 14px;
+            border: 0.5px solid var(--rule);
+            border-radius: 4px;
+            font-size: 10px;
+            line-height: 1.6;
+            color: var(--muted);
+        }
+        .hub-hint code {
+            color: var(--accent);
+        }
+        .stages {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 36px;
+        }
+        .stage-card {
+            display: flex;
+            flex-direction: column;
+            padding: 20px 18px;
+            background: var(--panel);
+            border: 0.5px solid var(--rule);
+            border-radius: 6px;
+            text-decoration: none;
+            color: inherit;
+            transition: border-color 0.2s, background 0.2s, transform 0.15s;
+        }
+        .stage-card:hover {
+            border-color: rgba(148, 212, 232, 0.4);
+            background: rgba(126, 184, 212, 0.06);
+            transform: translateY(-2px);
+        }
+        .stage-num {
+            font-size: 9px;
+            letter-spacing: 0.14em;
+            color: rgba(148, 212, 232, 0.55);
+            margin-bottom: 10px;
+        }
+        .stage-name {
+            font-family: 'Barlow', sans-serif;
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+        .stage-desc {
+            font-size: 10px;
+            line-height: 1.55;
+            color: var(--muted);
+            flex: 1;
+        }
+        .stage-file {
+            margin-top: 14px;
+            font-size: 9px;
+            color: rgba(148, 212, 232, 0.5);
+        }
+        .footer {
+            margin-top: 40px;
+            font-size: 9px;
+            color: rgba(235, 242, 248, 0.22);
+            letter-spacing: 0.1em;
+        }
+    </style>
+</head>
+<body data-survey-stage="home">
+    <div class="hub">
+        <div class="hub-brand" data-survey-brand>CBMI · SITE REALITY</div>
+        <h1 class="hub-title" data-survey-title>Hyderabad Mine 7</h1>
+        <p class="hub-sub" data-survey-subtitle>Survey · 2026-05-18 · Cesium viewers</p>
+
+        <p class="hub-hint">
+            Start the local server: <code>python dev_server.py 8765</code><br>
+            Open <code>http://localhost:8765/globe_polygons.html</code> for the unified survey viewer (Capture, Processing, Analytics in one left panel).
+        </p>
+
+        <div class="stages">
+            <a class="stage-card" href="./globe_polygons.html">
+                <span class="stage-num">SURVEY</span>
+                <span class="stage-name">Survey Viewer</span>
+                <span class="stage-desc">One globe — Capture (drone, flight path, base, GCPs), Processing layers, and Analytics polygons.</span>
+                <span class="stage-file">globe_polygons.html</span>
+            </a>
+            <a class="stage-card" href="./globe_dem_ortho.html">
+                <span class="stage-num">LAYERS</span>
+                <span class="stage-name">Ortho + DEM</span>
+                <span class="stage-desc">Lightweight viewer — satellite, orthomosaic, CTOD terrain only.</span>
+                <span class="stage-file">globe_dem_ortho.html</span>
+            </a>
+        </div>
+
+        <p class="footer">Config: survey/site.json · TiTiler + CTOD via dev_server proxies</p>
+    </div>
+
+    <script src="./js/survey_config.js"></script>
+    <script>
+        SurveyConfig.load().then(function () {
+            SurveyConfig.applySiteLabels();
+        }).catch(function () { /* defaults on hub */ });
+    </script>
+</body>
+</html>

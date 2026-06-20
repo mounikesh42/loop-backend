@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hyderabad Mine 7 · Processing</title>
+    <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link id="cesiumWidgetsCss" href="https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+    <link href="./css/processing_stage.css" rel="stylesheet" />
+    <link href="./css/survey_nav.css" rel="stylesheet" />
+    <style>
+        .load-banner {
+            position: absolute;
+            top: 72px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 12;
+            padding: 8px 16px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            color: var(--text-primary);
+            background: rgba(2, 3, 8, 0.88);
+            border: 0.5px solid var(--rule-strong);
+            border-radius: 4px;
+            display: none;
+            pointer-events: none;
+        }
+        .load-banner.show { display: block; }
+    </style>
+</head>
+<body data-survey-stage="processing">
+<script>window.location.replace('./globe_polygons.html');</script>
+<div class="app" style="display:none">
+
+  <aside class="left-panel">
+    <div class="lp-header">
+      <div class="lp-brand" data-survey-brand>CBMI · SITE REALITY</div>
+      <div class="lp-title" data-survey-title>Hyderabad Mine 7</div>
+      <div class="lp-subtitle" data-survey-subtitle>Survey · 2026-05-18</div>
+    </div>
+
+    <div class="lp-section">
+      <div class="lp-section-label">Capture</div>
+      <div class="lp-item dimmed">
+        <div class="lp-eye off"></div>
+        <span class="lp-name">Drone</span>
+        <span class="lp-state-dot warn"></span>
+      </div>
+      <div class="lp-item dimmed">
+        <div class="lp-eye off"></div>
+        <span class="lp-name">Base Station</span>
+        <span class="lp-state-dot good"></span>
+      </div>
+    </div>
+
+    <div class="lp-section">
+      <div class="lp-section-label">Processing</div>
+
+      <div class="lp-item" data-obj="images">
+        <div class="lp-eye off" data-toggle="images"></div>
+        <span class="lp-name">Geotagged Images</span>
+        <span class="lp-state-dot warn"></span>
+      </div>
+
+      <div class="lp-item" data-obj="ortho">
+        <div class="lp-eye off" data-toggle="ortho"></div>
+        <span class="lp-name">Orthomosaic</span>
+        <span class="lp-heavy-marker">HVY</span>
+        <span class="lp-state-dot good"></span>
+      </div>
+
+      <div class="lp-item" data-obj="dsm">
+        <div class="lp-eye off" data-toggle="dsm"></div>
+        <span class="lp-name">DSM</span>
+        <span class="lp-heavy-marker">HVY</span>
+        <span class="lp-state-dot good"></span>
+      </div>
+
+      <div class="lp-item" data-obj="dtm">
+        <div class="lp-eye off" data-toggle="dtm"></div>
+        <span class="lp-name">DTM</span>
+        <span class="lp-heavy-marker">HVY</span>
+        <span class="lp-state-dot warn"></span>
+      </div>
+
+      <div class="lp-item" data-obj="mesh">
+        <div class="lp-eye off" data-toggle="mesh"></div>
+        <span class="lp-name">3D Model</span>
+        <span class="lp-heavy-marker">HVY</span>
+        <span class="lp-state-dot good"></span>
+      </div>
+
+      <div class="lp-item" data-obj="pointcloud">
+        <div class="lp-eye off" data-toggle="pointcloud"></div>
+        <span class="lp-name">Point Cloud</span>
+        <span class="lp-heavy-marker">HVY</span>
+        <span class="lp-state-dot good"></span>
+      </div>
+    </div>
+
+    <div class="lp-section">
+      <div class="lp-section-label">Analytics</div>
+      <div class="lp-item dimmed">
+        <div class="lp-eye off"></div>
+        <span class="lp-name">Stockpiles</span>
+        <span class="lp-state-dot warn"></span>
+      </div>
+    </div>
+
+    <div class="lp-footer">PROCESSING · CESIUM · layers staged</div>
+  </aside>
+
+  <main class="viewport" id="sceneMode" data-mode="default">
+    <div class="survey-id" data-survey-id-line>SURVEY · 2026-05-18 · 14:23 IST · 142 IMAGES</div>
+
+    <div class="tab-strip">
+      <button class="tab active" data-tab="default">Default</button>
+      <button class="tab" data-tab="score">Score</button>
+      <button class="tab" data-tab="anomalies">Anomalies</button>
+    </div>
+
+    <button class="proto-toggle" id="protoToggle">? HOW TO USE</button>
+
+    <div class="banner" id="modeBanner"></div>
+    <div class="load-banner" id="loadBanner"></div>
+
+    <div class="proto-note" id="protoNote">
+      <strong>PROCESSING STAGE</strong><br>
+      Heavy layers are mutually exclusive. Ortho/DSM/3D model/Point cloud use DEM terrain (CTOD). No ortho/DEM imagery on 3D model or point cloud. DTM still pending.
+    </div>
+
+    <div class="load-banner show" id="bootError" style="display:none;max-width:90%;text-align:center;line-height:1.5;pointer-events:auto;z-index:20"></div>
+
+    <div class="empty-state show" id="emptyState">
+      <div class="empty-state-icon">·</div>
+      <div class="empty-state-text">Toggle a Processing object in the left panel to begin investigation.</div>
+    </div>
+
+    <div id="cesiumContainer"></div>
+
+    <div class="active-layer-pill" id="activeLayerPill">
+      <span class="label">ACTIVE LAYER ·</span>
+      <span class="value" id="activeLayerName">—</span>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <div class="image-preview-overlay" id="imagePreviewOverlay">
+      <div class="image-preview">
+        <div class="image-preview-header">
+          <div class="image-preview-id" id="previewId">IMG_0058</div>
+          <button class="image-preview-close" id="previewClose" type="button">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="image-preview-canvas"></div>
+        <div class="image-preview-meta">
+          <div>
+            <div class="label">Capture time</div>
+            <div id="previewTime">14:26:23</div>
+          </div>
+          <div>
+            <div class="label">Altitude</div>
+            <div id="previewAlt">85 m AGL</div>
+          </div>
+          <div>
+            <div class="label">Sharpness</div>
+            <div id="previewSharp">87</div>
+          </div>
+        </div>
+        <div class="image-preview-nav">
+          <button class="image-preview-nav-btn" id="previewPrev" type="button">← PREV</button>
+          <button class="image-preview-nav-btn" id="previewNext" type="button">NEXT →</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="right-panel" id="rightPanel" style="display: none;">
+    <div class="rp-topbar">
+      <button class="rp-close" id="rpClose" type="button">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="rp-content" id="rpContent"></div>
+  </aside>
+</div>
+
+<script>
+(function () {
+    var CESIUM_PRIMARY = 'https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Cesium.js';
+    var CESIUM_FALLBACK = 'https://cdn.jsdelivr.net/npm/cesium@1.100.0/Build/Cesium/Cesium.js';
+    var WIDGETS_PRIMARY = 'https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Widgets/widgets.css';
+    var WIDGETS_FALLBACK = 'https://cdn.jsdelivr.net/npm/cesium@1.100.0/Build/Cesium/Widgets/widgets.css';
+
+    function showBootError(msg) {
+        var el = document.getElementById('bootError');
+        if (!el) return;
+        el.textContent = msg;
+        el.style.display = 'block';
+        el.classList.add('show');
+    }
+
+    function loadScript(src, onok, onerr) {
+        var s = document.createElement('script');
+        s.src = src;
+        s.onload = onok;
+        s.onerror = onerr;
+        document.head.appendChild(s);
+    }
+
+    function loadAppScripts(done) {
+        var scripts = [
+            './js/survey_config.js',
+            './js/survey_ortho_dem.js',
+            './js/geotagged_images.js',
+            './js/cesium_3d_tiles_common.js',
+            './js/tileset_align.js',
+            './js/pointcloud_tiles.js',
+            './js/model_3d_tiles.js',
+            './js/processing_globe.js'
+        ];
+        var i = 0;
+        function next() {
+            if (i >= scripts.length) return done();
+            loadScript(scripts[i++], next, function () {
+                showBootError('Failed to load ' + scripts[i - 1] + '. Check dev_server.py is running.');
+            });
+        }
+        next();
+    }
+
+    function startApp() {
+        loadAppScripts(function () {
+            try {
+                if (typeof Cesium === 'undefined') {
+                    showBootError('Cesium did not load. Check internet or firewall, then refresh.');
+                    return;
+                }
+                if (typeof SurveyOrthoDem === 'undefined' || typeof ProcessingGlobe === 'undefined') {
+                    showBootError('App scripts missing. Open http://localhost:8765/globe_processing.html (not file://).');
+                    return;
+                }
+                SurveyConfig.load().then(function () {
+                    SurveyConfig.applySiteLabels();
+                    var viewer = SurveyOrthoDem.createViewer('cesiumContainer');
+                    return ProcessingGlobe.init(viewer);
+                }).catch(function (e) {
+                    console.error(e);
+                    showBootError('Init failed: ' + (e && e.message ? e.message : e));
+                });
+            } catch (e) {
+                console.error(e);
+                showBootError('Startup error: ' + (e && e.message ? e.message : e));
+            }
+        });
+    }
+
+    function loadCesiumJs() {
+        loadScript(CESIUM_PRIMARY, startApp, function () {
+            console.warn('[boot] Cesium primary CDN failed, trying jsDelivr…');
+            var link = document.getElementById('cesiumWidgetsCss');
+            if (link) link.href = WIDGETS_FALLBACK;
+            loadScript(CESIUM_FALLBACK, startApp, function () {
+                showBootError('Cesium failed to load from both CDNs. Allow cesium.com or cdn.jsdelivr.net.');
+            });
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadCesiumJs);
+    } else {
+        loadCesiumJs();
+    }
+})();
+</script>
+<script src="./js/survey_nav.js"></script>
+</body>
+</html>

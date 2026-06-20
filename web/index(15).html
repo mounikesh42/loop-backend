@@ -76,7 +76,8 @@
 <!-- /DELIVERABLES VIEW -->
 
 <!-- SITE REALITY VIEW (Cesium-style map mockup; swap canvas for Cesium.Viewer in prod) -->
-<div class="sr-view" id="view-sr">
+<div class="sr-view sr-external" id="view-sr">
+  <iframe class="sr-embed" src="/site-reality/globe_polygons.html" title="Site Reality survey viewer"></iframe>
   <canvas id="sr-map" style="display:none;"></canvas>
   <svg id="sr-overlay" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid meet" data-mode="default">
     <defs>

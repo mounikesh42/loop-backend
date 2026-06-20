@@ -14,3 +14,7 @@ services:
         value: "30"
       - key: LOOP_PIPELINE_TIMEOUT_SECONDS
         value: "1800"
+      - key: SITE_REALITY_ASSET_BASE
+        value: https://prodcrystalball.s3.amazonaws.com/site-reality/hyderabad-m7-2026-05-18
+      - key: LOOP_S3_UPSTREAM
+        value: https://prodcrystalball.s3.amazonaws.com

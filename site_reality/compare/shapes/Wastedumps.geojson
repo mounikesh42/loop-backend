@@ -1,0 +1,155 @@
+{
+  "type": "FeatureCollection",
+  "name": "Wastedumps",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "WD1",
+        "name": "Waste Dump 1 · NW",
+        "category": "wastedumps",
+        "material": "Overburden",
+        "volume_m3": 12800,
+        "height_m": 14.2,
+        "slope_deg": 38,
+        "stability": "Good",
+        "confidence": 0.87,
+        "anomalies": []
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                78.12843933845589,
+                17.597802614760443
+              ],
+              [
+                78.12843582627829,
+                17.596703303174056
+              ],
+              [
+                78.12786334133075,
+                17.596699790996464
+              ],
+              [
+                78.1277509516478,
+                17.597746419918966
+              ],
+              [
+                78.12843933845589,
+                17.597802614760443
+              ]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "WD2",
+        "name": "Waste Dump 2 · Central",
+        "category": "wastedumps",
+        "material": "Overburden",
+        "volume_m3": 9400,
+        "height_m": 11.8,
+        "slope_deg": 44,
+        "stability": "Marginal",
+        "confidence": 0.69,
+        "anomalyType": "Marginal stability",
+        "anomalies": [
+          {
+            "severity": "warn",
+            "type": "Marginal stability",
+            "detail": "Slope 44° exceeds material angle of repose by 4° — monitor for geotechnical concern."
+          }
+        ]
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                78.12851660636292,
+                17.597742907741374
+              ],
+              [
+                78.12913123744157,
+                17.597763980806928
+              ],
+              [
+                78.12913123744157,
+                17.596773546725903
+              ],
+              [
+                78.12850255765255,
+                17.59677003454831
+              ],
+              [
+                78.12851660636292,
+                17.597742907741374
+              ]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "WD3",
+        "name": "Waste Dump 3 · South",
+        "category": "wastedumps",
+        "material": "Overburden",
+        "volume_m3": 6100,
+        "height_m": 9.1,
+        "slope_deg": 35,
+        "stability": "Good",
+        "confidence": 0.84,
+        "anomalies": []
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                78.12780890257814,
+                17.595690039938678
+              ],
+              [
+                78.12847972849826,
+                17.595735698247378
+              ],
+              [
+                78.12856050858288,
+                17.595198335075757
+              ],
+              [
+                78.12774568338148,
+                17.595159701122242
+              ],
+              [
+                78.12774919555906,
+                17.59539852919852
+              ],
+              [
+                78.12780890257814,
+                17.595690039938678
+              ]
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

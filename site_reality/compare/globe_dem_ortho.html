@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hyderabad Mine 7 · Ortho + DEM</title>
+    <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; overflow: hidden; background: #020308; }
+        #cesiumContainer { position: absolute; inset: 0; }
+        .cesium-viewer-bottom, .cesium-widget-credits { display: none !important; }
+
+        .hud {
+            position: absolute; top: 12px; left: 12px; z-index: 10;
+            width: min(320px, calc(100vw - 24px));
+            padding: 12px 14px;
+            background: rgba(2, 3, 8, 0.9);
+            border: 0.5px solid rgba(200, 215, 228, 0.14);
+            border-radius: 4px;
+            font-family: 'IBM Plex Mono', monospace;
+            color: rgba(235, 242, 248, 0.75);
+        }
+        .hud-title {
+            font-family: 'Barlow', sans-serif;
+            font-weight: 600;
+            font-size: 15px;
+            color: #ebf2f8;
+            margin-bottom: 2px;
+        }
+        .hud-sub {
+            font-size: 9px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(148, 212, 232, 0.55);
+            margin-bottom: 12px;
+        }
+        .hud label {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 11px; margin-bottom: 8px; cursor: pointer;
+        }
+        .hud input[type="checkbox"] { accent-color: #94d4e8; }
+        .hud input[type="range"] {
+            flex: 1; accent-color: #94d4e8;
+        }
+        .hud .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 10px; }
+        .hud .row span { min-width: 72px; }
+        .status-line { font-size: 10px; line-height: 1.5; margin-top: 4px; }
+        .status-line.err { color: #c86262; }
+        .hint {
+            margin-top: 10px; padding-top: 8px;
+            border-top: 0.5px solid rgba(200, 215, 228, 0.1);
+            font-size: 9px; color: rgba(235, 242, 248, 0.4); line-height: 1.5;
+        }
+    </style>
+    <link href="./css/survey_nav.css" rel="stylesheet" />
+</head>
+<body data-survey-stage="orthodem">
+    <div id="cesiumContainer"></div>
+
+    <div class="hud">
+        <div class="hud-title" data-survey-title>Hyderabad Mine 7</div>
+        <div class="hud-sub" data-survey-subtitle>Survey layers · Ortho + DEM</div>
+
+        <label><input type="checkbox" id="layerSatellite" checked /> Satellite basemap</label>
+        <label><input type="checkbox" id="layerOrtho" checked /> Orthomosaic (TiTiler)</label>
+        <div class="row">
+            <span>Ortho opacity</span>
+            <input type="range" id="orthoAlpha" min="0" max="100" value="100" />
+        </div>
+        <label><input type="checkbox" id="layerDem" checked /> DEM terrain (CTOD)</label>
+
+        <div class="status-line" id="orthoLine">Orthomosaic: starting…</div>
+        <div class="status-line" id="demLine">DEM: starting…</div>
+
+        <div class="hint">
+            Hub: <code>http://localhost:8765/</code> · all stages on one host
+        </div>
+    </div>
+
+    <script src="./js/survey_config.js"></script>
+    <script src="./js/survey_ortho_dem.js"></script>
+    <script>
+        const orthoLine = document.getElementById('orthoLine');
+        const demLine = document.getElementById('demLine');
+
+        function setOrtho(msg, err) {
+            orthoLine.textContent = msg;
+            orthoLine.className = 'status-line' + (err ? ' err' : '');
+        }
+        function setDem(msg, err) {
+            demLine.textContent = msg;
+            demLine.className = 'status-line' + (err ? ' err' : '');
+        }
+
+        let viewer = null;
+        let layers = null;
+
+        document.getElementById('layerSatellite').addEventListener('change', function (e) {
+            if (layers) layers.setSatelliteVisible(e.target.checked);
+        });
+        document.getElementById('layerOrtho').addEventListener('change', function (e) {
+            if (layers) layers.setOrthoVisible(e.target.checked);
+        });
+        document.getElementById('layerDem').addEventListener('change', function (e) {
+            if (layers) layers.setDemVisible(e.target.checked);
+        });
+        document.getElementById('orthoAlpha').addEventListener('input', function (e) {
+            if (layers) layers.setOrthoAlpha(Number(e.target.value) / 100);
+        });
+
+        SurveyConfig.load().then(function () {
+            SurveyConfig.applySiteLabels();
+            viewer = SurveyOrthoDem.createViewer('cesiumContainer');
+            return SurveyOrthoDem.loadSurveyLayers(viewer, {
+                onOrthoStatus: setOrtho,
+                onDemStatus: setDem
+            });
+        }).then(function (api) {
+            layers = api;
+            layers.setSatelliteVisible(document.getElementById('layerSatellite').checked);
+            layers.setOrthoVisible(document.getElementById('layerOrtho').checked);
+            layers.setDemVisible(document.getElementById('layerDem').checked);
+            layers.setOrthoAlpha(Number(document.getElementById('orthoAlpha').value) / 100);
+        }).catch(function (e) {
+            console.error(e);
+            setOrtho('Failed — see console', true);
+            setDem('Failed — see console', true);
+        });
+    </script>
+    <script src="./js/survey_nav.js"></script>
+</body>
+</html>

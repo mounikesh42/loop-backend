@@ -28,3 +28,9 @@ apicalls/*.db
 **/sample_data_*/
 **/tests/scenarios/
 *.log
+site_reality.zip
+site_reality/compare/pointcloud_3dtiles/
+site_reality/compare/models/
+site_reality/compare/drone_log/
+site_reality/compare/.tile_cache/
+site_reality/compare/_archive/

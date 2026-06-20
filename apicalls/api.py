@@ -2,14 +2,17 @@
 
 import json
 import os
+import ssl
 import sqlite3
 import subprocess
 import sys
 import threading
+import urllib.error
+import urllib.request
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from flask import Flask, jsonify, abort, request, send_from_directory
+from flask import Flask, jsonify, abort, request, send_from_directory, Response
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
@@ -23,9 +26,24 @@ UPLOAD_ROOT = Path(os.environ.get("LOOP_UPLOAD_ROOT", ROOT_PATH / "uploads"))
 JOBS_DB_PATH = Path(os.environ.get("LOOP_JOBS_DB", Path(__file__).parent / "jobs.db"))
 PIPELINE_SCRIPT = Path(os.environ.get("LOOP_PIPELINE_SCRIPT", ROOT_PATH / "run_all_to_db.ps1"))
 WEB_PATH = ROOT_PATH / "web"
+SITE_REALITY_PATH = ROOT_PATH / "site_reality" / "compare"
 UPLOAD_RETENTION_DAYS = int(os.environ.get("LOOP_UPLOAD_RETENTION_DAYS", "30"))
 ADMIN_TOKEN = os.environ.get("LOOP_ADMIN_TOKEN", "")
 pipeline_lock = threading.Lock()
+
+TITILER_UPSTREAM = os.environ.get("LOOP_TITILER_UPSTREAM", "https://titiler2.cbstack.online")
+CTOD_UPSTREAM = os.environ.get("LOOP_CTOD_UPSTREAM", "https://ctod2.cbstack.online")
+S3_UPSTREAM = os.environ.get("LOOP_S3_UPSTREAM", "https://prodcrystalball.s3.amazonaws.com")
+SITE_REALITY_ASSET_BASE = os.environ.get(
+    "SITE_REALITY_ASSET_BASE",
+    "https://prodcrystalball.s3.amazonaws.com/site-reality/hyderabad-m7-2026-05-18",
+).rstrip("/")
+SITE_REALITY_PROXIES = {
+    "titiler-proxy": TITILER_UPSTREAM,
+    "ctod-proxy": CTOD_UPSTREAM,
+    "s3-proxy": S3_UPSTREAM,
+}
+SSL_CTX = ssl._create_unverified_context()
 
 TARGETS = {"base_station", "drone", "gcp", "check_point", "all"}
 TARGET_SEQUENCE = ("base_station", "drone", "gcp", "check_point")
@@ -574,6 +592,121 @@ def upload_page():
 @app.get("/web/<path:filename>")
 def web_asset(filename: str):
     return send_from_directory(WEB_PATH, filename)
+
+
+@app.get("/site-reality")
+@app.get("/site-reality/")
+def site_reality_index():
+    if not SITE_REALITY_PATH.exists():
+        abort(404, description="Site Reality bundle is not available.")
+    return send_from_directory(SITE_REALITY_PATH, "index.html")
+
+
+@app.get("/site-reality/survey/site.json")
+def site_reality_config():
+    config_path = SITE_REALITY_PATH / "survey" / "site.json"
+    if not config_path.exists():
+        abort(404, description="Site Reality survey config is not available.")
+
+    with config_path.open("r", encoding="utf-8") as f:
+        config = json.load(f)
+
+    if SITE_REALITY_ASSET_BASE:
+        asset_base = SITE_REALITY_ASSET_BASE
+        config.setdefault("services", {})["assetBase"] = asset_base
+
+        point_cloud = config.setdefault("pointCloud", {})
+        point_cloud["source"] = "s3"
+        point_cloud["tilesetUrl"] = f"{asset_base}/pointcloud_3dtiles/tileset.json"
+        point_cloud["metadataUrl"] = f"{asset_base}/pointcloud_3dtiles/metadata.json"
+
+        capture = config.setdefault("capture", {})
+        capture["droneLog"] = {
+            "gpx": f"{asset_base}/drone_log/00000215.BIN.gpx",
+            "wpl": f"{asset_base}/drone_log/00000215.BIN0wp.txt",
+            "kml": f"{asset_base}/drone_log/_kmz_extract/00000215.BIN.kml",
+            "param": f"{asset_base}/drone_log/00000215.BIN.param",
+        }
+        capture["models"] = {
+            "drone": f"{asset_base}/models/CesiumDrone/CesiumDrone.glb",
+            "droneFallback": "https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb",
+            "tripod": f"{asset_base}/models/leica_tripod/scene.gltf",
+            "baseStation": f"{asset_base}/models/gnss_university_of_applied_sciences_mainz/scene.gltf",
+        }
+
+    return jsonify(config)
+
+
+@app.get("/site-reality/<path:filename>")
+def site_reality_asset(filename: str):
+    if not SITE_REALITY_PATH.exists():
+        abort(404, description="Site Reality bundle is not available.")
+    return send_from_directory(SITE_REALITY_PATH, filename)
+
+
+def proxy_headers():
+    origin = request.headers.get("Origin", "*") or "*"
+    return {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, Range",
+        "Access-Control-Max-Age": "86400",
+        "Vary": "Origin",
+    }
+
+
+def site_reality_proxy(prefix: str, suffix: str = ""):
+    upstream = SITE_REALITY_PROXIES[prefix].rstrip("/")
+    target = upstream + ("/" + suffix.lstrip("/") if suffix else "")
+    if request.query_string:
+        target += "?" + request.query_string.decode("utf-8", errors="ignore")
+
+    headers = {
+        "User-Agent": request.headers.get(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        ),
+        "Accept": request.headers.get("Accept", "*/*"),
+    }
+    for name in ("Authorization", "Referer", "Range"):
+        value = request.headers.get(name)
+        if value:
+            headers[name] = value
+
+    req = urllib.request.Request(
+        target,
+        method="HEAD" if request.method == "HEAD" else "GET",
+        headers=headers,
+    )
+    try:
+        with urllib.request.urlopen(req, context=SSL_CTX, timeout=120) as resp:
+            body = b"" if request.method == "HEAD" else resp.read()
+            response_headers = proxy_headers()
+            for key, value in resp.headers.items():
+                if key.lower() in {"transfer-encoding", "connection", "content-encoding", "content-length"}:
+                    continue
+                response_headers[key] = value
+            return Response(body, status=resp.status, headers=response_headers)
+    except urllib.error.HTTPError as exc:
+        body = exc.read()
+        response_headers = proxy_headers()
+        response_headers["Content-Type"] = exc.headers.get("Content-Type", "text/plain")
+        return Response(body, status=exc.code, headers=response_headers)
+    except Exception as exc:
+        return jsonify({"error": repr(exc), "target": target}), 502
+
+
+@app.route("/titiler-proxy", methods=["GET", "HEAD", "OPTIONS"])
+@app.route("/titiler-proxy/<path:suffix>", methods=["GET", "HEAD", "OPTIONS"])
+@app.route("/ctod-proxy", methods=["GET", "HEAD", "OPTIONS"])
+@app.route("/ctod-proxy/<path:suffix>", methods=["GET", "HEAD", "OPTIONS"])
+@app.route("/s3-proxy", methods=["GET", "HEAD", "OPTIONS"])
+@app.route("/s3-proxy/<path:suffix>", methods=["GET", "HEAD", "OPTIONS"])
+def site_reality_proxy_route(suffix: str = ""):
+    prefix = request.path.strip("/").split("/", 1)[0]
+    if request.method == "OPTIONS":
+        return Response(b"", status=204, headers=proxy_headers())
+    return site_reality_proxy(prefix, suffix)
 
 
 @app.get("/")

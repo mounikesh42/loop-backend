@@ -1,0 +1,2816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hyderabad Mine 7 · Survey Viewer</title>
+    <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="js/drone_log_loader.js"></script>
+    <script src="js/survey_config.js"></script>
+    <style>
+        :root{--bg:#05070a;--panel:#0a0e14;--text:#e8eef4;--muted:rgba(232,238,244,.45);--rule:rgba(200,215,228,.1);--accent:#7eb8d4;--warn:#d2aa4e;--crit:#c86262;--reach:#7cb89a}
+        *{box-sizing:border-box;margin:0;padding:0}
+        html,body{height:100vh;width:100vw;overflow:hidden;background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace}
+        .capture-app{display:flex;flex-direction:column;height:100vh}
+        .top-bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:12px 20px 14px;border-bottom:.5px solid var(--rule);background:var(--panel);min-height:88px}
+        .top-brand{font:700 11px 'Barlow',sans-serif;letter-spacing:.2em;color:var(--accent)}
+        .top-site{font:600 14px 'Barlow',sans-serif;margin-top:2px}
+        .top-survey{font-size:10px;color:var(--muted);margin-top:2px}
+        .top-center{display:flex;flex-direction:column;align-items:center;gap:8px;justify-self:center}
+        .top-tabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+        .top-tab{padding:6px 14px;border:.5px solid var(--rule);border-radius:3px;background:transparent;color:var(--muted);font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.12em;cursor:pointer}
+        .top-tab.active{background:rgba(126,184,212,.15);border-color:rgba(126,184,212,.45);color:var(--text)}
+        .top-camera-bar{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;max-width:min(920px,72vw)}
+        .top-cam-btn{padding:5px 10px;border:.5px solid var(--rule);border-radius:3px;background:transparent;color:var(--muted);font:500 8px 'IBM Plex Mono',monospace;letter-spacing:.1em;cursor:pointer;white-space:nowrap}
+        .top-cam-btn:hover{background:rgba(200,215,228,.06);color:var(--text)}
+        .top-cam-btn.active{background:rgba(126,184,212,.12);border-color:rgba(126,184,212,.4);color:var(--text)}
+        .top-cam-sep{width:1px;height:18px;background:var(--rule);margin:0 2px;flex-shrink:0}
+        .top-cam-select{padding:5px 8px;border:.5px solid var(--rule);border-radius:3px;background:rgba(5,7,10,.6);color:var(--muted);font:500 8px 'IBM Plex Mono',monospace;letter-spacing:.06em;cursor:pointer;max-width:200px}
+        .top-cam-select option{background:var(--panel);color:var(--text)}
+        .top-cam-label{font-size:8px;color:rgba(232,238,244,.28);letter-spacing:.12em;text-transform:uppercase}
+        .top-meta{justify-self:end;text-align:right;font-size:10px;color:var(--muted);line-height:1.6;letter-spacing:.08em}
+        .capture-main{flex:1;display:grid;grid-template-columns:260px 1fr;min-height:0}
+        .left-rail{background:var(--panel);border-right:.5px solid var(--rule);display:flex;flex-direction:column;padding:16px 0;overflow-y:auto}
+        #analyticsRail{padding:0 8px 8px}
+        #analyticsRail .lp-item{margin:2px 0}
+        #analyticsRail .lp-children{margin-left:8px}
+        .sr-litem.dimmed{opacity:.4;cursor:default;pointer-events:none}
+        .sr-litem .sr-heavy{font-size:8px;color:rgba(232,238,244,.35);letter-spacing:.08em;margin-left:4px}
+        .rail-section{padding:0 16px 16px}
+        .rail-label{font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:rgba(232,238,244,.28);text-transform:uppercase;margin-bottom:10px}
+        .sr-litem{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:3px;color:rgba(232,238,244,.72);cursor:pointer;font-size:11px;letter-spacing:.04em}
+        .sr-litem:hover{background:rgba(200,215,228,.04)}
+        .sr-litem.on{color:var(--text);background:rgba(126,184,212,.08)}
+        .sr-licon{width:14px;text-align:center;color:rgba(232,238,244,.35);font-size:10px}
+        .sr-litem .sr-llabel{flex:1}
+        .cap-dot{width:7px;height:7px;border-radius:50%;margin-left:auto;opacity:.35}
+        .sr-litem.on .cap-dot{opacity:1}
+        .cap-dot--drone{background:#e8c547}
+        .cap-dot--path{background:#5fd4a0}
+        .cap-dot--base{background:#5b9fd4}
+        .cap-dot--gcp{background:#e8a547}
+        .cap-dot--proc{background:rgba(232,238,244,.4)}
+        .stockpile-list{padding:4px 8px 8px 12px;max-height:220px;overflow-y:auto;border-top:.5px solid rgba(200,215,228,.06);margin-top:4px}
+        .stockpile-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:3px;font-size:10px;color:rgba(232,238,244,.65);cursor:pointer;letter-spacing:.03em}
+        .stockpile-item:hover{background:rgba(200,215,228,.04)}
+        .stockpile-item.on{color:var(--text);background:rgba(126,184,212,.06)}
+        .stockpile-item .stockpile-name{flex:1}
+        .stockpile-item .stockpile-conf{font-size:9px;color:rgba(232,238,244,.4)}
+        .stockpile-item .stockpile-dot{width:5px;height:5px;border-radius:50%;background:rgba(232,238,244,.25);flex-shrink:0}
+        .stockpile-item.on .stockpile-dot{background:var(--accent)}
+        .rail-foot{margin-top:auto;padding:16px;font-size:9px;color:rgba(232,238,244,.22);letter-spacing:.12em}
+        .viewport{position:relative;background:#060a10}
+        #cesiumContainer{position:absolute;inset:0;z-index:1}
+        .viewport-frame{position:absolute;inset:12px;border:1px dashed rgba(200,215,228,.12);pointer-events:none;z-index:2}
+        .viewport-hint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;z-index:2;color:rgba(232,238,244,.35);font-size:11px;text-align:center;padding:24px}
+        .viewport-hint.hidden{display:none}
+        .empty-state.hidden{display:none!important}
+        .empty-state.show:not(.hidden){display:flex}
+        .proto-box{position:absolute;left:16px;bottom:16px;z-index:3;max-width:320px;padding:12px 14px;border:.5px solid var(--rule);background:rgba(5,7,10,.85);font-size:10px;line-height:1.55;color:var(--muted)}
+        .proto-box strong{display:block;color:var(--text);font-size:9px;letter-spacing:.14em;margin-bottom:6px}
+        .sr-coord{position:absolute;right:16px;bottom:16px;z-index:3;padding:6px 10px;background:rgba(5,7,10,.85);border:.5px solid var(--rule);font-size:10px;color:var(--muted);transition:bottom .25s ease}
+        .proto-box{bottom:80px}
+        .sr-coord{bottom:80px}
+        .scrubber{position:absolute;bottom:20px;left:20px;right:20px;height:56px;background:rgba(2,3,8,.72);backdrop-filter:blur(12px);border:.5px solid var(--rule);border-radius:8px;padding:0 16px;display:flex;align-items:center;gap:16px;z-index:10;opacity:1;transform:translateY(0);pointer-events:auto;transition:opacity .25s ease}
+        .scrubber:not(.ready){opacity:.55}
+        .scrubber.show{opacity:1;pointer-events:auto}
+        .scrubber-btn{width:32px;height:32px;border:none;border-radius:4px;display:flex;align-items:center;justify-content:center;background:rgba(148,212,232,.08);color:#b8e4f4;cursor:pointer;flex-shrink:0}
+        .scrubber-btn:hover{background:rgba(148,212,232,.16)}
+        .scrubber-time{font-size:11px;color:rgba(235,242,248,.85);font-feature-settings:'tnum';flex-shrink:0;width:48px;text-align:center}
+        .scrubber-track-wrap{flex:1;position:relative;height:32px;display:flex;align-items:center}
+        .scrubber-track{position:absolute;left:0;right:0;height:2px;background:rgba(200,215,228,.18);border-radius:2px;cursor:pointer}
+        .scrubber-progress{position:absolute;left:0;top:0;height:100%;width:0;background:rgba(148,212,232,.45);border-radius:2px;pointer-events:none}
+        .scrubber-tick{position:absolute;top:50%;transform:translate(-50%,-50%);width:1.5px;height:14px;border-radius:1px;background:rgba(148,212,232,.65);cursor:pointer;z-index:2}
+        .scrubber-tick.warn{background:var(--warn)}
+        .scrubber-tick.crit{background:var(--crit)}
+        .scrubber-tick:hover{transform:translate(-50%,-50%) scaleY(1.3)}
+        .anomaly-rail{margin-top:6px;padding:0 8px 0 12px;max-height:140px;overflow-y:auto;display:none}
+        .anomaly-rail.show{display:block}
+        .anomaly-rail-item{font-size:9px;padding:5px 6px;margin-bottom:4px;border-radius:3px;border-left:2px solid var(--warn);color:rgba(232,238,244,.55);cursor:pointer;line-height:1.4}
+        .anomaly-rail-item.crit{border-left-color:var(--crit)}
+        .anomaly-rail-item.surfaced{color:var(--text);background:rgba(200,215,228,.04)}
+        .anomaly-rail-item .ar-time{color:rgba(232,238,244,.35);font-size:8px}
+        #cesiumContainer.view-anomalies{filter:saturate(.85)}
+        .scrubber-playhead{position:absolute;top:50%;transform:translate(-50%,-50%);width:12px;height:12px;z-index:5;cursor:grab}
+        .scrubber-playhead:active{cursor:grabbing}
+        .scrubber-playhead::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid var(--accent)}
+        .scrubber-playhead::after{content:'';position:absolute;top:8px;left:50%;transform:translateX(-50%);width:1.5px;height:14px;background:var(--accent)}
+        .scrubber-speed{font-size:11px;color:#b8e4f4;padding:6px 10px;border:none;border-radius:4px;background:rgba(148,212,232,.08);cursor:pointer;flex-shrink:0;font-feature-settings:'tnum'}
+        .scrubber-speed:hover{background:rgba(148,212,232,.16)}
+        .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+        .load-banner{position:absolute;top:72px;left:50%;transform:translateX(-50%);z-index:12;padding:8px 16px;font-size:10px;letter-spacing:.08em;color:var(--text);background:rgba(2,3,8,.88);border:.5px solid var(--rule);border-radius:4px;display:none;pointer-events:none}
+        .load-banner.show{display:block}
+        #cesiumContainer.pc-preload-masked{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+        .viewport.pc-preload-active .viewport-frame,.viewport.pc-preload-active .viewport-hint,.viewport.pc-preload-active .proto-box,.viewport.pc-preload-active .sr-coord{visibility:hidden}
+        .pc-load-overlay{position:absolute;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:var(--bg);pointer-events:auto}
+        .pc-load-overlay.show{display:flex}
+        .pc-load-card{min-width:min(420px,88vw);padding:28px 32px;border:.5px solid var(--rule);border-radius:8px;background:rgba(10,14,20,.96);text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.45)}
+        .pc-load-title{font:600 13px 'Barlow',sans-serif;letter-spacing:.14em;color:var(--text);margin-bottom:8px}
+        .pc-load-sub{font-size:10px;color:var(--muted);letter-spacing:.06em;line-height:1.5;margin-bottom:14px}
+        .pc-load-time{font:600 22px 'IBM Plex Mono',monospace;color:var(--accent);letter-spacing:.06em;margin-bottom:16px;font-feature-settings:'tnum'}
+        .pc-load-bar{height:3px;background:rgba(200,215,228,.12);border-radius:2px;overflow:hidden;margin-bottom:12px}
+        .pc-load-bar-fill{height:100%;width:0;background:linear-gradient(90deg,rgba(126,184,212,.5),var(--accent));border-radius:2px;transition:width .35s ease}
+        .pc-load-bar-fill.indeterminate{width:40%;animation:pcLoadPulse 1.4s ease-in-out infinite}
+        @keyframes pcLoadPulse{0%,100%{transform:translateX(-120%)}50%{transform:translateX(220%)}}
+        .pc-load-hint{font-size:9px;color:rgba(232,238,244,.28);letter-spacing:.1em}
+    </style>
+    <link href="./css/survey_nav.css" rel="stylesheet" />
+    <link href="./css/processing_stage.css" rel="stylesheet" />
+    <link href="./css/analytics_stage.css" rel="stylesheet" />
+</head>
+<body data-survey-stage="survey">
+    <div class="capture-app">
+        <header class="top-bar">
+            <div>
+                <div class="top-brand">CONI · SITE REALITY</div>
+                <div class="top-site">Hyderabad Mine 7</div>
+                <div class="top-survey">Survey 2024-05-18</div>
+            </div>
+            <div class="top-center">
+                <div class="top-tabs" role="tablist">
+                    <button type="button" class="top-tab active" data-tab="default">DEFAULT</button>
+                    <button type="button" class="top-tab" data-tab="score">SCORE</button>
+                    <button type="button" class="top-tab" data-tab="scope">SCOPE</button>
+                    <button type="button" class="top-tab" data-tab="anomalies">ANOMALIES</button>
+                </div>
+                <div class="top-camera-bar" id="topCameraBar" aria-label="Drone camera controls">
+                    <button type="button" class="top-cam-btn" data-cam="topdown" title="Bird's-eye view of flight path">TOP DOWN</button>
+                    <button type="button" class="top-cam-btn" data-cam="side" title="Oblique side view">SIDE</button>
+                    <button type="button" class="top-cam-btn active" data-cam="track" title="Follow drone (tracked entity)">TRACK DRONE</button>
+                    <span class="top-cam-sep" aria-hidden="true"></span>
+                    <button type="button" class="top-cam-btn active" data-cam="chase" title="Chase camera behind drone">CHASE</button>
+                    <button type="button" class="top-cam-btn" data-cam="nadir" title="Nadir camera above drone">NADIR</button>
+                    <span class="top-cam-sep" aria-hidden="true"></span>
+                    <label class="top-cam-label" for="trackingFrameSelect">Frame</label>
+                    <select id="trackingFrameSelect" class="top-cam-select" title="Tracking reference frame (ENU keeps camera near drone)">
+                        <option value="enu" selected>ENU (near drone)</option>
+                    </select>
+                    <label class="top-cam-label" for="interpolationSelect">Path</label>
+                    <select id="interpolationSelect" class="top-cam-select" title="Position interpolation">
+                        <option value="linear">Linear</option>
+                        <option value="lagrange">Lagrange</option>
+                        <option value="hermite">Hermite</option>
+                    </select>
+                </div>
+            </div>
+            <div class="top-meta">
+                <div>SURVEY 2024-05-18</div>
+                <div>14:33 IST</div>
+                <div id="surveyImageCount">432 IMAGES</div>
+            </div>
+        </header>
+        <div class="capture-main">
+            <aside class="left-rail" id="sr-layers">
+                <div class="rail-section">
+                    <div class="rail-label">Capture</div>
+                    <div class="sr-litem on" id="layer-drone" data-layer="drone">
+                        <span class="sr-licon">⊕</span>
+                        <span class="sr-llabel">Drone</span>
+                        <span class="cap-dot cap-dot--drone"></span>
+                    </div>
+                    <div class="sr-litem on" id="layer-flightpath" data-layer="flightpath">
+                        <span class="sr-licon">⊕</span>
+                        <span class="sr-llabel">Flight Path</span>
+                        <span class="cap-dot cap-dot--path"></span>
+                    </div>
+                    <div id="anomalyRail" class="anomaly-rail"></div>
+                    <div class="sr-litem on" id="layer-basestation" data-layer="basestation">
+                        <span class="sr-licon">⊕</span>
+                        <span class="sr-llabel">Base Station</span>
+                        <span class="cap-dot cap-dot--base"></span>
+                    </div>
+                    <div class="sr-litem on" id="layer-gcp" data-layer="gcp">
+                        <span class="sr-licon">⊕</span>
+                        <span class="sr-llabel">GCPs</span>
+                        <span class="cap-dot cap-dot--gcp"></span>
+                    </div>
+                </div>
+                <div class="rail-section">
+                    <div class="rail-label">Processing</div>
+                    <div class="sr-litem" id="layer-images" data-proc-layer="images">
+                        <span class="sr-licon">⊕</span>
+                        <span class="sr-llabel">Geotagged Images</span>
+                        <span class="cap-dot cap-dot--proc"></span>
+                    </div>
+                    <div class="sr-litem" id="layer-ortho" data-proc-layer="ortho">
+                        <span class="sr-licon">⊕</span>
+                        <span class="sr-llabel">Orthomosaic</span>
+                        <span class="sr-heavy">HVY</span>
+                        <span class="cap-dot cap-dot--proc"></span>
+                    </div>
+                    <div class="sr-litem" id="layer-dsm" data-proc-layer="dsm">
+                        <span class="sr-licon">⊕</span>
+                        <span class="sr-llabel">DSM</span>
+                        <span class="sr-heavy">HVY</span>
+                        <span class="cap-dot cap-dot--proc"></span>
+                    </div>
+                    <div class="sr-litem" id="layer-dtm" data-proc-layer="dtm">
+                        <span class="sr-licon">⊕</span>
+                        <span class="sr-llabel">DTM</span>
+                        <span class="sr-heavy">HVY</span>
+                        <span class="cap-dot cap-dot--proc"></span>
+                    </div>
+                    <div class="sr-litem" id="layer-mesh" data-proc-layer="mesh">
+                        <span class="sr-licon">⊕</span>
+                        <span class="sr-llabel">3D Model</span>
+                        <span class="sr-heavy">HVY</span>
+                        <span class="cap-dot cap-dot--proc"></span>
+                    </div>
+                    <div class="sr-litem" id="layer-pointcloud" data-proc-layer="pointcloud">
+                        <span class="sr-licon">⊕</span>
+                        <span class="sr-llabel">Point Cloud</span>
+                        <span class="sr-heavy">HVY</span>
+                        <span class="cap-dot cap-dot--proc"></span>
+                    </div>
+                </div>
+                <div class="rail-section">
+                    <div class="rail-label">Analytics</div>
+                    <div id="analyticsRail"></div>
+                </div>
+                <div class="rail-foot">SURVEY VIEWER · unified layers</div>
+            </aside>
+            <main class="viewport" id="sceneMode" data-mode="default">
+                <div id="cesiumContainer"></div>
+                <div class="viewport-frame"></div>
+                <div class="viewport-hint empty-state show" id="emptyState">Toggle a layer in the left panel to begin.</div>
+                <div class="proto-box">
+                    <strong>SURVEY VIEWER</strong>
+                    Capture, Processing, and Analytics layers in the left panel. Drone / Base / GCPs use the survey clock (loops).
+                </div>
+                <div class="load-banner" id="loadBanner"></div>
+                <div class="pc-load-overlay" id="pointCloudLoadingOverlay" aria-hidden="true" role="status">
+                    <div class="pc-load-card">
+                        <div class="pc-load-title">Loading point cloud</div>
+                        <div class="pc-load-sub" id="pcLoadSub">Preparing full-quality tiles…</div>
+                        <div class="pc-load-time" id="pcLoadTime">0:00</div>
+                        <div class="pc-load-bar" aria-hidden="true"><div class="pc-load-bar-fill indeterminate" id="pcLoadBarFill"></div></div>
+                        <div class="pc-load-hint">Total load time (all zoom levels) — view opens when ready</div>
+                    </div>
+                </div>
+                <div class="active-layer-pill" id="activeLayerPill">
+                    <span class="label">ACTIVE LAYER ·</span>
+                    <span class="value" id="activeLayerName">—</span>
+                </div>
+                <div class="image-preview-overlay" id="imagePreviewOverlay">
+                    <div class="image-preview">
+                        <div class="image-preview-header">
+                            <div class="image-preview-id" id="previewId">IMG</div>
+                            <button class="image-preview-close" id="previewClose" type="button">×</button>
+                        </div>
+                        <div class="image-preview-canvas"></div>
+                        <div class="image-preview-meta">
+                            <div><div class="label">Capture time</div><div id="previewTime">—</div></div>
+                            <div><div class="label">Altitude</div><div id="previewAlt">—</div></div>
+                            <div><div class="label">Sharpness</div><div id="previewSharp">—</div></div>
+                        </div>
+                        <div class="image-preview-nav">
+                            <button class="image-preview-nav-btn" id="previewPrev" type="button">← PREV</button>
+                            <button class="image-preview-nav-btn" id="previewNext" type="button">NEXT →</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="sr-coord" id="sr-coord">—</div>
+                <div class="scrubber show" id="scrubber">
+                    <button type="button" class="scrubber-btn" id="playBtn" title="Play / Pause">
+                        <svg id="playIcon" width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+                            <path d="M3 2L11 7L3 12V2Z"/>
+                        </svg>
+                    </button>
+                    <div class="scrubber-time" id="scrubberCurrentTime">00:00</div>
+                    <div class="scrubber-track-wrap">
+                        <div class="scrubber-track" id="scrubberTrack">
+                            <div class="scrubber-progress" id="scrubberProgress"></div>
+                            <div id="scrubberTicks"></div>
+                            <div class="scrubber-playhead" id="scrubberPlayhead"></div>
+                        </div>
+                    </div>
+                    <div class="scrubber-time" id="scrubberEndTime">00:00</div>
+                    <button type="button" class="scrubber-speed" id="speedBtn">1×</button>
+                </div>
+            </main>
+        </div>
+    </div>
+    <aside class="right-panel" id="rightPanel" style="display:none;position:fixed;right:0;top:88px;bottom:0;width:360px;z-index:25">
+        <div class="rp-topbar">
+            <button class="rp-close" id="rpClose" type="button">×</button>
+        </div>
+        <div class="rp-content" id="rpContent"></div>
+    </aside>
+    <div id="orthoStatus" class="sr-only" aria-hidden="true">Ortho: loading…</div>
+    <div id="terrainStatus" class="sr-only" aria-hidden="true">Terrain: waiting…</div>
+    <p id="droneCoverageStats" class="sr-only" aria-hidden="true"></p>
+    <div id="polygonPanelRows" class="sr-only" aria-hidden="true"></div>
+    <button type="button" id="protoToggle" class="sr-only" aria-hidden="true"></button>
+    <div id="protoNote" class="sr-only" aria-hidden="true"></div>
+    <script>
+        Cesium.Ion.defaultAccessToken = '';
+        /** Inline demo stockpiles off — AnalyticsGlobe loads shapes/*.geojson */
+        window.__skipInlineStockpiles = true;
+
+        const TITILER_DIRECT = 'https://titiler2.cbstack.online';
+        const CTOD_DIRECT = 'https://ctod2.cbstack.online';
+        let TITILER = TITILER_DIRECT;
+        let CTOD = CTOD_DIRECT;
+
+        /** Same-origin proxy on local dev avoids TiTiler ACAO only allowing http://localhost:8765 while the page is http://[::1]:8765. */
+        function isLocalDevHost() {
+            const h = window.location.hostname;
+            return (
+                window.location.protocol !== 'file:' &&
+                (h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h === '::1')
+            );
+        }
+
+        async function initServiceBases() {
+            if (!isLocalDevHost()) return;
+            try {
+                const probe = await fetch(
+                    window.location.origin + '/titiler-proxy/cog/info?url=' + encodeURIComponent('https://example.com/x.tif')
+                );
+                if (probe.headers.get('access-control-allow-origin')) {
+                    TITILER = window.location.origin + '/titiler-proxy';
+                    CTOD = window.location.origin + '/ctod-proxy';
+                    console.log('Using local TiTiler/CTOD proxy:', TITILER);
+                    return;
+                }
+            } catch (e) {
+                console.warn('Local proxy probe failed:', e);
+            }
+            if (window.location.hostname !== 'localhost') {
+                console.warn(
+                    'TiTiler CORS: use http://localhost:8765/globe_polygons.html or run: python dev_server.py 8765'
+                );
+                setOrthoStatus('Ortho: use localhost URL or dev_server.py', true);
+            }
+        }
+
+        function rewriteServiceUrl(url) {
+            if (!url) return url;
+            let u = String(url).replace(/^http:\/\//i, 'https://');
+            const pairs = [
+                [TITILER_DIRECT, TITILER],
+                ['http://titiler2.cbstack.online', TITILER],
+                [CTOD_DIRECT, CTOD],
+                ['http://ctod2.cbstack.online', CTOD]
+            ];
+            for (const [from, to] of pairs) {
+                if (u.startsWith(from)) {
+                    return to + u.slice(from.length);
+                }
+            }
+            return u;
+        }
+        const ORTHO_COG =
+            'https://test-uday123.s3.ap-south-1.amazonaws.com/optimized/Orthomosaic_4326.tif';
+        const DEM_COG =
+            'https://test-uday123.s3.ap-south-1.amazonaws.com/optimized/DEM_4326.tif';
+
+        const TERRAIN_CONFIG = {
+            minZoom: 1,
+            maxZoom: 18,
+            skipCache: false,
+            meshingMethod: 'grid'
+        };
+
+        let orthoImageryLayer = null;
+        let savedCtodProvider = null;
+        let polygonDataSource = null;
+        const gcpSurveyEntities = [];
+        const gcpOnlyEntities = [];
+        const tripodEntities = [];
+        const baseStationEntities = [];
+        let dronePathEntity = null;
+        const flightPathUiEntities = [];
+        let flightWaypoints = [];
+        let captureViewMode = 'default';
+
+        const FALLBACK_CAPTURE_ANOMALIES = [
+            { id: 'D1', t: 0.13, severity: 'warn', type: 'Front overlap below target', detail: 'Front overlap 68% (target 75%)', timestamp: '03:07' },
+            { id: 'D2', t: 0.27, severity: 'warn', type: 'Altitude AGL deviation', detail: 'Altitude 12% above planned', timestamp: '06:29' },
+            { id: 'D3', t: 0.42, severity: 'crit', type: 'GNSS fix lost (drone)', detail: 'Lost-fix 2.4 s at line 5 turnaround', timestamp: '10:04' },
+            { id: 'D4', t: 0.56, severity: 'warn', type: 'Side overlap below target', detail: 'Side overlap 64% (target 70%)', timestamp: '13:25' },
+            { id: 'D5', t: 0.68, severity: 'warn', type: 'Gimbal angle deviation', detail: 'Gimbal pitch 7.2° from nadir', timestamp: '16:18' },
+            { id: 'D6', t: 0.82, severity: 'warn', type: 'Yaw rate excessive', detail: 'Yaw rate 34 deg/s on turn', timestamp: '19:41' }
+        ];
+        let droneFlightAnomalies = FALLBACK_CAPTURE_ANOMALIES.map((a) => Object.assign({}, a));
+
+        function initCaptureFromConfig() {
+            if (typeof SurveyConfig === 'undefined') return;
+            try {
+                const pts = SurveyConfig.getSurveyPoints();
+                if (pts && pts.length) surveyPoints = pts;
+                const anomalies = SurveyConfig.getCaptureAnomalies();
+                if (anomalies && anomalies.length) {
+                    droneFlightAnomalies = anomalies.map((a) => Object.assign({}, a));
+                }
+            } catch (e) {
+                console.warn('[Capture] config scores not ready:', e);
+            }
+        }
+
+        const orthoStatusEl = document.getElementById('orthoStatus');
+        const terrainStatusEl = document.getElementById('terrainStatus');
+        function setOrthoStatus(msg, isError) {
+            orthoStatusEl.textContent = msg;
+            orthoStatusEl.classList.toggle('error', !!isError);
+        }
+        function setTerrainStatus(msg, isError) {
+            terrainStatusEl.textContent = msg;
+            terrainStatusEl.classList.toggle('error', !!isError);
+        }
+
+        function padBoundsRectangle(west, south, east, north, ratio) {
+            const spanLon = Math.max(east - west, 1e-9);
+            const spanLat = Math.max(north - south, 1e-9);
+            const dLon = spanLon * ratio + 0.0005;
+            const dLat = spanLat * ratio + 0.0005;
+            return Cesium.Rectangle.fromDegrees(
+                Cesium.Math.clamp(west - dLon, -180, 180),
+                Cesium.Math.clamp(south - dLat, -85, 85),
+                Cesium.Math.clamp(east + dLon, -180, 180),
+                Cesium.Math.clamp(north + dLat, -85, 85)
+            );
+        }
+
+        function readStatsMin(stats) {
+            if (!stats || typeof stats !== 'object') return undefined;
+            const b =
+                stats['1'] ||
+                stats.b1 ||
+                stats.B1 ||
+                Object.values(stats).find((v) => v && typeof v === 'object' && 'min' in v);
+            return b && typeof b.min === 'number' ? b.min : undefined;
+        }
+
+        /** noData for CTOD meshing — from TiTiler cog/info + statistics */
+        async function resolveNoDataForDem(cogUrl) {
+            let noDataValue = 0;
+            try {
+                const infoUrl = `${TITILER}/cog/info?url=${encodeURIComponent(cogUrl)}`;
+                const infoResponse = await fetch(infoUrl);
+                if (infoResponse.ok) {
+                    const info = await infoResponse.json();
+                    const fromInfo =
+                        info.nodata_value ??
+                        info.nodata ??
+                        (info.profile && info.profile.nodata) ??
+                        (info.bands && info.bands[0] && info.bands[0].nodata);
+                    if (fromInfo != null && isFinite(Number(fromInfo))) {
+                        noDataValue = Number(fromInfo);
+                    }
+                }
+            } catch (e) {
+                console.warn('cog/info:', e);
+            }
+            try {
+                const statsUrl = `${TITILER}/cog/statistics?url=${encodeURIComponent(cogUrl)}`;
+                const statsResponse = await fetch(statsUrl);
+                if (statsResponse.ok) {
+                    const statsData = await statsResponse.json();
+                    const statsMin = readStatsMin(statsData);
+                    if (statsMin !== undefined && isFinite(statsMin)) {
+                        noDataValue = Math.floor(statsMin);
+                    }
+                }
+            } catch (e) {
+                console.warn('cog/statistics:', e);
+            }
+            if (!isFinite(noDataValue) || isNaN(noDataValue)) noDataValue = 0;
+            return Math.floor(noDataValue);
+        }
+
+        function setTerrain(provider) {
+            viewer.terrainProvider = provider;
+            viewer.scene.terrainProvider = provider;
+            viewer.scene.globe.show = true;
+            viewer.scene.globe.depthTestAgainstTerrain = !(provider instanceof Cesium.EllipsoidTerrainProvider);
+            viewer.scene.requestRender();
+        }
+
+        /** Wait until terrain/imagery tiles finish loading (best-effort). */
+        function waitForGlobeTiles(maxMs) {
+            const limit = maxMs == null ? 8000 : maxMs;
+            return new Promise((resolve) => {
+                if (viewer.scene.globe.tilesLoaded) {
+                    resolve();
+                    return;
+                }
+                let done = false;
+                const finish = () => {
+                    if (done) return;
+                    done = true;
+                    if (typeof remove === 'function') remove();
+                    clearTimeout(timer);
+                    resolve();
+                };
+                let remove;
+                if (viewer.scene.globe.tileLoadProgressEvent) {
+                    remove = viewer.scene.globe.tileLoadProgressEvent.addEventListener((q) => {
+                        if (q === 0) finish();
+                    });
+                }
+                const timer = setTimeout(finish, limit);
+            });
+        }
+
+        /**
+         * Sample DEM elevations (CTOD) for [lon, lat] pairs.
+         * @param {Array<[number, number]>} lonLatPairs
+         * @returns {Promise<Cesium.Cartographic[]>}
+         */
+        async function sampleTerrainElevations(lonLatPairs, chunkSize) {
+            const step = chunkSize || 250;
+            const cartos = lonLatPairs.map(([lon, lat]) => {
+                const c = Cesium.Cartographic.fromDegrees(lon, lat);
+                c.height = 0;
+                return c;
+            });
+            const provider = viewer.terrainProvider;
+            if (provider && !(provider instanceof Cesium.EllipsoidTerrainProvider)) {
+                for (let i = 0; i < cartos.length; i += step) {
+                    const chunk = cartos.slice(i, i + step);
+                    try {
+                        await Cesium.sampleTerrainMostDetailed(provider, chunk);
+                    } catch (e) {
+                        console.warn('sampleTerrainMostDetailed chunk', i, e);
+                    }
+                }
+            }
+            cartos.forEach((c) => {
+                if (!Cesium.defined(c.height) || isNaN(c.height)) {
+                    const h = viewer.scene.globe.getHeight(c);
+                    c.height = Cesium.defined(h) ? h : 0;
+                }
+            });
+            return cartos;
+        }
+
+        function cartographicToPosition(carto, heightAboveTerrain) {
+            const h = (carto.height || 0) + (heightAboveTerrain || 0);
+            return Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, h);
+        }
+
+        /** Half-extent of one checker quadrant (total marker = sideM × sideM). */
+        function gcpCheckerHalfExtentDeg(latDeg, sideM) {
+            const halfM = sideM * 0.5;
+            const metersPerDegLat = 111320;
+            const metersPerDegLon = 111320 * Math.cos(Cesium.Math.toRadians(latDeg));
+            return {
+                lon: halfM / metersPerDegLon,
+                lat: halfM / metersPerDegLat
+            };
+        }
+
+        /** Center + corners of 550 mm footprint for terrain sampling. */
+        function gcpFootprintSampleLonLats(lon, lat) {
+            const half = gcpCheckerHalfExtentDeg(lat, GCP_MARKER_SIDE_M);
+            return [
+                [lon, lat],
+                [lon - half.lon, lat + half.lat],
+                [lon + half.lon, lat + half.lat],
+                [lon - half.lon, lat - half.lat],
+                [lon + half.lon, lat - half.lat]
+            ];
+        }
+
+        /** Highest terrain under footprint plus small clearance (m). */
+        function maxTerrainHeightFromCartos(cartos) {
+            let maxH = -Infinity;
+            cartos.forEach((c) => {
+                let h = c.height;
+                if (!Cesium.defined(h) || isNaN(h)) {
+                    h = 0;
+                }
+                const globeH = viewer.scene.globe.getHeight(c);
+                if (Cesium.defined(globeH)) {
+                    h = Math.max(h, globeH);
+                }
+                maxH = Math.max(maxH, h);
+            });
+            return (Number.isFinite(maxH) ? maxH : 0) + GCP_GROUND_CLEARANCE_M;
+        }
+
+        /**
+         * DEM terrain via CTOD dynamic tiles → CesiumTerrainProvider.
+         * @see https://ctod2.cbstack.online
+         */
+        async function loadCtodTerrain(demUrl, noDataValue) {
+            const enc = encodeURIComponent(demUrl);
+            const terrainUrl =
+                `${CTOD}/tiles/dynamic?minZoom=${TERRAIN_CONFIG.minZoom}&maxZoom=${TERRAIN_CONFIG.maxZoom}` +
+                `&noData=${noDataValue}&cog=${enc}&skipCache=${TERRAIN_CONFIG.skipCache}` +
+                `&meshingMethod=${TERRAIN_CONFIG.meshingMethod}`;
+            console.log('CTOD terrain:', terrainUrl);
+
+            const terrainProvider = new Cesium.CesiumTerrainProvider({
+                url: terrainUrl,
+                requestVertexNormals: true
+            });
+            terrainProvider.errorEvent.addEventListener(function (err) {
+                console.error('Terrain tile error:', err);
+                setTerrainStatus('Terrain: tile error — see console', true);
+                setTerrain(new Cesium.EllipsoidTerrainProvider());
+            });
+            await terrainProvider.readyPromise;
+            savedCtodProvider = terrainProvider;
+            setTerrain(terrainProvider);
+            await waitForGlobeTiles(6000);
+        }
+
+        /**
+         * Ortho via TiTiler WebMercatorQuad TileJSON → Cesium UrlTemplateImageryProvider.
+         * @see https://titiler2.cbstack.online/docs
+         */
+        async function loadTitilerOrtho() {
+            const params = new URLSearchParams({
+                url: ORTHO_COG,
+                tile_format: 'png',
+                minzoom: '10'
+            });
+            const tileJsonUrl = `${TITILER}/cog/WebMercatorQuad/tilejson.json?${params.toString()}`;
+            console.log('TiTiler TileJSON:', tileJsonUrl);
+
+            const response = await fetch(tileJsonUrl);
+            if (!response.ok) {
+                throw new Error('TileJSON HTTP ' + response.status);
+            }
+            const tileJson = await response.json();
+            const bounds = tileJson.bounds;
+            if (!bounds || bounds.length < 4) {
+                throw new Error('TileJSON missing bounds');
+            }
+
+            const rectangle = Cesium.Rectangle.fromDegrees(
+                bounds[0],
+                bounds[1],
+                bounds[2],
+                bounds[3]
+            );
+
+            const tileUrl = rewriteServiceUrl(tileJson.tiles[0]);
+            console.log('Ortho tile template:', tileUrl);
+
+            const imageryProvider = new Cesium.UrlTemplateImageryProvider({
+                url: tileUrl,
+                minimumLevel: tileJson.minzoom ?? 0,
+                maximumLevel: tileJson.maxzoom ?? 22,
+                tileWidth: 256,
+                tileHeight: 256,
+                tilingScheme: new Cesium.WebMercatorTilingScheme({
+                    ellipsoid: Cesium.Ellipsoid.WGS84
+                }),
+                rectangle
+            });
+
+            orthoImageryLayer = viewer.imageryLayers.addImageryProvider(imageryProvider);
+            setOrthoStatus(
+                TITILER.includes('/titiler-proxy')
+                    ? 'Ortho: loaded (local proxy)'
+                    : 'Ortho: loaded (TiTiler)'
+            );
+            return rectangle;
+        }
+
+        function createBasemapProvider(type) {
+            if (type === 'satellite') {
+                return new Cesium.UrlTemplateImageryProvider({
+                    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                    maximumLevel: 19
+                });
+            }
+            if (type === 'dark') {
+                return new Cesium.UrlTemplateImageryProvider({
+                    url: 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                    credit: 'CARTO'
+                });
+            }
+            if (type === 'topo') {
+                return new Cesium.UrlTemplateImageryProvider({
+                    url: 'https://tile.opentopomap.org/{z}/{x}/{y}.png',
+                    credit: 'OpenTopoMap',
+                    maximumLevel: 17
+                });
+            }
+            if (type === 'street') {
+                return new Cesium.UrlTemplateImageryProvider({
+                    url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+                    maximumLevel: 19
+                });
+            }
+            if (type === 'light') {
+                return new Cesium.UrlTemplateImageryProvider({
+                    url: 'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                    credit: 'CARTO'
+                });
+            }
+            return new Cesium.OpenStreetMapImageryProvider({
+                url: 'https://tile.openstreetmap.org/',
+                maximumLevel: 22
+            });
+        }
+
+        /** Replace only the bottom imagery layer; TiTiler ortho stays on top. */
+        function setBasemap(type) {
+            if (viewer.imageryLayers.length > 0) {
+                viewer.imageryLayers.remove(viewer.imageryLayers.get(0), false);
+            }
+            viewer.imageryLayers.addImageryProvider(createBasemapProvider(type), 0);
+        }
+
+        const viewer = new Cesium.Viewer('cesiumContainer', {
+            animation: false,
+            timeline: false,
+            baseLayerPicker: false,
+            imageryProvider: false,
+            geocoder: false,
+            homeButton: false,
+            navigationHelpButton: false,
+            sceneModePicker: false,
+            terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+            shouldAnimate: true,
+            infoBox: false,
+            selectionIndicator: false
+        });
+        viewer.targetFrameRate = 30;
+        viewer.resolutionScale = 0.8;
+
+        viewer.imageryLayers.removeAll();
+        viewer.scene.globe.show = true;
+        setBasemap('osm');
+
+        function updateViewportHint() {
+            const hint = document.getElementById('emptyState');
+            if (!hint) return;
+            const captureOn = document.querySelector('.sr-litem.on[data-layer]');
+            const procOn = document.querySelector('.sr-litem.on[data-proc-layer]');
+            const analyticsOn = document.querySelector(
+                '#analyticsRail .lp-eye.on, #analyticsRail .lp-child-eye.on'
+            );
+            const anyOn = captureOn || procOn || analyticsOn;
+            hint.classList.toggle('hidden', !!anyOn);
+            hint.classList.toggle('show', !anyOn);
+        }
+
+        function updateMapCoordDisplay() {
+            const c = viewer.camera.positionCartographic;
+            if (!c) return;
+            const lat = Cesium.Math.toDegrees(c.latitude).toFixed(5);
+            const lon = Cesium.Math.toDegrees(c.longitude).toFixed(5);
+            const h = (c.height || 0).toFixed(0);
+            document.getElementById('sr-coord').textContent =
+                lat + '° N  ' + lon + '° E  ·  cam ' + h + ' m  ·  EPSG:4326';
+        }
+        viewer.camera.changed.addEventListener(updateMapCoordDisplay);
+        viewer.camera.moveEnd.addEventListener(updateMapCoordDisplay);
+
+        function setLayerItemOn(layerKey, on) {
+            const el = document.querySelector('.sr-litem[data-layer="' + layerKey + '"]');
+            if (el) el.classList.toggle('on', on);
+        }
+
+        function toggleSurveyLayer(layerKey) {
+            const el = document.querySelector('.sr-litem[data-layer="' + layerKey + '"]');
+            if (!el) return;
+            const on = !el.classList.contains('on');
+            el.classList.toggle('on', on);
+
+            if (layerKey === 'flightpath') {
+                if (dronePathEntity) dronePathEntity.show = on;
+                flightPathUiEntities.forEach((e) => { e.show = on; });
+                refreshAnomalyMarkerVisibility();
+            } else if (layerKey === 'drone') {
+                droneEntities.forEach((e) => { e.show = on; });
+                if (droneEntity) {
+                    droneEntity.show = on;
+                    setDroneCameraFollow(on);
+                }
+            } else if (layerKey === 'basestation') {
+                baseStationEntities.forEach((e) => { e.show = on; });
+            } else if (layerKey === 'gcp') {
+                gcpOnlyEntities.forEach((e) => { e.show = on; });
+                tripodEntities.forEach((e) => { e.show = on; });
+                loggingEntities.forEach((e) => { e.show = on; });
+            }
+            updateViewportHint();
+            updateScrubberVisibility();
+        }
+
+        document.querySelectorAll('.sr-litem[data-layer]').forEach((el) => {
+            el.addEventListener('click', () => toggleSurveyLayer(el.dataset.layer));
+        });
+
+        function setCaptureOrthoVisible(on) {
+            if (orthoImageryLayer) {
+                orthoImageryLayer.show = !!on;
+                viewer.scene.requestRender();
+            }
+        }
+
+        window.__surveyCapture = {
+            viewer: viewer,
+            updateViewportHint: updateViewportHint,
+            setLayerItemOn: setLayerItemOn,
+            setCaptureOrthoVisible: setCaptureOrthoVisible
+        };
+        window.dispatchEvent(new Event('surveyCaptureReady'));
+
+        async function loadSurveyLayers() {
+            if (typeof SurveyConfig !== 'undefined' && typeof SurveyConfig.load === 'function') {
+                await SurveyConfig.load();
+                initCaptureFromConfig();
+            }
+            await initServiceBases();
+            setTerrainStatus('Terrain: resolving noData (TiTiler)…');
+            try {
+                const noDataPromise = resolveNoDataForDem(DEM_COG);
+                const orthoPromise = loadTitilerOrtho();
+
+                const noData = await noDataPromise;
+                let orthoRect;
+                try {
+                    orthoRect = await orthoPromise;
+                } catch (orthoErr) {
+                    console.error('TiTiler ortho failed:', orthoErr);
+                    setOrthoStatus('Ortho: failed — ' + (orthoErr.message || String(orthoErr)), true);
+                }
+
+                let surveyFootprint = null;
+                if (orthoRect) {
+                    surveyFootprint = padBoundsRectangle(
+                        Cesium.Math.toDegrees(orthoRect.west),
+                        Cesium.Math.toDegrees(orthoRect.south),
+                        Cesium.Math.toDegrees(orthoRect.east),
+                        Cesium.Math.toDegrees(orthoRect.north),
+                        0.08
+                    );
+                    // Do not set cartographicLimitRectangle — it clips OSM/base map to a small patch.
+                    viewer.camera.setView({ destination: surveyFootprint });
+                }
+
+                setTerrainStatus('Terrain: loading CTOD… noData=' + noData);
+                await loadCtodTerrain(DEM_COG, noData);
+                setTerrainStatus('Terrain: loaded (CTOD)');
+
+                await waitForGlobeTiles();
+                await addBaseSurveyScene();
+                const droneLayerOn = document.getElementById('layer-drone').classList.contains('on');
+                await createDroneAnimation();
+                if (surveyFootprint && !droneLayerOn) {
+                    viewer.camera.flyTo({ destination: surveyFootprint, duration: 1.5 });
+                }
+            } catch (err) {
+                console.error('CTOD terrain failed:', err);
+                setTerrainStatus('Terrain: failed — ' + (err.message || String(err)), true);
+                setTerrain(new Cesium.EllipsoidTerrainProvider());
+                await addBaseSurveyScene();
+                await createDroneAnimation();
+            }
+        }
+
+        loadSurveyLayers();
+
+        viewer.scene.globe.baseColor = Cesium.Color.DARKBLUE;
+        viewer.scene.globe.enableLighting = false;
+        viewer.scene.requestRenderMode = false;
+        viewer.clock.shouldAnimate = true;
+
+        /* --- Drone + survey points — scores/coords from survey/site.json --- */
+        let surveyPoints = [
+            { name: 'POINT 1', lon: 78.12969860074783, lat: 17.595137946261278, isBaseStation: true, score: 94, state: 'good' },
+            { name: 'POINT 2', lon: 78.12983425347552, lat: 17.597078282735762, score: 91, state: 'good' },
+            { name: 'POINT 3', lon: 78.12890532159167, lat: 17.59664755106395, score: 89, state: 'good' },
+            { name: 'POINT 4', lon: 78.1283675420036, lat: 17.59587627829712, score: 90, state: 'good' }
+        ];
+
+        /** Real flight path from bin log (GPX has GPS times; KMZ optional). */
+        const DRONE_LOG_GPX = './drone_log/00000215.BIN.gpx';
+        const DRONE_LOG_WPL = './drone_log/00000215.BIN0wp.txt';
+        const DRONE_LOG_KML = './drone_log/_kmz_extract/00000215.BIN.kml';
+        const DRONE_LOG_PARAM = './drone_log/00000215.BIN.param';
+        let droneLogMetrics = null;
+        let droneLogParamMetrics = null;
+        let droneLogProcessedPts = [];
+        /** Min AGL (m) to leave footprint snaps — skips takeoff / landing / ground. */
+        const DRONE_SNAP_MIN_AGL_M = 18;
+
+        const droneEntities = [];
+        let droneEntity = null;
+        const loggingEntities = [];
+        const tripodModelUri = './models/leica_tripod/scene.gltf';
+        const baseStationModelUri = './models/gnss_university_of_applied_sciences_mainz/scene.gltf';
+        const droneModelUri = './models/CesiumDrone/CesiumDrone.glb';
+        const droneModelUriFallback =
+            'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb';
+        // --- Drone size & follow camera: adjust these constants ---
+        const droneModelScale = 2.8;           // model size — increase here to scale drone
+        const droneModelMinPixelSize = 72;    // minimum on-screen size in px
+        let droneCameraMode = 'chase';      // 'chase' = side/behind | 'top' = nadir (see footprint)
+        let dronePositionProperty = null;
+        let droneTrackingFrame = 'enu';
+        const droneTopViewHeightM = 140;      // camera height above drone in top mode (m)
+        const droneChaseBackM = 95;           // chase mode: distance behind (m) — higher sees drone + footprint
+        const droneChaseUpM = 48;             // chase mode: height above look point (m)
+        const droneChaseRightM = 0;           // chase mode: lateral offset (m)
+        const DRONE_CAM_MAX_RANGE_M = 420;    // cap fly-to distance so camera stays near drone
+        const DRONE_CAM_LOCAL_RADIUS_M = 260; // local orbit radius around drone / survey patch
+        function droneFollowOffset() {
+            if (droneCameraMode === 'top') {
+                return new Cesium.Cartesian3(0, 0, droneTopViewHeightM);
+            }
+            return new Cesium.Cartesian3(-droneChaseBackM, droneChaseRightM, droneChaseUpM);
+        }
+
+        function refreshDroneViewFromOffset() {
+            droneViewFromOffset = droneFollowOffset();
+        }
+        // Nadir camera footprint on ground (GIS-style frustum rectangle; see stackexchange link in comment)
+        const droneSensorHFovDeg = 62;   // horizontal FOV °
+        const droneSensorVFovDeg = 48;   // vertical FOV °
+        let droneFrontOverlapPercent = 80;  // updated from log analysis
+        let droneSideOverlapPercent = 70;
+        /** Persisted footprint snaps — never trimmed or cleared on loop (only on full drone reload). */
+        const dronePhotoSnapsDropped = new Set();
+        // Live footprint (moves with drone) vs snap trail (left on ground)
+        const droneLiveFillColor = '#00D4FF';
+        const droneLiveLineColor = '#0099CC';
+        const droneSnapFillColor = '#FF9F43';
+        const droneSnapLineColor = '#E86A00';
+        let droneFlightAglM = 50;
+        let droneFootprintEntity = null;
+        let droneFootprintGroundLine = null;
+        let droneFrustumEntity = null;
+        let droneFootprintFrameCache = null;
+        let droneFootprintFrameKey = '';
+        const droneFootprintTrail = [];
+        let droneImageCount = 0;
+        let droneLastTrailClock = null;
+        /** GPX JulianDate stamps when a footprint snap is dropped (from log time + overlap spacing). */
+        let dronePhotoSnapJulianDates = [];
+        let dronePhotoSnapIndex = 0;
+
+        function isCruisePhotoPoint(p) {
+            return p && !p.onGround && Number.isFinite(p.agl) && p.agl >= DRONE_SNAP_MIN_AGL_M;
+        }
+
+        function buildPhotoSnapTimesFromLog(pts) {
+            const spacingM = photoSpacingAlongTrackM();
+            const times = [];
+            if (!pts.length || !pts[0].time) {
+                return times;
+            }
+            let accDist = 0;
+            let lastCruiseIdx = -1;
+            for (let i = 0; i < pts.length; i++) {
+                if (!isCruisePhotoPoint(pts[i])) {
+                    accDist = 0;
+                    lastCruiseIdx = -1;
+                    continue;
+                }
+                if (lastCruiseIdx < 0) {
+                    times.push(Cesium.JulianDate.fromDate(pts[i].time));
+                    lastCruiseIdx = i;
+                    accDist = 0;
+                    continue;
+                }
+                accDist += DroneLog.distanceM(pts[lastCruiseIdx], pts[i]);
+                if (accDist >= spacingM) {
+                    times.push(Cesium.JulianDate.fromDate(pts[i].time));
+                    lastCruiseIdx = i;
+                    accDist = 0;
+                }
+            }
+            console.log('[DroneLog] cruise-only footprint snaps:', times.length, 'spacing m', spacingM.toFixed(1));
+            return times;
+        }
+
+        function isSnapTimeAllowed(snapT) {
+            const pos = droneEntity && droneEntity.position.getValue(snapT);
+            if (!Cesium.defined(pos)) {
+                return false;
+            }
+            const carto = Cesium.Cartographic.fromCartesian(pos);
+            const th = terrainHeightAtCartographic(carto, carto.height - 50);
+            return (carto.height - th) >= DRONE_SNAP_MIN_AGL_M;
+        }
+
+        let flightStartJulian = null;
+        let flightStopJulian = null;
+
+        const SCRUBBER_SPEEDS = [1, 2, 4, 8];
+        let scrubberSpeedIndex = 0;
+        let scrubberDragging = false;
+
+        const scrubberEl = document.getElementById('scrubber');
+        const playBtn = document.getElementById('playBtn');
+        const playIcon = document.getElementById('playIcon');
+        const scrubberCurrentTimeEl = document.getElementById('scrubberCurrentTime');
+        const scrubberEndTimeEl = document.getElementById('scrubberEndTime');
+        const scrubberProgressEl = document.getElementById('scrubberProgress');
+        const scrubberPlayheadEl = document.getElementById('scrubberPlayhead');
+        const scrubberTrackEl = document.getElementById('scrubberTrack');
+        const scrubberTicksEl = document.getElementById('scrubberTicks');
+        const speedBtn = document.getElementById('speedBtn');
+
+        function hasSurveyClock() {
+            return Cesium.defined(flightStartJulian) && Cesium.defined(flightStopJulian);
+        }
+
+        function getFlightDurationSec() {
+            if (!hasSurveyClock()) {
+                return 0;
+            }
+            return Math.max(
+                0,
+                Cesium.JulianDate.secondsDifference(flightStopJulian, flightStartJulian)
+            );
+        }
+
+        function getFlightProgress() {
+            if (!hasSurveyClock()) {
+                return 0;
+            }
+            const total = getFlightDurationSec();
+            if (total <= 0) {
+                return 0;
+            }
+            const elapsed = Cesium.JulianDate.secondsDifference(
+                viewer.clock.currentTime,
+                flightStartJulian
+            );
+            return Math.max(0, Math.min(1, elapsed / total));
+        }
+
+        function formatScrubberTime(sec) {
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+        }
+
+        function renderScrubber() {
+            if (!scrubberProgressEl) {
+                return;
+            }
+            const pct = getFlightProgress() * 100;
+            scrubberProgressEl.style.width = pct + '%';
+            scrubberPlayheadEl.style.left = pct + '%';
+            const total = getFlightDurationSec();
+            const elapsed = total * getFlightProgress();
+            scrubberCurrentTimeEl.textContent = formatScrubberTime(elapsed);
+            scrubberEndTimeEl.textContent = formatScrubberTime(total);
+        }
+
+        function syncSurveyClock() {
+            if (!hasSurveyClock()) {
+                return;
+            }
+            viewer.clock.startTime = flightStartJulian.clone();
+            viewer.clock.stopTime = flightStopJulian.clone();
+            viewer.clock.clockRange = Cesium.ClockRange.LOOP;
+            viewer.clock.multiplier = SCRUBBER_SPEEDS[scrubberSpeedIndex] || 1;
+            const elapsed = Cesium.JulianDate.secondsDifference(
+                viewer.clock.currentTime,
+                flightStartJulian
+            );
+            const total = getFlightDurationSec();
+            if (elapsed < 0 || elapsed > total) {
+                viewer.clock.currentTime = flightStartJulian.clone();
+            }
+        }
+
+        function togglePlayback() {
+            if (!hasSurveyClock()) {
+                console.warn('Playback: flight log clock not ready yet');
+                return;
+            }
+            syncSurveyClock();
+            if (getFlightProgress() >= 0.995) {
+                setFlightProgress(0);
+                dronePhotoSnapIndex = 0;
+                droneLastTrailClock = null;
+            }
+            viewer.clock.shouldAnimate = !viewer.clock.shouldAnimate;
+            updatePlayButton();
+            viewer.scene.requestRender();
+        }
+
+        function renderScrubberTicks() {
+            if (!scrubberTicksEl) {
+                return;
+            }
+            scrubberTicksEl.innerHTML = '';
+            if (!hasSurveyClock()) {
+                return;
+            }
+            const total = getFlightDurationSec();
+            if (total <= 0) {
+                return;
+            }
+            dronePhotoSnapJulianDates.forEach((snapT) => {
+                const elapsed = Cesium.JulianDate.secondsDifference(snapT, flightStartJulian);
+                const tick = document.createElement('div');
+                tick.className = 'scrubber-tick';
+                tick.style.left = (elapsed / total * 100) + '%';
+                tick.title = 'Photo @ ' + formatScrubberTime(elapsed);
+                tick.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    setFlightProgress(elapsed / total);
+                    viewer.clock.shouldAnimate = false;
+                    updatePlayButton();
+                });
+                scrubberTicksEl.appendChild(tick);
+            });
+            droneFlightAnomalies.forEach((a) => {
+                const tick = document.createElement('div');
+                tick.className = 'scrubber-tick ' + a.severity;
+                tick.style.left = (a.t * 100) + '%';
+                tick.title = a.type + ' — ' + a.timestamp;
+                tick.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    setFlightProgress(a.t);
+                    viewer.clock.shouldAnimate = false;
+                    updatePlayButton();
+                    refreshAnomalyMarkerVisibility();
+                    updateAnomalyRail();
+                });
+                scrubberTicksEl.appendChild(tick);
+            });
+        }
+
+        function setFlightProgress(fraction) {
+            if (!hasSurveyClock()) {
+                return;
+            }
+            const total = getFlightDurationSec();
+            const secs = Math.max(0, Math.min(total, fraction * total));
+            viewer.clock.currentTime = Cesium.JulianDate.addSeconds(
+                flightStartJulian,
+                secs,
+                new Cesium.JulianDate()
+            );
+            renderScrubber();
+            viewer.scene.requestRender();
+        }
+
+        function updatePlayButton() {
+            if (!playIcon) {
+                return;
+            }
+            if (viewer.clock.shouldAnimate) {
+                playIcon.innerHTML = '<path d="M3 2H5V12H3V2ZM9 2H11V12H9V2Z"/>';
+            } else {
+                playIcon.innerHTML = '<path d="M3 2L11 7L3 12V2Z"/>';
+            }
+        }
+
+        function surveyClockLayersActive() {
+            return (
+                document.getElementById('layer-drone')?.classList.contains('on')
+                || document.getElementById('layer-flightpath')?.classList.contains('on')
+                || document.getElementById('layer-basestation')?.classList.contains('on')
+                || document.getElementById('layer-gcp')?.classList.contains('on')
+            );
+        }
+
+        function updateScrubberVisibility() {
+            if (!scrubberEl) {
+                return;
+            }
+            scrubberEl.classList.add('show');
+            scrubberEl.classList.toggle('ready', hasSurveyClock());
+        }
+
+        function setPlaybackSpeed(mult) {
+            const m = Number(mult);
+            if (!Number.isFinite(m) || m <= 0) {
+                return;
+            }
+            if (hasSurveyClock()) {
+                syncSurveyClock();
+            }
+            viewer.clock.multiplier = m;
+            if (speedBtn) {
+                speedBtn.textContent = m + '×';
+                const idx = SCRUBBER_SPEEDS.indexOf(m);
+                if (idx >= 0) {
+                    scrubberSpeedIndex = idx;
+                }
+            }
+            viewer.scene.requestRender();
+        }
+
+        function initScrubberControls() {
+            if (!playBtn || !speedBtn || !scrubberTrackEl) {
+                console.error('Scrubber controls missing from DOM');
+                return;
+            }
+
+            playBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                togglePlayback();
+            });
+
+            speedBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!hasSurveyClock()) {
+                    return;
+                }
+                scrubberSpeedIndex = (scrubberSpeedIndex + 1) % SCRUBBER_SPEEDS.length;
+                setPlaybackSpeed(SCRUBBER_SPEEDS[scrubberSpeedIndex]);
+                if (!viewer.clock.shouldAnimate) {
+                    viewer.clock.shouldAnimate = true;
+                    updatePlayButton();
+                }
+            });
+
+            function setProgressFromPointer(clientX) {
+                const rect = scrubberTrackEl.getBoundingClientRect();
+                const x = clientX - rect.left;
+                setFlightProgress(Math.max(0, Math.min(1, x / rect.width)));
+            }
+
+            scrubberTrackEl.addEventListener('mousedown', (e) => {
+                if (!hasSurveyClock()) {
+                    return;
+                }
+                scrubberDragging = true;
+                viewer.clock.shouldAnimate = false;
+                updatePlayButton();
+                setProgressFromPointer(e.clientX);
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (scrubberDragging) {
+                    setProgressFromPointer(e.clientX);
+                }
+            });
+            document.addEventListener('mouseup', () => {
+                scrubberDragging = false;
+            });
+
+            viewer.clock.onTick.addEventListener(() => {
+                if (!scrubberDragging) {
+                    renderScrubber();
+                }
+                updateWaypointsReached();
+                refreshAnomalyMarkerVisibility();
+                updateAnomalyRail();
+            });
+
+            updatePlayButton();
+            renderScrubber();
+            updateScrubberVisibility();
+        }
+
+        initScrubberControls();
+        updateScrubberVisibility();
+
+        function footprintGroundDimensionsM() {
+            const tanH = Math.tan(Cesium.Math.toRadians(droneSensorHFovDeg * 0.5));
+            const tanV = Math.tan(Cesium.Math.toRadians(droneSensorVFovDeg * 0.5));
+            const acrossM = 2 * droneFlightAglM * tanH;
+            const alongM = 2 * droneFlightAglM * tanV;
+            return { acrossM, alongM };
+        }
+
+        function photoSpacingAlongTrackM() {
+            const dim = footprintGroundDimensionsM();
+            return Math.max(dim.alongM * (1 - droneFrontOverlapPercent / 100), 1);
+        }
+
+        function parallelPassSpacingM() {
+            const dim = footprintGroundDimensionsM();
+            return Math.max(dim.acrossM * (1 - droneSideOverlapPercent / 100), 1);
+        }
+
+        function updateDroneCoverageStats() {
+            const el = document.getElementById('droneCoverageStats');
+            if (!el) {
+                return;
+            }
+            const dim = footprintGroundDimensionsM();
+            const step = photoSpacingAlongTrackM();
+            const passSpacing = parallelPassSpacingM();
+            let logLine = 'Path: bin GPX log (single track)';
+            if (droneLogMetrics) {
+                logLine = 'Log: ' + droneLogMetrics.pointCount + ' pts, '
+                    + (droneLogMetrics.durationSec / 60).toFixed(1) + ' min, AGL '
+                    + droneLogMetrics.medianAglM + ' m ('
+                    + droneLogMetrics.minAglM + '–' + droneLogMetrics.maxAglM + ' m)';
+            }
+            const imgCountEl = document.getElementById('surveyImageCount');
+            if (imgCountEl && dronePhotoSnapJulianDates.length) {
+                imgCountEl.textContent = dronePhotoSnapJulianDates.length + ' IMAGES';
+            }
+            el.textContent =
+                logLine
+                + ' | snaps ' + droneImageCount
+                + ' | footprint ' + dim.alongM.toFixed(1) + '×' + dim.acrossM.toFixed(1) + ' m'
+                + ' | snaps @ log time: ' + (dronePhotoSnapJulianDates.length || '—')
+                + ' | front ' + droneFrontOverlapPercent + '% / ' + step.toFixed(1) + ' m'
+                + ' | side ' + droneSideOverlapPercent + '% / ' + passSpacing.toFixed(1) + ' m'
+                + (droneLogParamMetrics && droneLogParamMetrics.camTrigDistM > 0
+                    ? ' | CAM_TRIGG_DIST ' + droneLogParamMetrics.camTrigDistM + ' m' : '');
+        }
+
+        function removeFootprintTrailEntry(entry) {
+            viewer.entities.remove(entry.poly);
+            viewer.entities.remove(entry.line);
+            let idx = droneEntities.indexOf(entry.poly);
+            if (idx >= 0) {
+                droneEntities.splice(idx, 1);
+            }
+            idx = droneEntities.indexOf(entry.line);
+            if (idx >= 0) {
+                droneEntities.splice(idx, 1);
+            }
+        }
+
+        function clearFootprintTrail() {
+            while (droneFootprintTrail.length > 0) {
+                removeFootprintTrailEntry(droneFootprintTrail.pop());
+            }
+            droneImageCount = 0;
+            droneLastTrailClock = null;
+            dronePhotoSnapIndex = 0;
+            dronePhotoSnapsDropped.clear();
+            updateDroneCoverageStats();
+        }
+
+        function addPersistedFootprintSnapshot(state) {
+            const corners = state.clampCorners.map((p) => Cesium.Cartesian3.clone(p));
+            const poly = viewer.entities.add({
+                name: 'Drone image footprint (snap)',
+                polygon: {
+                    hierarchy: new Cesium.PolygonHierarchy(corners),
+                    material: Cesium.Color.fromCssColorString(droneSnapFillColor).withAlpha(0.24),
+                    outline: false,
+                    perPositionHeight: false,
+                    heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                    classificationType: Cesium.ClassificationType.TERRAIN
+                }
+            });
+            const line = viewer.entities.add({
+                polyline: {
+                    positions: [corners[0], corners[1], corners[2], corners[3], corners[0]],
+                    width: 2,
+                    material: Cesium.Color.fromCssColorString(droneSnapLineColor).withAlpha(0.85),
+                    clampToGround: true,
+                    arcType: Cesium.ArcType.GEODESIC
+                }
+            });
+            droneFootprintTrail.push({ poly, line });
+            droneEntities.push(poly, line);
+            droneImageCount += 1;
+            updateDroneCoverageStats();
+        }
+
+        /** Drop footprint snaps when animation clock passes each log-derived photo time. */
+        function maybeDropFootprintSnapshot() {
+            if (!droneEntity || !droneEntity.show || !dronePhotoSnapJulianDates.length) {
+                return;
+            }
+            const t = viewer.clock.currentTime;
+            while (dronePhotoSnapIndex < dronePhotoSnapJulianDates.length
+                && Cesium.JulianDate.lessThanOrEquals(dronePhotoSnapJulianDates[dronePhotoSnapIndex], t)) {
+                const snapIdx = dronePhotoSnapIndex;
+                const snapT = dronePhotoSnapJulianDates[snapIdx];
+                dronePhotoSnapIndex += 1;
+                if (dronePhotoSnapsDropped.has(snapIdx)) {
+                    continue;
+                }
+                if (!isSnapTimeAllowed(snapT)) {
+                    continue;
+                }
+                const state = getDroneFootprintState(snapT);
+                if (state) {
+                    addPersistedFootprintSnapshot(state);
+                    dronePhotoSnapsDropped.add(snapIdx);
+                }
+            }
+        }
+
+        function projectOntoHorizontalPlane(vector, up, result) {
+            const upComponent = Cesium.Cartesian3.multiplyByScalar(
+                up,
+                Cesium.Cartesian3.dot(vector, up),
+                new Cesium.Cartesian3()
+            );
+            return Cesium.Cartesian3.subtract(vector, upComponent, result);
+        }
+
+        function terrainHeightAtCartographic(carto, fallbackHeight) {
+            const sample = carto.clone();
+            const h = viewer.scene.globe.getHeight(sample);
+            if (Cesium.defined(h) && !isNaN(h)) {
+                return h;
+            }
+            if (Cesium.defined(fallbackHeight) && !isNaN(fallbackHeight)) {
+                return fallbackHeight;
+            }
+            return 0;
+        }
+
+        function cartographicFromEastNorthOffset(baseCarto, eastM, northM) {
+            const earthRadius = 6378137.0;
+            const lat = baseCarto.latitude;
+            const cosLat = Math.max(Math.cos(lat), 1e-6);
+            return new Cesium.Cartographic(
+                baseCarto.longitude + eastM / (earthRadius * cosLat),
+                baseCarto.latitude + northM / earthRadius,
+                0
+            );
+        }
+
+        /** Footprint: horizontal corners for CLAMP_TO_GROUND fill; ground corners for frustum lines. */
+        function getDroneFootprintState(atTime) {
+            if (!droneEntity || !droneEntity.show) {
+                return null;
+            }
+            const time = Cesium.defined(atTime) ? atTime : viewer.clock.currentTime;
+            const dronePos = droneEntity.position.getValue(time);
+            if (!Cesium.defined(dronePos)) {
+                return null;
+            }
+            let orientation = droneEntity.orientation && droneEntity.orientation.getValue(time);
+            if (!Cesium.defined(orientation)) {
+                orientation = Cesium.Transforms.headingPitchRollQuaternion(
+                    dronePos,
+                    new Cesium.HeadingPitchRoll()
+                );
+            }
+            const rot = Cesium.Matrix3.fromQuaternion(orientation, new Cesium.Matrix3());
+            const forward = Cesium.Matrix3.multiplyByVector(rot, Cesium.Cartesian3.UNIT_X, new Cesium.Cartesian3());
+            const right = Cesium.Matrix3.multiplyByVector(rot, Cesium.Cartesian3.UNIT_Y, new Cesium.Cartesian3());
+            const up = Cesium.Matrix3.multiplyByVector(rot, Cesium.Cartesian3.UNIT_Z, new Cesium.Cartesian3());
+            const forwardH = projectOntoHorizontalPlane(forward, up, new Cesium.Cartesian3());
+            const rightH = projectOntoHorizontalPlane(right, up, new Cesium.Cartesian3());
+            if (Cesium.Cartesian3.magnitudeSquared(forwardH) < 1e-12) {
+                Cesium.Cartesian3.clone(Cesium.Cartesian3.UNIT_X, forwardH);
+            } else {
+                Cesium.Cartesian3.normalize(forwardH, forwardH);
+            }
+            if (Cesium.Cartesian3.magnitudeSquared(rightH) < 1e-12) {
+                Cesium.Cartesian3.clone(Cesium.Cartesian3.UNIT_Y, rightH);
+            } else {
+                Cesium.Cartesian3.normalize(rightH, rightH);
+            }
+
+            const enu = Cesium.Transforms.eastNorthUpToFixedFrame(dronePos);
+            const eastAxis = Cesium.Matrix4.getColumn(enu, 0, new Cesium.Cartesian3());
+            const northAxis = Cesium.Matrix4.getColumn(enu, 1, new Cesium.Cartesian3());
+
+            const tanH = Math.tan(Cesium.Math.toRadians(droneSensorHFovDeg * 0.5));
+            const tanV = Math.tan(Cesium.Math.toRadians(droneSensorVFovDeg * 0.5));
+            const halfW = droneFlightAglM * tanH;
+            const halfD = droneFlightAglM * tanV;
+            const cornerOffsets = [
+                [-halfW, -halfD],
+                [halfW, -halfD],
+                [halfW, halfD],
+                [-halfW, halfD]
+            ];
+
+            const droneCarto = Cesium.Cartographic.fromCartesian(dronePos);
+            const droneGroundH = terrainHeightAtCartographic(droneCarto, droneCarto.height - droneFlightAglM);
+
+            const clampCorners = [];
+            const groundCorners = [];
+            for (let i = 0; i < cornerOffsets.length; i++) {
+                const along = cornerOffsets[i][0];
+                const across = cornerOffsets[i][1];
+                const offset = Cesium.Cartesian3.add(
+                    Cesium.Cartesian3.multiplyByScalar(forwardH, along, new Cesium.Cartesian3()),
+                    Cesium.Cartesian3.multiplyByScalar(rightH, across, new Cesium.Cartesian3()),
+                    new Cesium.Cartesian3()
+                );
+                const eastM = Cesium.Cartesian3.dot(offset, eastAxis);
+                const northM = Cesium.Cartesian3.dot(offset, northAxis);
+                const cornerCarto = cartographicFromEastNorthOffset(droneCarto, eastM, northM);
+                clampCorners.push(Cesium.Cartesian3.fromRadians(cornerCarto.longitude, cornerCarto.latitude, 0));
+                const groundCarto = cornerCarto.clone();
+                groundCarto.height = terrainHeightAtCartographic(groundCarto, droneGroundH);
+                groundCorners.push(Cesium.Cartographic.toCartesian(groundCarto));
+            }
+            return { dronePos, clampCorners, groundCorners };
+        }
+
+        function getDroneFootprintStateCached() {
+            const time = viewer.clock.currentTime;
+            const key = time.toString();
+            if (droneFootprintFrameCache && key === droneFootprintFrameKey) {
+                return droneFootprintFrameCache;
+            }
+            droneFootprintFrameKey = key;
+            droneFootprintFrameCache = getDroneFootprintState();
+            return droneFootprintFrameCache;
+        }
+
+        function droneFootprintHierarchyProperty() {
+            const state = getDroneFootprintStateCached();
+            if (!state) {
+                return undefined;
+            }
+            return new Cesium.PolygonHierarchy(state.clampCorners);
+        }
+
+        function droneFrustumLinePositionsProperty() {
+            const state = getDroneFootprintStateCached();
+            if (!state) {
+                return undefined;
+            }
+            const d = state.dronePos;
+            const c = state.groundCorners;
+            return [
+                d, c[0],
+                d, c[1],
+                d, c[2],
+                d, c[3]
+            ];
+        }
+
+        function droneFootprintBoundaryPositionsProperty() {
+            const state = getDroneFootprintStateCached();
+            if (!state) {
+                return undefined;
+            }
+            const c = state.clampCorners;
+            return [c[0], c[1], c[2], c[3], c[0]];
+        }
+
+        const tripodHeight = 0.0;
+        const baseStationHeight = 2.43;
+        const signalAndLightHeight = 2.66;
+        /** GCP checkerboard footprint (550 mm × 550 mm). */
+        const GCP_MARKER_SIDE_M = 0.55;
+        /** Slab thickness for POINT 2–4 (35 mm). */
+        const GCP_MARKER_THICKNESS_M = 0.035;
+        /** Lift above DEM so markers do not clip into terrain. */
+        const GCP_GROUND_CLEARANCE_M = 0.02;
+        const tripodModelScale = 1.7;
+        const baseStationModelScale = 0.0015;
+        const droneHeightOffset = 0.0;
+        const droneSecondsPerSegment = 2;
+        let droneFlightStart = null;
+        let droneFlightDuration = 1;
+        let droneCameraFollow = false;
+        let droneViewFromOffset = null;
+        const signalWaveCountPerPoint = 3;
+        const waveRadiusMin = 0.2;
+        const waveRadiusRange = 1.2;
+
+        async function assetExists(url) {
+            try {
+                const res = await fetch(url, { method: 'HEAD' });
+                return res.ok;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        async function addBaseSurveyScene() {
+            const tripodGltfOk = await assetExists('./models/leica_tripod/scene.bin');
+            const baseGltfOk = await assetExists('./models/gnss_university_of_applied_sciences_mainz/scene.bin');
+            if (!tripodGltfOk) {
+                console.warn('[Capture] leica_tripod scene.bin missing — using box marker');
+            }
+            if (!baseGltfOk) {
+                console.warn('[Capture] GNSS base scene.bin missing — using box marker');
+            }
+
+            const footprintLonLats = [];
+            surveyPoints.forEach((p) => {
+                footprintLonLats.push(...gcpFootprintSampleLonLats(p.lon, p.lat));
+            });
+            const footprintCartos = await sampleTerrainElevations(footprintLonLats);
+            const samplesPerPoint = 5;
+
+            surveyPoints.forEach((point, idx) => {
+                const lon = point.lon;
+                const lat = point.lat;
+                const pointCartos = footprintCartos.slice(
+                    idx * samplesPerPoint,
+                    idx * samplesPerPoint + samplesPerPoint
+                );
+                const groundH = maxTerrainHeightFromCartos(pointCartos);
+                const ground = Cesium.Cartographic.fromRadians(
+                    pointCartos[0].longitude,
+                    pointCartos[0].latitude,
+                    groundH
+                );
+                const half = gcpCheckerHalfExtentDeg(lat, GCP_MARKER_SIDE_M);
+                const groundPosition = Cesium.Cartesian3.fromDegrees(lon, lat);
+
+                const squares = [
+                    { minLon: lon - half.lon, minLat: lat, maxLon: lon, maxLat: lat + half.lat, color: Cesium.Color.BLACK },
+                    { minLon: lon, minLat: lat, maxLon: lon + half.lon, maxLat: lat + half.lat, color: Cesium.Color.WHITE },
+                    { minLon: lon - half.lon, minLat: lat - half.lat, maxLon: lon, maxLat: lat, color: Cesium.Color.WHITE },
+                    { minLon: lon, minLat: lat - half.lat, maxLon: lon + half.lon, maxLat: lat, color: Cesium.Color.BLACK }
+                ];
+
+                squares.forEach((square) => {
+                    const rectDef = {
+                        coordinates: Cesium.Rectangle.fromDegrees(
+                            square.minLon,
+                            square.minLat,
+                            square.maxLon,
+                            square.maxLat
+                        ),
+                        material: square.color,
+                        height: GCP_GROUND_CLEARANCE_M,
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+                    };
+                    if (!point.isBaseStation) {
+                        rectDef.extrudedHeight = GCP_GROUND_CLEARANCE_M + GCP_MARKER_THICKNESS_M;
+                    }
+                    const sq = viewer.entities.add({ rectangle: rectDef });
+                    gcpSurveyEntities.push(sq);
+                    gcpOnlyEntities.push(sq);
+                });
+
+                const loggingOnBase = point.isBaseStation;
+                /** Top of 35 mm GCP slab (groundH already includes bottom clearance). */
+                const gcpMarkerTopAboveGroundM = GCP_MARKER_THICKNESS_M;
+                const loggingPosition = loggingOnBase
+                    ? cartographicToPosition(ground, signalAndLightHeight)
+                    : cartographicToPosition(ground, gcpMarkerTopAboveGroundM);
+                const loggingEllipseHeight = loggingOnBase
+                    ? groundH + signalAndLightHeight
+                    : groundH + gcpMarkerTopAboveGroundM;
+                const loggingHeightRef = Cesium.HeightReference.NONE;
+
+                for (let i = 0; i < signalWaveCountPerPoint; i++) {
+                    const waveEntity = viewer.entities.add({
+                        position: loggingPosition,
+                        ellipse: {
+                            semiMinorAxis: new Cesium.CallbackProperty(
+                                () => ((Date.now() * 0.0005 + (i * 1.5)) % waveRadiusRange) + waveRadiusMin,
+                                false
+                            ),
+                            semiMajorAxis: new Cesium.CallbackProperty(
+                                () => ((Date.now() * 0.0005 + (i * 1.5)) % waveRadiusRange) + waveRadiusMin,
+                                false
+                            ),
+                            height: loggingEllipseHeight,
+                            heightReference: loggingHeightRef,
+                            material: new Cesium.ColorMaterialProperty(
+                                new Cesium.CallbackProperty(() => {
+                                    const alpha = 1 - ((Date.now() * 0.0005 + (i * 1.5)) % waveRadiusRange) / waveRadiusRange;
+                                    return Cesium.Color.RED.withAlpha(alpha * 0.35);
+                                }, false)
+                            ),
+                            outline: true,
+                            outlineColor: Cesium.Color.RED,
+                            outlineWidth: 1
+                        }
+                    });
+                    loggingEntities.push(waveEntity);
+                }
+
+                if (point.isBaseStation) {
+                    const tripodPos = cartographicToPosition(ground, tripodHeight);
+                    const tripodEntDef = {
+                        name: `${point.name} Base Tripod`,
+                        position: tripodPos
+                    };
+                    if (tripodGltfOk) {
+                        tripodEntDef.model = {
+                            uri: tripodModelUri,
+                            scale: tripodModelScale,
+                            minimumPixelSize: 24,
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+                        };
+                    } else {
+                        tripodEntDef.box = {
+                            dimensions: new Cesium.Cartesian3(0.35, 0.35, 1.5),
+                            material: Cesium.Color.fromCssColorString('#D2AA4E').withAlpha(0.9),
+                            outlineColor: Cesium.Color.BLACK,
+                            outlineWidth: 1,
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND
+                        };
+                    }
+                    const tripodEnt = viewer.entities.add(tripodEntDef);
+                    gcpSurveyEntities.push(tripodEnt);
+                    baseStationEntities.push(tripodEnt);
+
+                    const roverPos = cartographicToPosition(ground, baseStationHeight);
+                    const roverEntDef = {
+                        name: `${point.name} GNSS Rover`,
+                        position: roverPos
+                    };
+                    if (baseGltfOk) {
+                        roverEntDef.model = {
+                            uri: baseStationModelUri,
+                            scale: baseStationModelScale,
+                            minimumPixelSize: 18,
+                            heightReference: Cesium.HeightReference.NONE
+                        };
+                    } else {
+                        roverEntDef.box = {
+                            dimensions: new Cesium.Cartesian3(0.55, 0.45, 0.35),
+                            material: Cesium.Color.fromCssColorString('#94D4E8').withAlpha(0.92),
+                            outlineColor: Cesium.Color.WHITE,
+                            outlineWidth: 1
+                        };
+                    }
+                    const roverEnt = viewer.entities.add(roverEntDef);
+                    gcpSurveyEntities.push(roverEnt);
+                    baseStationEntities.push(roverEnt);
+                }
+
+                const redLightEntity = viewer.entities.add({
+                    position: loggingPosition,
+                    point: {
+                        pixelSize: 10,
+                        heightReference: loggingHeightRef,
+                        color: new Cesium.CallbackProperty(() => {
+                            const blink = Math.floor(Date.now() / 350) % 2;
+                            return blink ? Cesium.Color.RED : Cesium.Color.BLACK;
+                        }, false)
+                    }
+                });
+                loggingEntities.push(redLightEntity);
+
+                const labelEnt = viewer.entities.add({
+                    position: groundPosition,
+                    label: {
+                        text: point.name,
+                        font: '16px sans-serif',
+                        fillColor: Cesium.Color.WHITE,
+                        outlineColor: Cesium.Color.BLACK,
+                        outlineWidth: 3,
+                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                        height: 3,
+                        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY
+                    }
+                });
+                gcpSurveyEntities.push(labelEnt);
+                gcpOnlyEntities.push(labelEnt);
+            });
+        }
+
+        /** Chase camera: update every frame from drone position (clock-driven). */
+        function updateDroneFollowCamera() {
+            if (!droneCameraFollow || !droneEntity || !droneEntity.show) {
+                return;
+            }
+            const pos = getDronePositionNow();
+            if (!pos) {
+                return;
+            }
+            if (!droneViewFromOffset) {
+                refreshDroneViewFromOffset();
+            }
+            const transform = Cesium.Transforms.eastNorthUpToFixedFrame(pos);
+            viewer.camera.lookAtTransform(transform, droneViewFromOffset);
+        }
+
+        viewer.scene.postUpdate.addEventListener(updateDroneFollowCamera);
+
+        viewer.scene.postUpdate.addEventListener(function () {
+            if (!droneEntity || !droneEntity.show) {
+                return;
+            }
+            const t = viewer.clock.currentTime;
+            if (droneLastTrailClock && Cesium.JulianDate.lessThan(t, droneLastTrailClock)) {
+                dronePhotoSnapIndex = 0;
+            }
+            droneLastTrailClock = t.clone();
+            maybeDropFootprintSnapshot();
+            updateWaypointsReached();
+            refreshAnomalyMarkerVisibility();
+        });
+
+        function applyDroneTrackingFrame() {
+            if (!droneEntity || !Cesium.TrackingReferenceFrame) {
+                return;
+            }
+            droneEntity.trackingReferenceFrame = Cesium.TrackingReferenceFrame.ENU;
+        }
+
+        function getDronePositionNow() {
+            if (!droneEntity || !droneEntity.position) {
+                return null;
+            }
+            const pos = droneEntity.position.getValue(viewer.clock.currentTime);
+            if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) {
+                return null;
+            }
+            const carto = Cesium.Cartographic.fromCartesian(pos);
+            if (!Number.isFinite(carto.height) || carto.height < -200 || carto.height > 15000) {
+                return null;
+            }
+            if (Math.abs(carto.latitude) < 0.0001 && Math.abs(carto.longitude) < 0.0001) {
+                return null;
+            }
+            return pos;
+        }
+
+        /** Camera anchor near drone — never whole-globe / space zoom. */
+        function getDroneCameraAnchor() {
+            const dronePos = getDronePositionNow();
+            if (dronePos) {
+                return new Cesium.BoundingSphere(dronePos, DRONE_CAM_LOCAL_RADIUS_M);
+            }
+            if (droneLogProcessedPts && droneLogProcessedPts.length >= 2) {
+                const airborne = droneLogProcessedPts.filter((p) => !p.onGround && Number.isFinite(p.alt) && p.alt > 400);
+                const usePts = airborne.length >= 2 ? airborne : droneLogProcessedPts;
+                const cartos = usePts.map((p) => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt));
+                const bs = Cesium.BoundingSphere.fromPoints(cartos);
+                const r = Math.min(Math.max(bs.radius, 60), DRONE_CAM_LOCAL_RADIUS_M);
+                return new Cesium.BoundingSphere(bs.center, r);
+            }
+            return null;
+        }
+
+        function cappedCamRange(distanceM) {
+            return Math.min(Math.max(distanceM, 80), DRONE_CAM_MAX_RANGE_M);
+        }
+
+        function setDroneInterpolation(mode) {
+            if (!dronePositionProperty) {
+                return;
+            }
+            const presets = {
+                linear: {
+                    interpolationDegree: 1,
+                    interpolationAlgorithm: Cesium.LinearApproximation
+                },
+                lagrange: {
+                    interpolationDegree: 5,
+                    interpolationAlgorithm: Cesium.LagrangePolynomialApproximation
+                },
+                hermite: {
+                    interpolationDegree: 2,
+                    interpolationAlgorithm: Cesium.HermitePolynomialApproximation
+                }
+            };
+            const opts = presets[mode] || presets.linear;
+            dronePositionProperty.setInterpolationOptions(opts);
+        }
+
+        function setTopCameraButtonActive(camId) {
+            const viewModes = ['topdown', 'side'];
+            const followModes = ['track', 'chase', 'nadir'];
+            document.querySelectorAll('.top-cam-btn[data-cam]').forEach((btn) => {
+                const id = btn.dataset.cam;
+                if (viewModes.includes(camId)) {
+                    btn.classList.toggle('active', id === camId);
+                } else if (followModes.includes(camId)) {
+                    btn.classList.toggle('active', followModes.includes(id) && id === camId);
+                }
+            });
+        }
+
+        function viewFlightTopDown() {
+            setDroneCameraFollow(false);
+            if (viewer.camera.cancelFlight) {
+                viewer.camera.cancelFlight();
+            }
+            const bs = getDroneCameraAnchor();
+            if (!bs) return;
+            viewer.camera.flyToBoundingSphere(bs, {
+                duration: 0.8,
+                offset: new Cesium.HeadingPitchRange(
+                    0,
+                    Cesium.Math.toRadians(-90),
+                    cappedCamRange(bs.radius * 1.35)
+                )
+            });
+            setTopCameraButtonActive('topdown');
+        }
+
+        function viewFlightSide() {
+            setDroneCameraFollow(false);
+            if (viewer.camera.cancelFlight) {
+                viewer.camera.cancelFlight();
+            }
+            const bs = getDroneCameraAnchor();
+            if (!bs) return;
+            viewer.camera.flyToBoundingSphere(bs, {
+                duration: 0.8,
+                offset: new Cesium.HeadingPitchRange(
+                    Cesium.Math.toRadians(-55),
+                    Cesium.Math.toRadians(-18),
+                    cappedCamRange(bs.radius * 1.6)
+                )
+            });
+            setTopCameraButtonActive('side');
+        }
+
+        function viewTrackDrone(mode) {
+            if (mode === 'nadir') {
+                droneCameraMode = 'top';
+            } else {
+                droneCameraMode = 'chase';
+            }
+            refreshDroneViewFromOffset();
+            if (viewer.camera.cancelFlight) {
+                viewer.camera.cancelFlight();
+            }
+            setDroneCameraFollow(true);
+            setTopCameraButtonActive(mode);
+        }
+
+        function initTopCameraControls() {
+            document.querySelectorAll('.top-cam-btn[data-cam]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const cam = btn.dataset.cam;
+                    if (cam === 'topdown') viewFlightTopDown();
+                    else if (cam === 'side') viewFlightSide();
+                    else if (cam === 'track') viewTrackDrone('track');
+                    else if (cam === 'chase') viewTrackDrone('chase');
+                    else if (cam === 'nadir') viewTrackDrone('nadir');
+                });
+            });
+            const frameSel = document.getElementById('trackingFrameSelect');
+            if (frameSel) {
+                frameSel.addEventListener('change', () => {
+                    if (frameSel.value === 'inertial') {
+                        frameSel.value = 'enu';
+                        console.warn('[Camera] Inertial frame disabled for ground drone — using ENU');
+                    }
+                    droneTrackingFrame = 'enu';
+                    applyDroneTrackingFrame();
+                    if (droneCameraFollow) {
+                        setDroneCameraFollow(true);
+                    }
+                });
+            }
+            const interpSel = document.getElementById('interpolationSelect');
+            if (interpSel) {
+                interpSel.addEventListener('change', () => {
+                    setDroneInterpolation(interpSel.value);
+                    if (droneCameraFollow && getDronePositionNow()) {
+                        setDroneCameraFollow(true);
+                    }
+                });
+            }
+        }
+
+        function setDroneCameraFollow(on) {
+            droneCameraFollow = on;
+            viewer.trackedEntity = undefined;
+            if (!on) {
+                viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+                return;
+            }
+            if (!droneEntity) {
+                return;
+            }
+            droneEntity.show = true;
+            viewer.clock.shouldAnimate = true;
+            refreshDroneViewFromOffset();
+            applyDroneTrackingFrame();
+            updateDroneFollowCamera();
+            setTopCameraButtonActive(droneCameraMode === 'top' ? 'nadir' : 'chase');
+        }
+
+        function clearFlightPathUi() {
+            while (flightPathUiEntities.length > 0) {
+                viewer.entities.remove(flightPathUiEntities.pop());
+            }
+            flightWaypoints = [];
+            droneFlightAnomalies.forEach((a) => { a.entity = null; });
+        }
+
+        /**
+         * Mission WP lat/lon (plan) + KML Flight Path / GPX flying altitude (merged).
+         */
+        function buildFlightWaypointsFromMission(pts, positions, mergedMissionWps, hasTimes) {
+            const maxIdx = Math.max(positions.length - 1, 0);
+            let totalSec = 0;
+            if (hasTimes && pts[0].time && pts[pts.length - 1].time) {
+                totalSec = Math.max(0, (pts[pts.length - 1].time - pts[0].time) / 1000);
+            }
+            const list = [];
+
+            if (!mergedMissionWps || !mergedMissionWps.length) {
+                console.warn('[Waypoints] No mission WPL/KML — using track start/end only');
+                [0, maxIdx].forEach((idx, i) => {
+                    const progress = maxIdx > 0 ? idx / maxIdx : 0;
+                    list.push({
+                        id: i === 0 ? 'TAKEOFF' : 'LAND',
+                        label: i === 0 ? 'TAKEOFF' : 'LAND',
+                        progress,
+                        idx,
+                        position: positions[idx],
+                        reached: false,
+                        isEndpoint: true,
+                        entity: null
+                    });
+                });
+                return list;
+            }
+
+            mergedMissionWps.forEach((mw) => {
+                const idx = Number.isFinite(mw.trackIdx)
+                    ? mw.trackIdx
+                    : DroneLog.nearestAirborneTrackIndex(pts, mw.lat, mw.lon, 400);
+                const trackCarto = Cesium.Cartographic.fromCartesian(positions[idx]);
+                const flyAlt = Number.isFinite(mw.flyAlt) ? mw.flyAlt : trackCarto.height;
+                const position = Cesium.Cartesian3.fromDegrees(mw.lon, mw.lat, flyAlt);
+                let progress = maxIdx > 0 ? idx / maxIdx : 0;
+                if (hasTimes && totalSec > 0 && pts[idx] && pts[idx].time) {
+                    progress = (pts[idx].time - pts[0].time) / 1000 / totalSec;
+                }
+                progress = Math.max(0, Math.min(1, progress));
+                list.push({
+                    id: mw.label || 'WP' + mw.seq,
+                    label: mw.label || 'WP' + mw.seq,
+                    progress,
+                    idx,
+                    position,
+                    flyAlt,
+                    reached: false,
+                    isEndpoint: mw.cmd === 22 || mw.cmd === 21,
+                    entity: null
+                });
+            });
+            const alts = list.map((w) => w.flyAlt).filter(Number.isFinite);
+            const altRange = alts.length
+                ? Math.round(Math.min(...alts)) + '–' + Math.round(Math.max(...alts)) + ' m'
+                : 'n/a';
+            console.log('[Waypoints] snapped to flown path:', list.length, 'markers, AMSL', altRange);
+            return list;
+        }
+
+        function addFlightWaypointMarkers() {
+            const pathOn = document.getElementById('layer-flightpath')?.classList.contains('on');
+            flightWaypoints.forEach((wp) => {
+                const colorProp = new Cesium.CallbackProperty(() => {
+                    return wp.reached
+                        ? Cesium.Color.fromCssColorString('#7CB89A')
+                        : Cesium.Color.fromCssColorString('#94D4E8').withAlpha(0.9);
+                }, false);
+                const outlineProp = new Cesium.CallbackProperty(() => {
+                    return wp.reached
+                        ? Cesium.Color.fromCssColorString('#5a9a72')
+                        : Cesium.Color.WHITE.withAlpha(0.45);
+                }, false);
+                const labelText = wp.label || wp.id;
+                const ent = viewer.entities.add({
+                    name: 'Waypoint ' + labelText,
+                    position: wp.position,
+                    heightReference: Cesium.HeightReference.NONE,
+                    point: {
+                        pixelSize: wp.isEndpoint ? 12 : 10,
+                        color: colorProp,
+                        outlineColor: outlineProp,
+                        outlineWidth: 2,
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY
+                    }
+                });
+                wp.entity = ent;
+                ent.show = pathOn;
+                flightPathUiEntities.push(ent);
+            });
+        }
+
+        function addFlightAnomalyMarkers(positions) {
+            const maxIdx = Math.max(positions.length - 1, 0);
+            const pathOn = document.getElementById('layer-flightpath')?.classList.contains('on');
+            droneFlightAnomalies.forEach((a) => {
+                const idx = Math.min(maxIdx, Math.round(a.t * maxIdx));
+                const pos = positions[idx];
+                const isCrit = a.severity === 'crit';
+                const ent = viewer.entities.add({
+                    name: a.type,
+                    position: pos,
+                    point: {
+                        pixelSize: new Cesium.CallbackProperty(() => {
+                            const surfaced = captureViewMode === 'anomalies'
+                                || getFlightProgress() >= a.t - 0.005;
+                            return surfaced ? (isCrit ? 16 : 13) : 0;
+                        }, false),
+                        color: isCrit
+                            ? Cesium.Color.fromCssColorString('#C86262')
+                            : Cesium.Color.fromCssColorString('#D2AA4E'),
+                        outlineColor: Cesium.Color.WHITE.withAlpha(0.6),
+                        outlineWidth: 2,
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY
+                    },
+                    label: {
+                        text: isCrit ? 'CRIT' : 'WARN',
+                        font: 'bold 9px IBM Plex Mono, monospace',
+                        fillColor: isCrit
+                            ? Cesium.Color.fromCssColorString('#C86262')
+                            : Cesium.Color.fromCssColorString('#D2AA4E'),
+                        outlineColor: Cesium.Color.BLACK,
+                        outlineWidth: 2,
+                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                        verticalOrigin: Cesium.VerticalOrigin.TOP,
+                        pixelOffset: new Cesium.Cartesian2(0, 12),
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                        show: new Cesium.CallbackProperty(() => (
+                            captureViewMode === 'anomalies'
+                                || getFlightProgress() >= a.t - 0.005
+                        ), false)
+                    }
+                });
+                a.entity = ent;
+                a.position = pos;
+                ent.show = pathOn;
+                flightPathUiEntities.push(ent);
+            });
+            buildAnomalyRail();
+        }
+
+        function updateWaypointsReached() {
+            if (!flightWaypoints.length || !hasSurveyClock()) {
+                return;
+            }
+            const progress = getFlightProgress();
+            flightWaypoints.forEach((wp) => {
+                if (!wp.reached && progress >= wp.progress - 0.008) {
+                    wp.reached = true;
+                }
+            });
+        }
+
+        function refreshAnomalyMarkerVisibility() {
+            const pathOn = document.getElementById('layer-flightpath')?.classList.contains('on');
+            const progress = getFlightProgress();
+            droneFlightAnomalies.forEach((a) => {
+                if (!a.entity) {
+                    return;
+                }
+                const surfaced = captureViewMode === 'anomalies' || progress >= a.t - 0.005;
+                a.surfaced = surfaced;
+                a.entity.show = pathOn && (surfaced || captureViewMode === 'anomalies');
+            });
+        }
+
+        function buildAnomalyRail() {
+            const host = document.getElementById('anomalyRail');
+            if (!host) {
+                return;
+            }
+            host.innerHTML = '';
+            droneFlightAnomalies.forEach((a) => {
+                const row = document.createElement('div');
+                row.className = 'anomaly-rail-item ' + a.severity;
+                row.dataset.anomalyT = String(a.t);
+                row.innerHTML =
+                    '<div>' + a.type + '</div>'
+                    + '<div class="ar-time">' + a.timestamp + ' · ' + a.id + '</div>';
+                row.title = a.detail;
+                row.addEventListener('click', () => {
+                    setFlightProgress(a.t);
+                    viewer.clock.shouldAnimate = false;
+                    updatePlayButton();
+                    refreshAnomalyMarkerVisibility();
+                    updateAnomalyRail();
+                    if (a.position) {
+                        viewer.camera.flyTo({
+                            destination: a.position,
+                            duration: 0.8,
+                            offset: new Cesium.HeadingPitchRange(0, -0.5, 120)
+                        });
+                    }
+                });
+                host.appendChild(row);
+            });
+        }
+
+        function updateAnomalyRail() {
+            const host = document.getElementById('anomalyRail');
+            if (!host) {
+                return;
+            }
+            const progress = getFlightProgress();
+            host.querySelectorAll('.anomaly-rail-item').forEach((row) => {
+                const t = parseFloat(row.dataset.anomalyT);
+                const surfaced = captureViewMode === 'anomalies' || progress >= t - 0.005;
+                row.classList.toggle('surfaced', surfaced);
+            });
+        }
+
+        function setCaptureViewMode(mode) {
+            captureViewMode = mode;
+            const container = document.getElementById('cesiumContainer');
+            if (container) {
+                container.classList.toggle('view-anomalies', mode === 'anomalies');
+            }
+            const rail = document.getElementById('anomalyRail');
+            if (rail) {
+                rail.classList.toggle('show', mode === 'anomalies');
+            }
+            refreshAnomalyMarkerVisibility();
+            updateAnomalyRail();
+            if (mode === 'anomalies' && dronePathEntity) {
+                dronePathEntity.polyline.material = Cesium.Color.CYAN.withAlpha(0.35);
+            } else if (dronePathEntity) {
+                dronePathEntity.polyline.material = Cesium.Color.CYAN.withAlpha(0.75);
+            }
+        }
+
+        function clearDroneEntities() {
+            viewer.trackedEntity = undefined;
+            viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+            clearFootprintTrail();
+            clearFlightPathUi();
+            if (dronePathEntity) {
+                viewer.entities.remove(dronePathEntity);
+                dronePathEntity = null;
+            }
+            while (droneEntities.length > 0) {
+                viewer.entities.remove(droneEntities.pop());
+            }
+            droneEntity = null;
+            dronePositionProperty = null;
+            droneFootprintEntity = null;
+            droneFootprintGroundLine = null;
+            droneFrustumEntity = null;
+            droneFootprintFrameCache = null;
+            droneFootprintFrameKey = '';
+            droneFlightStart = null;
+            flightStartJulian = null;
+            flightStopJulian = null;
+            dronePhotoSnapJulianDates = [];
+            dronePhotoSnapIndex = 0;
+        }
+
+        /**
+         * Drone follows bin log GPX (one path, GPS times, takeoff clamped to DEM).
+         */
+        async function resolveDroneModelUri() {
+            try {
+                const head = await fetch(droneModelUri, { method: 'HEAD' });
+                if (head.ok) return droneModelUri;
+            } catch (e) {
+                console.warn('[Drone model] local missing, using CDN fallback', e);
+            }
+            return droneModelUriFallback;
+        }
+
+        async function createDroneAnimation() {
+            clearDroneEntities();
+            const activeDroneModelUri = await resolveDroneModelUri();
+
+            let rawPts;
+            try {
+                rawPts = await DroneLog.loadFromUrl(DRONE_LOG_GPX);
+            } catch (err) {
+                console.error('[DroneLog] load failed:', err, DroneLog.debug);
+                const el = document.getElementById('droneCoverageStats');
+                if (el) {
+                    el.innerHTML = '<span style="color:#f88">Log load failed: ' + (err.message || err) + '</span>';
+                }
+                return;
+            }
+
+            if (rawPts.length < 2) {
+                console.warn('Drone log: not enough points.');
+                return;
+            }
+
+            droneLogParamMetrics = await DroneLog.loadParamMetrics(DRONE_LOG_PARAM);
+            const kmlFlightPts = await DroneLog.loadKmlFlightPathPoints(DRONE_LOG_KML);
+            const kmlPlanWps = await DroneLog.loadKmlMissionWaypoints(DRONE_LOG_KML);
+            let missionWps = await DroneLog.loadMissionWaypoints(DRONE_LOG_WPL);
+            let missionWpSource = 'WPL';
+            if (kmlPlanWps.length >= missionWps.length) {
+                missionWps = kmlPlanWps;
+                missionWpSource = 'KML Waypoints';
+            } else if (!missionWps.length && kmlPlanWps.length) {
+                missionWps = kmlPlanWps;
+                missionWpSource = 'KML Waypoints';
+            }
+            if (missionWps.length) {
+                console.log('[Waypoints] loaded', missionWps.length, 'from', missionWpSource,
+                    '| KML flight path samples:', kmlFlightPts.length);
+            }
+
+            if (savedCtodProvider) {
+                setTerrain(savedCtodProvider);
+                await waitForGlobeTiles(8000);
+            }
+
+            const lonLatPairs = rawPts.map((p) => [p.lon, p.lat]);
+            const terrainCartos = await sampleTerrainElevations(lonLatPairs, 250);
+            const pts = DroneLog.applyTerrainAndTakeoff(rawPts, terrainCartos);
+            droneLogProcessedPts = pts;
+
+            droneLogMetrics = DroneLog.computeMetrics(pts, droneSensorHFovDeg, droneSensorVFovDeg);
+            droneFrontOverlapPercent = droneLogMetrics.frontOverlapPct;
+            droneSideOverlapPercent = droneLogMetrics.sideOverlapPct;
+            droneFlightAglM = droneLogMetrics.medianAglM;
+            dronePhotoSnapJulianDates = buildPhotoSnapTimesFromLog(pts);
+            dronePhotoSnapIndex = 0;
+
+            const positions = pts.map((p) => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt));
+            const hasTimes = !!(pts[0].time && pts[pts.length - 1].time);
+
+            dronePathEntity = viewer.entities.add({
+                name: 'Drone log path',
+                polyline: {
+                    positions,
+                    width: 4,
+                    material: Cesium.Color.CYAN.withAlpha(0.75),
+                    arcType: Cesium.ArcType.GEODESIC
+                }
+            });
+
+            const medianAgl = droneLogMetrics && droneLogMetrics.medianAglM ? droneLogMetrics.medianAglM : 100;
+            const terrainAtHome = terrainCartos[0] && Number.isFinite(terrainCartos[0].height)
+                ? terrainCartos[0].height
+                : 400;
+            const airborneAltM = terrainAtHome + Math.max(medianAgl - 20, 80);
+            const mergedMissionWps = DroneLog.mergeMissionWithFlightHeights(
+                missionWps, pts, kmlFlightPts, airborneAltM
+            );
+            flightWaypoints = buildFlightWaypointsFromMission(pts, positions, mergedMissionWps, hasTimes);
+            addFlightWaypointMarkers();
+            addFlightAnomalyMarkers(positions);
+
+            const positionProperty = new Cesium.SampledPositionProperty();
+            dronePositionProperty = positionProperty;
+            const interpSel = document.getElementById('interpolationSelect');
+            setDroneInterpolation(interpSel ? interpSel.value : 'linear');
+            if (hasTimes) {
+                pts.forEach((p, i) => {
+                    positionProperty.addSample(Cesium.JulianDate.fromDate(p.time), positions[i]);
+                });
+                flightStartJulian = Cesium.JulianDate.fromDate(pts[0].time);
+                flightStopJulian = Cesium.JulianDate.fromDate(pts[pts.length - 1].time);
+                viewer.clock.startTime = flightStartJulian.clone();
+                viewer.clock.stopTime = flightStopJulian.clone();
+                viewer.clock.currentTime = flightStartJulian.clone();
+                viewer.clock.clockRange = Cesium.ClockRange.LOOP;
+            } else {
+                droneFlightStart = viewer.clock.currentTime.clone();
+                droneFlightDuration = Math.max((pts.length - 1) * droneSecondsPerSegment, 1);
+                const stop = Cesium.JulianDate.addSeconds(
+                    droneFlightStart,
+                    droneFlightDuration,
+                    new Cesium.JulianDate()
+                );
+                for (let i = 0; i < positions.length; i++) {
+                    const t = Cesium.JulianDate.addSeconds(
+                        droneFlightStart,
+                        i * droneSecondsPerSegment,
+                        new Cesium.JulianDate()
+                    );
+                    positionProperty.addSample(t, positions[i]);
+                }
+                viewer.clock.startTime = droneFlightStart.clone();
+                viewer.clock.stopTime = stop.clone();
+                viewer.clock.currentTime = droneFlightStart.clone();
+                viewer.clock.clockRange = Cesium.ClockRange.LOOP;
+                flightStartJulian = droneFlightStart.clone();
+                flightStopJulian = stop.clone();
+            }
+
+            const flightAvailability = new Cesium.TimeIntervalCollection([
+                new Cesium.TimeInterval({
+                    start: viewer.clock.startTime.clone(),
+                    stop: viewer.clock.stopTime.clone()
+                })
+            ]);
+
+            droneEntity = viewer.entities.add({
+                availability: flightAvailability,
+                position: positionProperty,
+                orientation: new Cesium.VelocityOrientationProperty(positionProperty),
+                model: {
+                    uri: activeDroneModelUri,
+                    scale: droneModelScale,
+                    minimumPixelSize: droneModelMinPixelSize,
+                    maximumScale: 20000,
+                    runAnimations: true
+                }
+            });
+            droneEntities.push(droneEntity);
+
+            droneFootprintEntity = viewer.entities.add({
+                name: 'Drone ground footprint (live)',
+                polygon: {
+                    hierarchy: new Cesium.CallbackProperty(droneFootprintHierarchyProperty, false),
+                    material: Cesium.Color.fromCssColorString(droneLiveFillColor).withAlpha(0.45),
+                    outline: false,
+                    perPositionHeight: false,
+                    heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                    classificationType: Cesium.ClassificationType.TERRAIN
+                }
+            });
+            droneFootprintGroundLine = viewer.entities.add({
+                name: 'Drone footprint boundary (live)',
+                polyline: {
+                    positions: new Cesium.CallbackProperty(droneFootprintBoundaryPositionsProperty, false),
+                    width: 3,
+                    material: Cesium.Color.fromCssColorString(droneLiveLineColor).withAlpha(0.98),
+                    clampToGround: true,
+                    arcType: Cesium.ArcType.GEODESIC
+                }
+            });
+            droneFrustumEntity = viewer.entities.add({
+                name: 'Drone camera frustum (live)',
+                polyline: {
+                    positions: new Cesium.CallbackProperty(droneFrustumLinePositionsProperty, false),
+                    width: 2,
+                    material: Cesium.Color.fromCssColorString(droneLiveLineColor).withAlpha(0.9),
+                    arcType: Cesium.ArcType.NONE
+                }
+            });
+            droneEntities.push(droneFootprintEntity, droneFootprintGroundLine, droneFrustumEntity);
+
+            syncSurveyClock();
+            setPlaybackSpeed(SCRUBBER_SPEEDS[scrubberSpeedIndex]);
+            viewer.clock.shouldAnimate = true;
+            try {
+                if (viewer.timeline && typeof viewer.timeline.zoomTo === 'function') {
+                    viewer.timeline.zoomTo(flightStartJulian, flightStopJulian);
+                }
+            } catch (timelineErr) {
+                console.warn('Timeline zoom skipped (timeline widget off):', timelineErr);
+            }
+
+            renderScrubberTicks();
+            renderScrubber();
+            updatePlayButton();
+            updateScrubberVisibility();
+            viewer.scene.requestRender();
+
+            const droneOn = document.getElementById('layer-drone').classList.contains('on');
+            const pathOn = document.getElementById('layer-flightpath').classList.contains('on');
+            droneEntity.show = droneOn;
+            droneEntities.forEach((e) => { e.show = droneOn; });
+            if (dronePathEntity) dronePathEntity.show = pathOn;
+            flightPathUiEntities.forEach((e) => { e.show = pathOn; });
+
+            updateDroneCoverageStats();
+            updateViewportHint();
+
+            if (droneOn) {
+                setDroneCameraFollow(true);
+            }
+        }
+
+        initTopCameraControls();
+
+        document.querySelectorAll('.top-tab').forEach((tab) => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.top-tab').forEach((t) => t.classList.remove('active'));
+                tab.classList.add('active');
+                const mode = tab.dataset.tab || 'default';
+                const scene = document.getElementById('sceneMode');
+                if (mode === 'score') {
+                    setCaptureViewMode('default');
+                    if (scene) scene.dataset.mode = 'score';
+                    if (window.AnalyticsGlobe && typeof AnalyticsGlobe.setMode === 'function') {
+                        AnalyticsGlobe.setMode('score');
+                    }
+                } else {
+                    setCaptureViewMode(mode);
+                    if (scene) scene.dataset.mode = mode === 'anomalies' ? 'anomalies' : 'default';
+                    if (window.AnalyticsGlobe && typeof AnalyticsGlobe.setMode === 'function') {
+                        AnalyticsGlobe.setMode(mode === 'anomalies' ? 'anomalies' : 'default');
+                    }
+                }
+            });
+        });
+        updateViewportHint();
+        setCaptureViewMode('default');
+
+        const polygonGeoJson = {
+            type: 'FeatureCollection',
+            features: [
+                {
+                    type: 'Feature',
+                    properties: { id: 1, name: 'Polygon 1', confidence: 88 },
+                    geometry: {
+                        type: 'MultiPolygon',
+                        coordinates: [
+                            [
+                                [
+                                    [78.127768293219503, 17.596549782628077],
+                                    [78.128196956858503, 17.596545776425845],
+                                    [78.128182935150676, 17.596277360876194],
+                                    [78.127772299421736, 17.596301398089597],
+                                    [78.127768293219503, 17.596549782628077]
+                                ]
+                            ]
+                        ]
+                    }
+                },
+                {
+                    type: 'Feature',
+                    properties: { id: 2, name: 'Polygon 2', confidence: 76 },
+                    geometry: {
+                        type: 'MultiPolygon',
+                        coordinates: [
+                            [
+                                [
+                                    [78.128666684070367, 17.596610877212129],
+                                    [78.129085332203772, 17.596636917526656],
+                                    [78.129029245372507, 17.596256328314464],
+                                    [78.128666684070367, 17.59625833141558],
+                                    [78.128666684070367, 17.596610877212129]
+                                ]
+                            ]
+                        ]
+                    }
+                },
+                {
+                    type: 'Feature',
+                    properties: { id: 3, name: 'Polygon 3', confidence: 91 },
+                    geometry: {
+                        type: 'MultiPolygon',
+                        coordinates: [
+                            [
+                                [
+                                    [78.126825834144014, 17.596590846200968],
+                                    [78.127402727265647, 17.59660887411102],
+                                    [78.127440786186867, 17.596292384134564],
+                                    [78.126847868256306, 17.5962963903368],
+                                    [78.126825834144014, 17.596590846200968]
+                                ]
+                            ]
+                        ]
+                    }
+                },
+                {
+                    type: 'Feature',
+                    properties: { id: 4, name: 'Polygon 4', confidence: 84 },
+                    geometry: {
+                        type: 'MultiPolygon',
+                        coordinates: [
+                            [
+                                [
+                                    [78.127414745872414, 17.598189320892168],
+                                    [78.12797962038735, 17.598621990733395],
+                                    [78.128844960069799, 17.5982053457011],
+                                    [78.127414745872414, 17.598189320892168]
+                                ]
+                            ]
+                        ]
+                    }
+                }
+            ]
+        };
+
+        const polygonBorderColor = Cesium.Color.RED;
+        const polygonFillColor = Cesium.Color.fromCssColorString('#F4E19C').withAlpha(0.55);
+        const polygonFillLowConfidence = Cesium.Color.lerp(
+            polygonFillColor,
+            Cesium.Color.RED.withAlpha(0.42),
+            0.28,
+            new Cesium.Color()
+        );
+        const polygonBorderWidth = 4;
+        const GLOW_CONFIDENCE_THRESHOLD = 90;
+
+        const polygonUiRows = [];
+
+        function clampConfidence(value) {
+            const n = parseFloat(value);
+            if (!Number.isFinite(n)) {
+                return 0;
+            }
+            return Math.min(100, Math.max(0, n));
+        }
+
+        function formatLabel(idText) {
+            return `ID: ${idText}`;
+        }
+
+        function setPolygonVisibility(id, visible) {
+            const row = polygonUiRows.find((r) => String(r.id) === String(id));
+            if (!row) {
+                return;
+            }
+            const layerOn = document.getElementById('layer-polygons').classList.contains('on');
+            const show = visible && layerOn;
+            row.polygonEntity.show = show;
+            row.borderEntity.show = show;
+            row.haloEntity.show = show && row.confidence < GLOW_CONFIDENCE_THRESHOLD;
+            if (row.polygonEntity.label) row.polygonEntity.label.show = show;
+        }
+
+        function setPolygonConfidence(id, rawValue) {
+            const confidence = clampConfidence(rawValue);
+            const row = polygonUiRows.find((r) => String(r.id) === String(id));
+            if (!row) {
+                return;
+            }
+            row.confidence = confidence;
+            row.polygonEntity.properties.confidence = new Cesium.ConstantProperty(confidence);
+            applyLowConfidenceGlow(row);
+            const input = document.querySelector(`input[data-confidence-id="${id}"]`);
+            if (input) {
+                input.value = String(confidence);
+            }
+        }
+
+        function applyLowConfidenceGlow(row) {
+            if (row.confidence >= GLOW_CONFIDENCE_THRESHOLD) {
+                row.polygonEntity.polygon.material = polygonFillColor;
+                row.borderEntity.polyline.material = polygonBorderColor;
+                row.borderEntity.polyline.width = polygonBorderWidth;
+                row.haloEntity.show = false;
+                return;
+            }
+
+            row.polygonEntity.polygon.material = polygonFillLowConfidence;
+
+            row.haloEntity.polyline.material = new Cesium.PolylineGlowMaterialProperty({
+                color: Cesium.Color.RED,
+                glowPower: new Cesium.CallbackProperty(() => (
+                    0.32 + 0.48 * (0.5 + 0.5 * Math.sin(Date.now() / 380))
+                ), false)
+            });
+            row.haloEntity.polyline.width = 20;
+            row.haloEntity.show = row.polygonEntity.show;
+
+            row.borderEntity.polyline.material = polygonBorderColor;
+            row.borderEntity.polyline.width = 4;
+        }
+
+        function updateStockpileMasterLabel() {
+            const el = document.getElementById('stockpileMasterLabel');
+            if (el) {
+                el.textContent = 'All stockpiles (' + polygonUiRows.length + ')';
+            }
+        }
+
+        function toggleStockpileItem(id) {
+            const item = document.querySelector('.stockpile-item[data-stockpile-id="' + id + '"]');
+            if (!item) {
+                return;
+            }
+            const on = !item.classList.contains('on');
+            item.classList.toggle('on', on);
+            const layerOn = document.getElementById('layer-polygons').classList.contains('on');
+            setPolygonVisibility(id, on && layerOn);
+            if (on && layerOn) {
+                const row = polygonUiRows.find((r) => String(r.id) === String(id));
+                if (row && row.polygonEntity) {
+                    viewer.flyTo(row.polygonEntity, { duration: 0.9 });
+                }
+            }
+        }
+
+        function buildStockpileRailList() {
+            const host = document.getElementById('stockpileList');
+            if (!host) {
+                return;
+            }
+            host.innerHTML = '';
+            polygonUiRows
+                .slice()
+                .sort((a, b) => Number(a.id) - Number(b.id))
+                .forEach((row) => {
+                    const item = document.createElement('div');
+                    item.className = 'stockpile-item on';
+                    item.dataset.stockpileId = String(row.id);
+                    const label = row.name || ('Stockpile ' + row.id);
+                    item.innerHTML =
+                        '<span class="stockpile-dot"></span>'
+                        + '<span class="stockpile-name">' + label + '</span>'
+                        + '<span class="stockpile-conf">' + Math.round(row.confidence) + '%</span>';
+                    item.title = 'Click to show/hide · fly to stockpile when shown';
+                    item.addEventListener('click', () => toggleStockpileItem(row.id));
+                    host.appendChild(item);
+                });
+            updateStockpileMasterLabel();
+        }
+
+        if (!window.__skipInlineStockpiles) {
+        Cesium.GeoJsonDataSource.load(polygonGeoJson, {
+            stroke: polygonBorderColor,
+            strokeWidth: polygonBorderWidth,
+            fill: polygonFillColor,
+            clampToGround: true
+        }).then((dataSource) => {
+            polygonDataSource = dataSource;
+            viewer.dataSources.add(dataSource);
+
+            const now = Cesium.JulianDate.now();
+
+            dataSource.entities.values.forEach((entity) => {
+                if (!Cesium.defined(entity.polygon)) {
+                    return;
+                }
+
+                const props = entity.properties;
+                const idText = Cesium.defined(props) && Cesium.defined(props.id)
+                    ? props.id.getValue()
+                    : '';
+                const nameText = Cesium.defined(props) && Cesium.defined(props.name)
+                    ? props.name.getValue()
+                    : '';
+                let confidence = 0;
+                if (Cesium.defined(props) && Cesium.defined(props.confidence)) {
+                    confidence = clampConfidence(props.confidence.getValue(now));
+                }
+                entity.properties.confidence = new Cesium.ConstantProperty(confidence);
+
+                entity.polygon.outline = false;
+
+                const hierarchy = entity.polygon.hierarchy.getValue(now);
+                if (!hierarchy || !hierarchy.positions || hierarchy.positions.length === 0) {
+                    return;
+                }
+
+                const positions = hierarchy.positions.slice();
+                const ring = positions.slice();
+                const first = ring[0];
+                const last = ring[ring.length - 1];
+                if (!Cesium.Cartesian3.equalsEpsilon(first, last, Cesium.Math.EPSILON6)) {
+                    ring.push(first);
+                }
+
+                const ringPositions = ring.slice();
+
+                const haloEntity = viewer.entities.add({
+                    name: `halo-${idText}`,
+                    polyline: {
+                        positions: ringPositions,
+                        width: 20,
+                        material: new Cesium.PolylineGlowMaterialProperty({
+                            color: Cesium.Color.RED,
+                            glowPower: 0.45
+                        }),
+                        clampToGround: true,
+                        arcType: Cesium.ArcType.GEODESIC
+                    }
+                });
+
+                const borderEntity = viewer.entities.add({
+                    name: `border-${idText}`,
+                    polyline: {
+                        positions: ringPositions,
+                        width: polygonBorderWidth,
+                        material: polygonBorderColor,
+                        clampToGround: true,
+                        arcType: Cesium.ArcType.GEODESIC
+                    }
+                });
+
+                let sumX = 0;
+                let sumY = 0;
+                let sumZ = 0;
+                positions.forEach((p) => {
+                    sumX += p.x;
+                    sumY += p.y;
+                    sumZ += p.z;
+                });
+                const centroid = new Cesium.Cartesian3(
+                    sumX / positions.length,
+                    sumY / positions.length,
+                    sumZ / positions.length
+                );
+                entity.position = centroid;
+                entity.heightReference = Cesium.HeightReference.CLAMP_TO_GROUND;
+                entity.label = new Cesium.LabelGraphics({
+                    text: formatLabel(idText),
+                    font: '14px sans-serif',
+                    fillColor: Cesium.Color.WHITE,
+                    outlineColor: Cesium.Color.BLACK,
+                    outlineWidth: 3,
+                    style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                    verticalOrigin: Cesium.VerticalOrigin.CENTER,
+                    showBackground: true,
+                    backgroundColor: Cesium.Color.BLACK.withAlpha(0.55),
+                    heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                    disableDepthTestDistance: Number.POSITIVE_INFINITY
+                });
+
+                polygonUiRows.push({
+                    id: idText,
+                    name: nameText,
+                    confidence,
+                    polygonEntity: entity,
+                    haloEntity,
+                    borderEntity
+                });
+                applyLowConfidenceGlow(polygonUiRows[polygonUiRows.length - 1]);
+            });
+
+            buildStockpileRailList();
+
+            if (!droneCameraFollow) {
+            viewer.flyTo(dataSource.entities, { duration: 2.5 });
+            } else {
+                setTimeout(function () { setDroneCameraFollow(true); }, 100);
+            }
+        });
+        } else {
+            console.log('[Survey] stockpile demo polygons skipped — Analytics layers from shapes/');
+        }
+
+        console.log('Survey globe loaded — TiTiler ortho, CTOD DEM, drone');
+    </script>
+    <script src="./js/survey_nav.js"></script>
+    <script src="./js/survey_unified.js"></script>
+</body>
+</html>

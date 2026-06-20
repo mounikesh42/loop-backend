@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hyderabad Mine 7 · Analytics</title>
+    <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+    <link href="./css/analytics_stage.css" rel="stylesheet" />
+    <link href="./css/survey_nav.css" rel="stylesheet" />
+    <style>
+        #bootError {
+            position: absolute; top: 72px; left: 50%; transform: translateX(-50%);
+            z-index: 20; padding: 10px 16px; max-width: 90%; text-align: center;
+            font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+            color: #ebf2f8; background: rgba(200, 80, 80, 0.92);
+            border-radius: 4px; display: none;
+        }
+    </style>
+</head>
+<body data-survey-stage="analytics">
+<script>window.location.replace('./globe_polygons.html');</script>
+<div class="app" style="display:none">
+
+  <aside class="left-panel">
+    <div class="lp-header">
+      <div class="lp-brand" data-survey-brand>CBMI · SITE REALITY</div>
+      <div class="lp-title" data-survey-title>Hyderabad Mine 7</div>
+      <div class="lp-subtitle" data-survey-subtitle>Survey · 2026-05-18</div>
+    </div>
+
+    <div class="lp-section">
+      <div class="lp-section-label">Capture</div>
+      <div class="lp-item dimmed">
+        <div class="lp-eye off"></div>
+        <span class="lp-name">Drone</span>
+        <span class="lp-state-dot warn"></span>
+      </div>
+    </div>
+
+    <div class="lp-section">
+      <div class="lp-section-label">Processing</div>
+      <div class="lp-item dimmed">
+        <div class="lp-eye off"></div>
+        <span class="lp-name">Orthomosaic</span>
+        <span class="lp-heavy-marker">HVY</span>
+        <span class="lp-state-dot good"></span>
+      </div>
+    </div>
+
+    <div class="lp-section" id="analyticsSection">
+      <div class="lp-section-label">Analytics</div>
+    </div>
+
+    <div class="lp-footer">ANALYTICS · CESIUM · shapes/</div>
+  </aside>
+
+  <main class="viewport" id="sceneMode" data-mode="default">
+    <div class="survey-id" data-survey-id-line>SURVEY · 2026-05-18 · 14:23 IST</div>
+
+    <div class="tab-strip">
+      <button class="tab active" data-tab="default">Default</button>
+      <button class="tab active" data-tab="score">Score</button>
+      <button class="tab" data-tab="anomalies">Anomalies</button>
+    </div>
+
+    <button class="proto-toggle" id="protoToggle">? HOW TO USE</button>
+
+    <div class="proto-note" id="protoNote">
+      <strong>ANALYTICS STAGE</strong><br>
+      Toggle parent layers to show all instances, or expand the chevron for individual stockpiles, pits, waste dumps, and cut-fill zones. Data from <code>shapes/*.geojson</code> (paths in <code>survey/site.json</code>).
+    </div>
+
+    <div class="empty-state show" id="emptyState">
+      <div class="empty-state-icon">·</div>
+      <div class="empty-state-text">Toggle an Analytics object in the left panel to begin investigation.</div>
+    </div>
+
+    <div id="bootError"></div>
+    <div id="cesiumContainer"></div>
+
+    <div class="layer-bar">
+      <label><input type="checkbox" id="layerSatellite" checked /> Satellite</label>
+      <label><input type="checkbox" id="layerOrtho" checked /> Orthomosaic</label>
+      <label><input type="checkbox" id="layerDem" checked /> DEM</label>
+    </div>
+
+    <div class="context-nudge" id="contextNudge">
+      <span>Show Orthomosaic underneath for spatial context?</span>
+      <button class="context-nudge-action" id="nudgeAction">Show</button>
+      <span class="context-nudge-dismiss" id="nudgeDismiss">×</span>
+    </div>
+  </main>
+
+  <aside class="right-panel" id="rightPanel" style="display: none;">
+    <div class="rp-topbar">
+      <button class="rp-close" id="rpClose">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M3 3L11 11M11 3L3 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="rp-content" id="rpContent"></div>
+  </aside>
+</div>
+
+<script src="./js/survey_config.js"></script>
+<script src="./js/survey_ortho_dem.js"></script>
+<script src="./js/analytics_globe.js"></script>
+<script>
+(function () {
+    var bootError = document.getElementById('bootError');
+    function showErr(msg) {
+        if (!bootError) return;
+        bootError.textContent = msg;
+        bootError.style.display = 'block';
+    }
+
+    var viewer = null;
+    var survey = null;
+
+    function wireUi() {
+        document.getElementById('layerSatellite').addEventListener('change', function (e) {
+            if (survey) survey.setSatelliteVisible(e.target.checked);
+        });
+        document.getElementById('layerOrtho').addEventListener('change', function (e) {
+            if (survey) survey.setOrthoVisible(e.target.checked);
+        });
+        document.getElementById('layerDem').addEventListener('change', function (e) {
+            if (survey) survey.setDemVisible(e.target.checked);
+        });
+        document.getElementById('nudgeAction').addEventListener('click', function () {
+            document.getElementById('layerOrtho').checked = true;
+            if (survey) survey.setOrthoVisible(true);
+            document.getElementById('contextNudge').classList.remove('show');
+        });
+        setTimeout(function () {
+            document.getElementById('contextNudge').classList.add('show');
+        }, 2500);
+        var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+        handler.setInputAction(function (movement) {
+            var picked = viewer.scene.pick(movement.position);
+            if (!Cesium.defined(picked) || !picked.id) return;
+            var id = AnalyticsGlobe.getProp(picked.id, 'analyticsId');
+            var layerKey = AnalyticsGlobe.getProp(picked.id, 'layerKey');
+            if (id && layerKey) AnalyticsGlobe.focusById(layerKey, id);
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    }
+
+    SurveyConfig.load()
+        .then(function () {
+            SurveyConfig.applySiteLabels();
+            viewer = SurveyOrthoDem.createViewer('cesiumContainer');
+            return AnalyticsGlobe.init(viewer, null);
+        })
+        .then(function () {
+            console.log('[Analytics] shapes loaded — loading terrain/ortho…');
+            return SurveyOrthoDem.initSurveyContext(viewer);
+        })
+        .then(function (ctx) {
+            survey = ctx;
+            return survey.applyElevationStack({
+                useTerrain: true,
+                useDemImagery: false,
+                useOrtho: true,
+                orthoAlpha: 1
+            });
+        })
+        .then(function () {
+            survey.setSatelliteVisible(document.getElementById('layerSatellite').checked);
+            survey.setOrthoVisible(document.getElementById('layerOrtho').checked);
+            survey.setDemVisible(document.getElementById('layerDem').checked);
+            if (survey.state.surveyRectangle) {
+                viewer.camera.flyTo({ destination: survey.state.surveyRectangle, duration: 0.8 });
+            }
+            wireUi();
+        })
+        .catch(function (e) {
+            console.error('[Analytics] boot failed:', e);
+            showErr('Analytics failed: ' + (e && e.message ? e.message : e));
+        });
+})();
+</script>
+<script src="./js/survey_nav.js"></script>
+</body>
+</html>

@@ -176,6 +176,9 @@ body.panel-open .del-view{right:44%;}
    =========================================================== */
 .sr-view{position:fixed;top:108px;left:0;right:0;bottom:64px;z-index:5;display:none;background:radial-gradient(ellipse at 50% 40%,rgba(46,92,138,.08) 0%,transparent 70%),#020308;}
 .sr-view.show{display:block;}
+.sr-view.sr-external{background:#05070a;}
+.sr-view.sr-external > :not(.sr-embed){display:none!important;}
+.sr-embed{position:absolute;inset:0;width:100%;height:100%;border:0;background:#05070a;display:block;}
 
 #sr-map{position:absolute;top:0;left:0;width:100%;height:100%;display:block;background:#0a1018;cursor:grab;}
 #sr-map:active{cursor:grabbing;}
@@ -3356,4 +3359,3 @@ body.panel-open .hw-view{right:44%;transition:right .5s cubic-bezier(.25,.46,.45
 #view-checkpoint #cp-pointSelect:focus{border-color:rgba(16,185,214,.6);}
 #view-checkpoint #cp-pointSelect:disabled{opacity:.5;cursor:default;}
 #view-checkpoint #cp-pointSelect option{background:#0a0c10;color:var(--text);}
-

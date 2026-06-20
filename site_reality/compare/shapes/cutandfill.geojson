@@ -1,0 +1,154 @@
+{
+  "type": "FeatureCollection",
+  "name": "cutandfill",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "CFZ1",
+        "name": "CFZ 1 · North bench",
+        "category": "cfzones",
+        "purpose": "Bench extension cut",
+        "netCutFill_m3": -4200,
+        "cutVolume_m3": 5800,
+        "fillVolume_m3": 1600,
+        "anomalyType": "Net cut exceeds design",
+        "anomalyDetail": "Net −4,200 m³ vs design tolerance ±3,500 m³ for this zone.",
+        "anomalies": [
+          {
+            "severity": "warn",
+            "type": "Net cut exceeds design",
+            "detail": "Net −4,200 m³ vs design tolerance ±3,500 m³ for this zone."
+          }
+        ]
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                78.12994079437661,
+                17.595510918881473
+              ],
+              [
+                78.13073630260126,
+                17.595205359430945
+              ],
+              [
+                78.1305817667872,
+                17.59484887340533
+              ],
+              [
+                78.12981786816088,
+                17.59529491995955
+              ],
+              [
+                78.12994079437661,
+                17.595510918881473
+              ]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "CFZ2",
+        "name": "CFZ 2 · Haul road fill",
+        "category": "cfzones",
+        "purpose": "Haul road widening",
+        "netCutFill_m3": 1840,
+        "cutVolume_m3": 320,
+        "fillVolume_m3": 2160,
+        "anomalies": []
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                78.12941133360455,
+                17.597544469707408
+              ],
+              [
+                78.1301752322309,
+                17.59719412999258
+              ],
+              [
+                78.13006635472553,
+                17.596946521472322
+              ],
+              [
+                78.12938674836143,
+                17.59736095842821
+              ],
+              [
+                78.12941133360455,
+                17.597544469707408
+              ]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "CFZ3",
+        "name": "CFZ 3 · Pad prep",
+        "category": "cfzones",
+        "purpose": "Stockpile pad preparation",
+        "netCutFill_m3": -650,
+        "cutVolume_m3": 1100,
+        "fillVolume_m3": 450,
+        "anomalyType": "Reference surface stale",
+        "anomalyDetail": "Reference DTM is 128 days old; current surface may have drifted.",
+        "anomalies": [
+          {
+            "severity": "warn",
+            "type": "Reference surface stale",
+            "detail": "Reference DTM is 128 days old; current surface may have drifted."
+          }
+        ]
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [
+                78.12854294769492,
+                17.59485414167171
+              ],
+              [
+                78.128964409006,
+                17.594738239811164
+              ],
+              [
+                78.128869580211,
+                17.59451346044526
+              ],
+              [
+                78.12846216761031,
+                17.5946328744834
+              ],
+              [
+                78.12854294769492,
+                17.59485414167171
+              ]
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

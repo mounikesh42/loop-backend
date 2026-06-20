@@ -1,0 +1,159 @@
+{
+  "site": {
+    "id": "hyderabad-m7-2026-05-18",
+    "name": "Hyderabad Mine 7",
+    "brand": "CBMI · SITE REALITY",
+    "subtitle": "Survey · 2026-05-18",
+    "surveyIdLine": "SURVEY · 2026-05-18 · 14:23 IST",
+    "imageCount": 142,
+    "pageTitleSuffix": "Hyderabad Mine 7"
+  },
+  "bounds": {
+    "wgs84": [78.12806842, 17.59414454, 78.1305456, 17.59814835],
+    "comment": "[west, south, east, north] EPSG:4326"
+  },
+  "services": {
+    "titiler": "https://titiler2.cbstack.online",
+    "ctod": "https://ctod2.cbstack.online",
+    "s3Base": "https://test-uday123.s3.ap-south-1.amazonaws.com"
+  },
+  "rasters": {
+    "orthoCog": "{s3Base}/optimized/Orthomosaic_4326.tif",
+    "demCog": "{s3Base}/optimized/DEM_4326.tif"
+  },
+  "terrain": {
+    "minZoom": 1,
+    "maxZoom": 18,
+    "skipCache": false,
+    "meshingMethod": "grid",
+    "padBoundsRatio": 0.06,
+    "demFallbackMin": 500,
+    "demFallbackMax": 700
+  },
+  "geotagged": {
+    "manifestUrls": [
+      "{s3Base}/compare/tagged_Images/manifest.json",
+      "./survey/geotagged/manifest.json"
+    ],
+    "s3ImageBase": "{s3Base}/compare/tagged_Images/"
+  },
+  "pointCloud": {
+    "source": "auto",
+    "alignToGround": false,
+    "localTilesetUrl": "./pointcloud_3dtiles/tileset.json",
+    "tilesetUrl": "{s3Base}/generated/POINT_CLOUD_32644_point_cloud_file_key_1153/pointcloud_3dtiles/tileset.json",
+    "metadataUrl": "{s3Base}/generated/POINT_CLOUD_32644_point_cloud_file_key_1153/pointcloud_3dtiles/metadata.json",
+    "loadProfile": "quality",
+    "preloadBeforeShow": true,
+    "preloadMinWaitMs": 4000,
+    "preloadZoomMinWaitMs": 2000,
+    "preloadMaxWaitMs": 600000,
+    "preloadZoomLevels": [2.4, 1.75, 1.25, 0.95, 0.7, 0.5, 0.32],
+    "fetchMetadata": false,
+    "pointSize": 1.0,
+    "maximumAttenuation": 4,
+    "baseResolution": 0.08,
+    "comment": "loadProfile: fast | medium-fast | balanced | medium-quality | quality. source auto = local ./pointcloud_3dtiles then S3 /s3-proxy"
+  },
+  "model3d": {
+    "tilesetUrl": "{s3Base}/generated/3D_MODEL_32644_model_3d_file_key_1153/3dmodel_3dtiles/tileset.json",
+    "metadataUrl": "{s3Base}/generated/3D_MODEL_32644_model_3d_file_key_1153/3dmodel_3dtiles/metadata.json"
+  },
+  "analytics": {
+    "shapesDir": "./shapes/",
+    "layers": [
+      { "key": "stockpiles", "label": "Stockpiles", "file": "Stockpiles.geojson", "color": "#D2AA4E" },
+      { "key": "pits", "label": "Pits", "file": "pits.geojson", "color": "#C86262" },
+      { "key": "wastedumps", "label": "Waste Dumps", "file": "Wastedumps.geojson", "color": "#94D4E8" },
+      { "key": "cfzones", "label": "Cut-Fill Zones", "file": "cutandfill.geojson", "color": "#6BA8C5" }
+    ]
+  },
+  "capture": {
+    "droneLog": {
+      "gpx": "./drone_log/00000215.BIN.gpx",
+      "wpl": "./drone_log/00000215.BIN0wp.txt",
+      "kml": "./drone_log/_kmz_extract/00000215.BIN.kml",
+      "param": "./drone_log/00000215.BIN.param"
+    },
+    "models": {
+      "drone": "./models/CesiumDrone/CesiumDrone.glb",
+      "droneFallback": "https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb",
+      "tripod": "./models/leica_tripod/scene.gltf",
+      "baseStation": "./models/gnss_university_of_applied_sciences_mainz/scene.gltf"
+    },
+    "modelScales": {
+      "drone": 1,
+      "tripod": 1.7,
+      "baseStation": 0.0015
+    },
+    "surveyPoints": [
+      { "name": "POINT 1", "lon": 78.12969860074783, "lat": 17.595137946261278, "isBaseStation": true, "score": 94, "state": "good" },
+      { "name": "POINT 2", "lon": 78.12983425347552, "lat": 17.597078282735762, "score": 91, "state": "good" },
+      { "name": "POINT 3", "lon": 78.12890532159167, "lat": 17.59664755106395, "score": 89, "state": "good" },
+      { "name": "POINT 4", "lon": 78.1283675420036, "lat": 17.59587627829712, "score": 90, "state": "good" }
+    ]
+  },
+  "scores": {
+    "thresholds": { "good": 80, "warn": 65 },
+    "capture": {
+      "drone": { "score": 74, "state": "warn" },
+      "flightpath": { "score": 72, "state": "warn" },
+      "basestation": { "score": 94, "state": "good" },
+      "gcp": { "score": 90, "state": "good" },
+      "anomalies": [
+        { "id": "D1", "t": 0.13, "severity": "warn", "type": "Front overlap below target", "detail": "Front overlap 68% (target 75%)", "timestamp": "03:07" },
+        { "id": "D2", "t": 0.27, "severity": "warn", "type": "Altitude AGL deviation", "detail": "Altitude 12% above planned", "timestamp": "06:29" },
+        { "id": "D3", "t": 0.42, "severity": "crit", "type": "GNSS fix lost (drone)", "detail": "Lost-fix 2.4 s at line 5 turnaround", "timestamp": "10:04" },
+        { "id": "D4", "t": 0.56, "severity": "warn", "type": "Side overlap below target", "detail": "Side overlap 64% (target 70%)", "timestamp": "13:25" },
+        { "id": "D5", "t": 0.68, "severity": "warn", "type": "Gimbal angle deviation", "detail": "Gimbal pitch 7.2° from nadir", "timestamp": "16:18" },
+        { "id": "D6", "t": 0.82, "severity": "warn", "type": "Yaw rate excessive", "detail": "Yaw rate 34 deg/s on turn", "timestamp": "19:41" }
+      ]
+    },
+    "processing": {
+      "ortho": { "score": 88, "state": "warn", "warnCount": 2, "critCount": 1 },
+      "dsm": { "score": 82, "state": "good" },
+      "dtm": { "score": 71, "state": "warn" },
+      "mesh": { "score": 79, "state": "warn" },
+      "pointcloud": { "score": 84, "state": "good" },
+      "images": {
+        "default": { "state": "good", "sharpness": null },
+        "overrides": {}
+      }
+    },
+    "analytics": {
+      "stockpiles": {
+        "SP1": { "score": 92, "pastScore": 88, "state": "good" },
+        "SP2": { "score": 89, "pastScore": 91, "state": "good" },
+        "SP3": { "score": 86, "pastScore": 84, "state": "good" },
+        "SP4": { "score": 71, "pastScore": 78, "state": "warn" },
+        "SP5": { "score": 48, "pastScore": 62, "state": "crit" }
+      },
+      "pits": {
+        "PT1": { "score": 68, "pastScore": 74, "state": "warn" },
+        "PT2": { "score": 91, "pastScore": 89, "state": "good" }
+      },
+      "wastedumps": {
+        "WD1": { "score": 88, "pastScore": 85, "state": "good" },
+        "WD2": { "score": 64, "pastScore": 72, "state": "warn" },
+        "WD3": { "score": 83, "pastScore": 80, "state": "good" }
+      },
+      "cfzones": {
+        "CFZ1": { "score": 72, "pastScore": 79, "state": "warn" },
+        "CFZ2": { "score": 90, "pastScore": 87, "state": "good" },
+        "CFZ3": { "score": 65, "pastScore": 71, "state": "warn" }
+      }
+    }
+  },
+  "alignment": {
+    "method": "trustTileset",
+    "comment": "trustTileset = CB-UI production (IDENTITY matrix, flat globe). Alt: minElevation, demSample",
+    "minElevationLiftM": 0,
+    "terrainSurfaceLiftM": 3,
+    "bottomRadiusFactor": 0.15,
+    "model3dBottomRadiusFactor": 0.12,
+    "manualOffsetM": 0,
+    "geotagTerrainOffsetM": 2,
+    "pointCloudMaxScreenSpaceError": 8,
+    "model3dMaxScreenSpaceError": 16
+  }
+}
