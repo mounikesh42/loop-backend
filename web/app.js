@@ -8576,6 +8576,7 @@ var LOAD_JOB_ID=null;
 var LOAD_JOB_TIMER=null;
 var LOAD_VALIDATING=false;
 var LOAD_UPLOAD_CHAIN=Promise.resolve();
+var LOAD_TARGET=null;
 
 function setLoadJobStatus(msg){
   var el=document.getElementById('ld-job');
@@ -8782,6 +8783,7 @@ function validateLoadSystemNow(systemName){
   };
   var target=targetBySystem[systemName];
   if(!target) return;
+  LOAD_TARGET=target;
   if(LOAD_VALIDATING) return;
   if(!LOAD_JOB_ID){
     setLoadJobStatus('Upload '+systemName+' files first.');

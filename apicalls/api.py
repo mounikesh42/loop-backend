@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import ssl
 import sqlite3
 import subprocess
@@ -205,6 +206,97 @@ def get_job(job_id: str):
     with get_jobs_db() as conn:
         row = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
     return job_to_dict(row) if row else None
+
+
+def latest_completed_job_for_target(target: str):
+    with get_jobs_db() as conn:
+        return conn.execute(
+            """
+            SELECT *
+            FROM jobs
+            WHERE status = 'completed' AND target = ?
+            ORDER BY completed_at DESC, started_at DESC, created_at DESC
+            LIMIT 1
+            """,
+            (target,),
+        ).fetchone()
+
+
+def job_config(job: dict):
+    raw = job.get("config_json")
+    if raw:
+        try:
+            return json.loads(raw)
+        except Exception:
+            pass
+    config_path = job.get("config_path")
+    if config_path and Path(config_path).exists():
+        try:
+            return json.loads(Path(config_path).read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+
+def snapshot_job_outputs(job_id: str):
+    job = get_job(job_id)
+    if not job:
+        return
+    target = job.get("target")
+    config_path = job.get("config_path")
+    if not target or not config_path:
+        return
+
+    config = job_config(job)
+    outputs = config.get("outputs") or {}
+    root = Path(config_path).parent
+    result_dir = Path(job["upload_dir"]) / "results" / target
+    result_dir.mkdir(parents=True, exist_ok=True)
+    (result_dir / "config.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
+
+    for rel_path in outputs.values():
+        source = root / rel_path
+        if source.exists() and source.is_file():
+            shutil.copy2(source, result_dir / Path(rel_path).name)
+
+
+def latest_job_output_data(target: str, output_key: str):
+    row = latest_completed_job_for_target(target)
+    if not row:
+        return {}
+    job = job_to_dict(row)
+    config = job_config(job)
+    rel_path = (config.get("outputs") or {}).get(output_key)
+    if not rel_path:
+        return {}
+
+    candidates = []
+    upload_dir = job.get("upload_dir")
+    if upload_dir:
+        candidates.append(Path(upload_dir) / "results" / target / Path(rel_path).name)
+    config_path = job.get("config_path")
+    if config_path:
+        candidates.append(Path(config_path).parent / rel_path)
+
+    for candidate in candidates:
+        if not candidate.exists():
+            continue
+        try:
+            envelope = json.loads(candidate.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if isinstance(envelope, dict):
+            data = envelope.get("data", envelope)
+            if isinstance(data, dict):
+                data = dict(data)
+                data["_latest_job"] = {
+                    "job_id": job.get("id"),
+                    "target": target,
+                    "completed_at": job.get("completed_at"),
+                    "source": str(candidate),
+                }
+                return data
+    return {}
 
 
 def safe_upload_target(upload_dir: Path, raw_filename: str, fallback_name: str) -> Path:
@@ -498,6 +590,13 @@ def run_pipeline_job(job_id: str, target: str = "all"):
         stdout = "\n".join(stdout_parts)
         stderr = "\n".join(stderr_parts)
 
+        if returncode == 0:
+            try:
+                snapshot_job_outputs(job_id)
+            except Exception as exc:
+                stderr_parts.append(f"Result snapshot warning: {exc}")
+                stderr = "\n".join(stderr_parts)
+
         update_job(
             job_id,
             status="completed" if returncode == 0 else "failed",
@@ -534,6 +633,10 @@ def json_or_raw(value):
 
 def base_station_latest_indicators():
     """Return the indicator_traces dict from the most recent run."""
+    job_data = latest_job_output_data("base_station", "stage3_indicators")
+    if isinstance(job_data.get("indicator_traces"), dict):
+        return job_data["indicator_traces"]
+
     with get_db() as conn:
         if not table_exists(conn, "base_station_stage3b_indicators"):
             return {}
@@ -547,6 +650,10 @@ def base_station_latest_indicators():
 
 
 def base_station_latest_flags():
+    job_data = latest_job_output_data("base_station", "stage3_indicators")
+    if isinstance(job_data.get("flags_raised_stage3b"), list):
+        return job_data["flags_raised_stage3b"]
+
     with get_db() as conn:
         if not table_exists(conn, "base_station_stage3b_indicators"):
             return []
@@ -558,6 +665,10 @@ def base_station_latest_flags():
 
 
 def base_station_latest_meta():
+    job_data = latest_job_output_data("base_station", "stage3_indicators")
+    if isinstance(job_data.get("stage3b_meta"), dict):
+        return job_data["stage3b_meta"]
+
     with get_db() as conn:
         if not table_exists(conn, "base_station_stage3b_indicators"):
             return {}
@@ -1029,12 +1140,16 @@ def all_pipeline_health():
         ),
     }
     with get_db() as conn:
-        namespaces = {
-            namespace: {
-                "ready": all(
-                    table_exists(conn, table) and table_row_count(conn, table) > 0
-                    for table in tables
-                ),
+        namespaces = {}
+        for namespace, tables in expected.items():
+            latest = latest_job_output_data(namespace, "stage3_indicators")
+            table_ready = all(
+                table_exists(conn, table) and table_row_count(conn, table) > 0
+                for table in tables
+            )
+            namespaces[namespace] = {
+                "ready": table_ready or bool(latest),
+                "latest_job": latest.get("_latest_job") if latest else None,
                 "tables": {
                     table: {
                         "exists": table_exists(conn, table),
@@ -1043,8 +1158,6 @@ def all_pipeline_health():
                     for table in tables
                 },
             }
-            for namespace, tables in expected.items()
-        }
     return jsonify({
         "status": "ok",
         "database": str(DB_PATH),
@@ -1070,6 +1183,7 @@ def base_station_health():
         "status": "ok",
         "database": str(DB_PATH),
         "namespace": "base_station",
+        "latest_job": (latest_job_output_data("base_station", "stage3_indicators") or {}).get("_latest_job"),
         "tables": tables,
     })
 
@@ -1082,6 +1196,7 @@ def list_base_station_indicators():
     Each item has: id, name, score, band_matched, building_block_id,
                    gate_triggered, flags_raised, input_values, weight_in_block
     """
+    job_data = latest_job_output_data("base_station", "stage3_indicators")
     raw = base_station_latest_indicators()
     indicators = [
         {
@@ -1098,7 +1213,11 @@ def list_base_station_indicators():
         }
         for v in raw.values()
     ]
-    return jsonify({"count": len(indicators), "indicators": indicators})
+    return jsonify({
+        "count": len(indicators),
+        "indicators": indicators,
+        "_latest_job": job_data.get("_latest_job") if job_data else None,
+    })
 
 
 @app.get("/api/base-station/indicators/<indicator_id>")
@@ -1151,12 +1270,24 @@ def gcp_health():
         "status": "ok",
         "database": str(DB_PATH),
         "namespace": "gcp",
+        "latest_job": (latest_job_output_data("gcp", "stage3_indicators") or {}).get("_latest_job"),
         "tables": tables,
     })
 
 
 @app.get("/api/gcp/indicators")
 def get_gcp_indicators():
+    data = latest_job_output_data("gcp", "stage3_indicators")
+    if data:
+        points = data.get("points", [])
+        if not isinstance(points, list):
+            points = []
+        return jsonify({
+            "count": len(points),
+            "points": points,
+            "_latest_job": data.get("_latest_job"),
+        })
+
     row = first_row("gcp_stage3_indicators")
     if not row:
         return jsonify({"count": 0, "points": []})
@@ -1199,18 +1330,31 @@ def get_gcp_indicator(indicator_id: str):
 
 @app.get("/api/gcp/building-blocks")
 def get_gcp_building_blocks():
+    data = latest_job_output_data("gcp", "stage3_building_blocks")
+    if data:
+        return jsonify(data)
     row = first_row("gcp_stage3_building_blocks")
     return jsonify(dict(row) if row else {})
 
 
 @app.get("/api/gcp/score")
 def get_gcp_score():
+    data = latest_job_output_data("gcp", "stage3_gcp_score")
+    if data:
+        return jsonify(data)
     row = first_row("gcp_stage3_gcp_score")
     return jsonify(dict(row) if row else {})
 
 
 @app.get("/api/gcp/flags")
 def get_gcp_flags():
+    data = latest_job_output_data("gcp", "stage3_gcp_score")
+    if data:
+        flags = data.get("all_flags_aggregated", [])
+        if not isinstance(flags, list):
+            flags = []
+        return jsonify({"count": len(flags), "flags": flags, "_latest_job": data.get("_latest_job")})
+
     row = first_row("gcp_stage3_gcp_score")
     if not row or "all_flags_aggregated" not in row.keys():
         return jsonify({"count": 0, "flags": []})
@@ -1224,6 +1368,18 @@ def get_gcp_flags():
 
 @app.get("/api/gcp/meta")
 def get_gcp_meta():
+    data = latest_job_output_data("gcp", "stage3_gcp_score")
+    if data:
+        return jsonify({
+            "gcp_score": data.get("gcp_score"),
+            "weighted_score_before_global_gate": data.get("weighted_score_before_global_gate"),
+            "global_gate_triggered": data.get("global_gate", {}).get("triggered")
+            if isinstance(data.get("global_gate"), dict) else data.get("global_gate__triggered"),
+            "critical_flags": (data.get("flags_by_severity") or {}).get("CRITICAL")
+            if isinstance(data.get("flags_by_severity"), dict) else None,
+            "_latest_job": data.get("_latest_job"),
+        })
+
     row = first_row("gcp_stage3_gcp_score")
     if not row:
         return jsonify({})
@@ -1268,13 +1424,14 @@ def drone_health():
         "status": "ok",
         "database": str(DB_PATH),
         "namespace": "drone",
+        "latest_job": (latest_job_output_data("drone", "stage3_indicators") or {}).get("_latest_job"),
         "tables": tables,
     })
 
 
 @app.get("/api/drone/indicators")
 def get_drone_indicators():
-    data = latest_table_payload("drone_stage3_indicators")
+    data = latest_job_output_data("drone", "stage3_indicators") or latest_table_payload("drone_stage3_indicators")
     indicators = data.get("indicators", [])
     if not isinstance(indicators, list):
         indicators = []
@@ -1283,12 +1440,14 @@ def get_drone_indicators():
         "indicators": indicators,
         "indicator_scores": data.get("indicator_scores", {}),
         "flags_raised_stage3b": data.get("flags_raised_stage3b", []),
+        "_latest_job": data.get("_latest_job"),
     })
 
 
 @app.get("/api/drone/indicators/<indicator_id>")
 def get_drone_indicator(indicator_id: str):
-    indicators = latest_table_payload("drone_stage3_indicators").get("indicators", [])
+    data = latest_job_output_data("drone", "stage3_indicators") or latest_table_payload("drone_stage3_indicators")
+    indicators = data.get("indicators", [])
     if not isinstance(indicators, list):
         indicators = []
     for item in indicators:
@@ -1299,23 +1458,23 @@ def get_drone_indicator(indicator_id: str):
 
 @app.get("/api/drone/building-blocks")
 def get_drone_building_blocks():
-    return jsonify(latest_table_payload("drone_stage3_building_blocks"))
+    return jsonify(latest_job_output_data("drone", "stage3_building_blocks") or latest_table_payload("drone_stage3_building_blocks"))
 
 
 @app.get("/api/drone/score")
 def get_drone_score():
-    return jsonify(latest_table_payload("drone_stage3_drone_score"))
+    return jsonify(latest_job_output_data("drone", "stage3_drone_score") or latest_table_payload("drone_stage3_drone_score"))
 
 
 @app.get("/api/drone/flags")
 def get_drone_flags():
-    score_data = latest_table_payload("drone_stage3_drone_score")
+    score_data = latest_job_output_data("drone", "stage3_drone_score") or latest_table_payload("drone_stage3_drone_score")
     flags = score_data.get("all_flags_aggregated")
     if flags is None:
-        flags = latest_table_payload("drone_stage3_indicators").get("flags_raised_stage3b", [])
+        flags = (latest_job_output_data("drone", "stage3_indicators") or latest_table_payload("drone_stage3_indicators")).get("flags_raised_stage3b", [])
     if not isinstance(flags, list):
         flags = []
-    return jsonify({"count": len(flags), "flags": flags})
+    return jsonify({"count": len(flags), "flags": flags, "_latest_job": score_data.get("_latest_job")})
 
 
 @app.get("/api/check-point")
@@ -1336,36 +1495,37 @@ def check_point_health():
         "status": "ok",
         "database": str(DB_PATH),
         "namespace": "check_point",
+        "latest_job": (latest_job_output_data("check_point", "stage3_indicators") or {}).get("_latest_job"),
         "tables": tables,
     })
 
 
 @app.get("/api/check-point/indicators")
 def get_check_point_indicators():
-    data = envelope_data("check_point_stage3_indicators")
+    data = latest_job_output_data("check_point", "stage3_indicators") or envelope_data("check_point_stage3_indicators")
     points = data.get("points", [])
     if not isinstance(points, list):
         points = []
-    return jsonify({"count": len(points), "points": points})
+    return jsonify({"count": len(points), "points": points, "_latest_job": data.get("_latest_job")})
 
 
 @app.get("/api/check-point/building-blocks")
 def get_check_point_building_blocks():
-    return jsonify(envelope_data("check_point_stage3_building_blocks"))
+    return jsonify(latest_job_output_data("check_point", "stage3_building_blocks") or envelope_data("check_point_stage3_building_blocks"))
 
 
 @app.get("/api/check-point/score")
 def get_check_point_score():
-    return jsonify(envelope_data("check_point_stage3_check_point_score"))
+    return jsonify(latest_job_output_data("check_point", "stage3_check_point_score") or envelope_data("check_point_stage3_check_point_score"))
 
 
 @app.get("/api/check-point/flags")
 def get_check_point_flags():
-    data = envelope_data("check_point_stage3_check_point_score")
+    data = latest_job_output_data("check_point", "stage3_check_point_score") or envelope_data("check_point_stage3_check_point_score")
     flags = data.get("all_flags_aggregated", [])
     if not isinstance(flags, list):
         flags = []
-    return jsonify({"count": len(flags), "flags": flags})
+    return jsonify({"count": len(flags), "flags": flags, "_latest_job": data.get("_latest_job")})
 
 
 # ── run ────────────────────────────────────────────────────────────────────────
