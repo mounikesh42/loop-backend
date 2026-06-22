@@ -8516,6 +8516,7 @@ var LOAD_SYSTEMS=[
     {name:'Raw Images Folder',            fmt:'JPEG (folder upload)',            id:'raw_images'},
     {name:'MRK TimeMark File',            fmt:'MRK / TXT',                       id:'mrk'},
     {name:'Rover RINEX Observation File', fmt:'RINEX 3.x (.obs / .yyo)',         id:'rover_rinex'},
+    {name:'Drone User Form',              fmt:'JSON (form.json)',                id:'drone_user_input'},
     {name:'Camera Calibration File',      fmt:'XML / TXT',                       id:'cam_calib'}
   ]},
   {sys:'Base Station', items:[
@@ -8526,8 +8527,8 @@ var LOAD_SYSTEMS=[
   ]},
   {sys:'Control Point', items:[
     {name:'Control Point Points Root Folder',       fmt:'gcp_rinex_point_* folder',        id:'gcp_rinex'},
-    {name:'Control Point Layout Record',            fmt:'PDF / DXF / KML',                 id:'gcp_layout'},
-    {name:'Control Point Coordinate File',          fmt:'CSV (id, X, Y, Z)',               id:'gcp_coords'}
+    {name:'Control Point Layout Record',            fmt:'PDF / DXF / KML',                 id:'gcp_layout', optional:true},
+    {name:'Control Point Coordinate File',          fmt:'CSV (id, X, Y, Z)',               id:'gcp_coords', optional:true}
   ]},
   {sys:'Check Point', items:[
     {name:'Check Point RTK Points Root Folder',     fmt:'checkpoint_rtk_point_* folder',   id:'checkpoint_points'}
@@ -11848,6 +11849,9 @@ window.dsDrone={openTrend:openTrend,closeTrend:closeTrend,toggleFleet:toggleFlee
   setSection:setSection,toggleVerified:toggleVerified,render:renderAll,realScore:REAL_OVERALL};
 
 var DRONE_API_URL = loopApiUrl("/api/drone/indicators");
+var DRONE_API_RETRY_COUNT=0;
+var DRONE_API_RETRY_MAX=20;
+var DRONE_API_RETRY_MS=3000;
 
 function droneShowLoadingState(){
   var el=document.getElementById("dn-scoreNum");
@@ -11900,6 +11904,7 @@ function loadLiveDroneScores(){
     .then(function(data){
       var indicators=data.indicators||data;
       if(!Array.isArray(indicators)||!indicators.length) throw new Error("empty indicators array");
+      DRONE_API_RETRY_COUNT=0;
       injectLiveDroneScenario(indicators);
       window.dsDrone.realScore=computeOverallScore(currentScenario.scores,curNul()).score;
       renderAll();
@@ -11908,6 +11913,10 @@ function loadLiveDroneScores(){
       droneShowErrorBadge(err.message||String(err));
       DRONE_API_READY=false;
       renderDroneNoApi(err.message||String(err));
+      if(DRONE_API_RETRY_COUNT<DRONE_API_RETRY_MAX){
+        DRONE_API_RETRY_COUNT++;
+        setTimeout(loadLiveDroneScores,DRONE_API_RETRY_MS);
+      }
     });
 }
 
@@ -12929,6 +12938,9 @@ window.dsGcp={openTrend:openTrend,closeTrend:closeTrend,toggleFleet:toggleFleet,
    ============================================================ */
 
 var GCP_API_URL = loopApiUrl("/api/gcp/indicators");
+var GCP_API_RETRY_COUNT=0;
+var GCP_API_RETRY_MAX=20;
+var GCP_API_RETRY_MS=3000;
 
 /* ---- live input_values formatter (per point, per indicator) ---- */
 function fmtLivePointInputs(ind,p){
@@ -13009,6 +13021,7 @@ function loadLiveGcpScores(){
     .then(function(data){
       var points=Array.isArray(data) ? data : (data.points||data.indicators||data);
       if(!Array.isArray(points)||points.length===0) throw new Error("empty points array");
+      GCP_API_RETRY_COUNT=0;
       injectLiveGcpScenario(points);
       renderAll();
     })
@@ -13016,6 +13029,10 @@ function loadLiveGcpScores(){
       gcpShowErrorBadge(err.message||String(err));
       GCP_API_READY=false;
       renderGcpNoApi(err.message||String(err));
+      if(GCP_API_RETRY_COUNT<GCP_API_RETRY_MAX){
+        GCP_API_RETRY_COUNT++;
+        setTimeout(loadLiveGcpScores,GCP_API_RETRY_MS);
+      }
     });
 }
 
@@ -14399,6 +14416,9 @@ window.dsCp={openTrend:openTrend,closeTrend:closeTrend,toggleFleet:toggleFleet,
   setSection:setSection,toggleVerified:toggleVerified,render:renderAll,realScore:REAL_OVERALL};
 
 var CHECK_POINT_API_URL = loopApiUrl("/api/check-point/indicators");
+var CHECK_POINT_API_RETRY_COUNT=0;
+var CHECK_POINT_API_RETRY_MAX=20;
+var CHECK_POINT_API_RETRY_MS=3000;
 
 function cpShowLoadingState(){
   var el=document.getElementById("cp-scoreNum");
@@ -14466,6 +14486,10 @@ function loadLiveCheckPointScores(){
       cpShowErrorBadge(err.message||String(err));
       CHECK_POINT_API_READY=false;
       renderCheckPointNoApi(err.message||String(err));
+      if(CHECK_POINT_API_RETRY_COUNT<CHECK_POINT_API_RETRY_MAX){
+        CHECK_POINT_API_RETRY_COUNT++;
+        setTimeout(loadLiveCheckPointScores,CHECK_POINT_API_RETRY_MS);
+      }
     });
 }
 

@@ -30,6 +30,27 @@ def load_spec(root: Path, config: dict) -> dict:
         return json.load(fh)
 
 
+def resolve_path(root: Path, path_value) -> Path:
+    """Resolve a config/inventory path.
+
+    Relative paths are anchored at the project root. Absolute paths are kept
+    absolute so uploaded inputs can live outside the application code folder.
+    """
+    path = Path(path_value)
+    if path.is_absolute():
+        return path
+    return root / path
+
+
+def display_path(path: Path, root: Path) -> str:
+    """Return a root-relative path when possible, otherwise an absolute path."""
+    path = Path(path)
+    try:
+        return str(path.relative_to(root))
+    except ValueError:
+        return str(path)
+
+
 def make_envelope(stage: str, data: dict, config: dict, spec_version: str) -> dict:
     """Template rule 2 envelope. spec_version comes from the spec's
     _meta.version, not the config, so the artifact records what was

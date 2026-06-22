@@ -114,7 +114,7 @@ def _merge_point(
 ) -> dict[str, Any]:
     parse_rtk_export, parse_oplog, parse_form = parsers
     point_id = point["point_id"]
-    point_folder = root / point["point_folder"]
+    point_folder = common.resolve_path(root, point["point_folder"])
     point_warnings: list[dict[str, Any]] = []
 
     # 1. FORM first - L1F_CP_020_device_type drives the oplog presence branch.
@@ -128,7 +128,7 @@ def _merge_point(
     # 3. RTK EXPORT - handed the inventory-resolved export path.
     export_info = point.get("rtk_export")
     if export_info and not export_info.get("below_min_bytes", False):
-        export_path = root / export_info["path"]
+        export_path = common.resolve_path(root, export_info["path"])
         export_result = parse_rtk_export.parse(export_path, root)
     else:
         reason = (f"No usable RTK export for {point_id} in the Stage 1 inventory; "
@@ -361,7 +361,7 @@ def main(argv=None) -> int:
     out_path = root / config["outputs"]["stage2_source_fields"]
     common.write_envelope(out_path, common.make_envelope(STAGE, data, config, spec_version))
 
-    print(f"Stage 2 source fields -> {out_path.relative_to(root)}")
+    print(f"Stage 2 source fields -> {common.display_path(out_path, root)}")
     print_summary(data)
     return 0
 

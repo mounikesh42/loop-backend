@@ -120,7 +120,7 @@ def _merge_point(
 ) -> dict[str, Any]:
     parse_rinex, parse_oplog, parse_user_input = parsers
     point_id = point["point_id"]
-    point_folder = root / point["point_folder"]
+    point_folder = common.resolve_path(root, point["point_folder"])
     point_warnings: list[dict[str, Any]] = []
 
     # 1. FORM first - L1F_GCP_026_device_type drives the oplog presence branch.
@@ -134,9 +134,9 @@ def _merge_point(
     # 3. RINEX - self-discovers sibling NAV; honours inventory hardware path.
     obs_info = point.get("rinex_obs")
     if obs_info:
-        obs_path = root / obs_info["path"]
+        obs_path = common.resolve_path(root, obs_info["path"])
         hw_info = point.get("hardware")
-        hw_path = (root / hw_info["path"]) if hw_info else None
+        hw_path = common.resolve_path(root, hw_info["path"]) if hw_info else None
         rinex_result = parse_rinex.parse(obs_path, root, hw_path)
     else:
         rinex_result = _synthetic_absent_rinex(
@@ -362,7 +362,7 @@ def main(argv=None) -> int:
     out_path = root / config["outputs"]["stage2_source_fields"]
     common.write_envelope(out_path, common.make_envelope(STAGE, data, config, spec_version))
 
-    print(f"Stage 2 source fields -> {out_path.relative_to(root)}")
+    print(f"Stage 2 source fields -> {common.display_path(out_path, root)}")
     print_summary(data)
     return 0
 

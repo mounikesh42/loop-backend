@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tkinter import NONE
 
+from path_utils import resolve_path
+
 
 VALID_IMAGE_EXTS = {".jpg", ".jpeg", ".dng", ".raw"}
 
@@ -277,10 +279,10 @@ def run(config: dict, project_root: Path) -> dict:
 
     data = {
         "spec": inventory_spec(spec_path),
-        "images": inventory_images(project_root / inputs["images_folder"]),
-        "rinex": inventory_rinex(project_root / inputs["rinex_folder"]),
-        "bin": inventory_bin(project_root / inputs["bin_folder"]),
-        "user_input": inventory_user_input(project_root / inputs["user_input_file"]),
+        "images": inventory_images(resolve_path(project_root, inputs["images_folder"])),
+        "rinex": inventory_rinex(resolve_path(project_root, inputs["rinex_folder"])),
+        "bin": inventory_bin(resolve_path(project_root, inputs["bin_folder"])),
+        "user_input": inventory_user_input(resolve_path(project_root, inputs["user_input_file"])),
         "calibration_library": inventory_calibration_library(cb_path),
     }
     data["warnings"] = collect_warnings(data)

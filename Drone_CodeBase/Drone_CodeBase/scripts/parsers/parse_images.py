@@ -23,6 +23,9 @@ from pathlib import Path
 from PIL import Image, UnidentifiedImageError
 from PIL.ExifTags import GPSTAGS, TAGS
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from path_utils import resolve_path  # noqa: E402
+
 
 VALID_EXTS = {".jpg", ".jpeg", ".dng", ".raw"}
 
@@ -217,7 +220,7 @@ def aggregate_array(per_image: list, key: str) -> dict:
 
 
 def parse(config: dict, project_root: Path) -> dict:
-    img_folder = project_root / config["inputs"]["images_folder"]
+    img_folder = resolve_path(project_root, config["inputs"]["images_folder"])
     files = sorted(
         p for p in img_folder.iterdir()
         if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in VALID_EXTS

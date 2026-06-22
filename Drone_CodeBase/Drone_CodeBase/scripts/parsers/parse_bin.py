@@ -36,6 +36,9 @@ from pathlib import Path
 
 from pymavlink import mavutil
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from path_utils import resolve_path  # noqa: E402
+
 
 # MAVLink command IDs we care about
 MAV_CMD_NAV_WAYPOINT = 16
@@ -111,7 +114,7 @@ def _cmd_breakdown(cmds: list) -> dict:
 
 
 def parse(config: dict, project_root: Path) -> dict:
-    bin_folder = project_root / config["inputs"]["bin_folder"]
+    bin_folder = resolve_path(project_root, config["inputs"]["bin_folder"])
     bin_files = sorted(p for p in bin_folder.iterdir()
                        if p.is_file() and not p.name.startswith(".") and p.suffix.lower() == ".bin")
     if not bin_files:

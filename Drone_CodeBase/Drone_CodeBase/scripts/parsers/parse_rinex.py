@@ -53,6 +53,9 @@ from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from path_utils import resolve_path  # noqa: E402
+
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     import georinex as gr
@@ -157,7 +160,7 @@ def _load_hardware_override(config: dict, project_root: Path) -> dict:
     rel = config.get("inputs", {}).get("user_hardware_file")
     if not rel:
         return {"receiver_type": None, "antenna_type": None, "file_path": None, "present": False}
-    path = project_root / rel
+    path = resolve_path(project_root, rel)
     if not path.exists():
         return {"receiver_type": None, "antenna_type": None, "file_path": str(path), "present": False}
     try:
@@ -329,7 +332,7 @@ def _compute_body_stats(obs_path: Path) -> dict:
 
 
 def parse(config: dict, project_root: Path) -> dict:
-    rinex_folder = project_root / config["inputs"]["rinex_folder"]
+    rinex_folder = resolve_path(project_root, config["inputs"]["rinex_folder"])
     classified = classify_rinex_files(rinex_folder)
 
     obs_path = classified["primary_obs"]

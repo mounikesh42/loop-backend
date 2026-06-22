@@ -55,7 +55,7 @@ def run(config: dict, root: Path):
     spec = common.load_spec(root, config)
     spec_version = spec["_meta"]["version"]
     inp = config["inputs"]
-    points_root = root / inp["points_root"]
+    points_root = common.resolve_path(root, inp["points_root"])
 
     warnings = []
     hard_failures = []
@@ -77,7 +77,7 @@ def run(config: dict, root: Path):
     for pdir in point_dirs:
         entry = {
             "point_id": pdir.name,
-            "point_folder": str(pdir.relative_to(root)),
+            "point_folder": common.display_path(pdir, root),
             "rinex_obs": None,
             "rinex_nav": None,
             "oplog": None,
@@ -96,7 +96,7 @@ def run(config: dict, root: Path):
                 continue
             finfo = {
                 "filename": f.name,
-                "path": str(f.relative_to(root)),
+                "path": common.display_path(f, root),
                 "size_bytes": f.stat().st_size,
             }
             if kind in _JSON_INPUT_KINDS:
@@ -166,7 +166,7 @@ def run(config: dict, root: Path):
             "PDOP/acquisition; missing OPLOG/FORM/HARDWARE are operator-metadata-"
             "pending (placeholder lifecycle) and handled by spec degrade paths "
             "downstream."),
-        "points_root": str(points_root.relative_to(root)),
+        "points_root": common.display_path(points_root, root),
         "point_folder_glob": inp["point_folder_glob"],
         "spec_source_file_types": [sf["file_id"] for sf in spec["source_files"]],
         "extensions_classified": dict(sorted(ext_counts.items())),
@@ -208,7 +208,7 @@ def main(argv=None) -> int:
     out_path = root / config["outputs"]["stage1_inventory"]
     common.write_envelope(out_path, envelope)
 
-    print(f"Stage 1 inventory -> {out_path.relative_to(root)}")
+    print(f"Stage 1 inventory -> {common.display_path(out_path, root)}")
     print_summary(envelope, hard_failures)
 
     if hard_failures and config.get("options", {}).get("fail_fast", True):

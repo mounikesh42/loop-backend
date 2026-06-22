@@ -1021,10 +1021,20 @@ def get_base_station_meta():
 
 @app.get("/api/gcp")
 def gcp_health():
+    with get_db() as conn:
+        tables = {
+            name: table_exists(conn, name)
+            for name in (
+                "gcp_stage3_indicators",
+                "gcp_stage3_building_blocks",
+                "gcp_stage3_gcp_score",
+            )
+        }
     return jsonify({
         "status": "ok",
         "database": str(DB_PATH),
         "namespace": "gcp",
+        "tables": tables,
     })
 
 
@@ -1032,13 +1042,22 @@ def gcp_health():
 def get_gcp_indicators():
     row = first_row("gcp_stage3_indicators")
     if not row:
-        return jsonify({"count": 0, "indicators": []})
+        return jsonify({"count": 0, "points": []})
 
+    points = []
     if "points" in row.keys():
         points = json_or_raw(row["points"])
-        return jsonify(points)
+        if not isinstance(points, list):
+            points = []
+    elif "data__points" in row.keys():
+        points = json_or_raw(row["data__points"])
+        if not isinstance(points, list):
+            points = []
 
-    return jsonify(dict(row))
+    if points:
+        return jsonify({"count": len(points), "points": points})
+
+    return jsonify({"count": 0, "points": [], "row": dict(row)})
 
 
 @app.get("/api/gcp/indicators/<indicator_id>")
@@ -1116,10 +1135,20 @@ def get_gcp_meta():
 
 @app.get("/api/drone")
 def drone_health():
+    with get_db() as conn:
+        tables = {
+            name: table_exists(conn, name)
+            for name in (
+                "drone_stage3_indicators",
+                "drone_stage3_building_blocks",
+                "drone_stage3_drone_score",
+            )
+        }
     return jsonify({
         "status": "ok",
         "database": str(DB_PATH),
         "namespace": "drone",
+        "tables": tables,
     })
 
 
@@ -1164,10 +1193,20 @@ def get_drone_flags():
 
 @app.get("/api/check-point")
 def check_point_health():
+    with get_db() as conn:
+        tables = {
+            name: table_exists(conn, name)
+            for name in (
+                "check_point_stage3_indicators",
+                "check_point_stage3_building_blocks",
+                "check_point_stage3_check_point_score",
+            )
+        }
     return jsonify({
         "status": "ok",
         "database": str(DB_PATH),
         "namespace": "check_point",
+        "tables": tables,
     })
 
 

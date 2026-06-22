@@ -14,12 +14,15 @@ import json
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from path_utils import resolve_path  # noqa: E402
+
 
 REQUIRED_FIELDS = ["planned_overlap_fwd_pct", "planned_overlap_lat_pct"]
 
 
 def parse(config: dict, project_root: Path) -> dict:
-    form_path = project_root / config["inputs"]["user_input_file"]
+    form_path = resolve_path(project_root, config["inputs"]["user_input_file"])
     if not form_path.exists():
         raise FileNotFoundError(f"user input form not found: {form_path}")
 
