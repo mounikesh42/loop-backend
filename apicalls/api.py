@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import shutil
 import ssl
 import sqlite3
@@ -347,6 +348,45 @@ def required_inputs_for_target(target: str):
     return TARGET_REQUIRED_INPUTS.get(target, ())
 
 
+def looks_like_rinex_obs(path: Path) -> bool:
+    name = path.name.lower()
+    suffix = path.suffix.lower()
+    return suffix in {".obs", ".o"} or bool(re.search(r"\.\d{2}o$", name))
+
+
+def paths_with_suffix(job: dict, input_id: str, suffixes: tuple[str, ...]) -> list[Path]:
+    suffix_set = {suffix.lower() for suffix in suffixes}
+    return [
+        Path(item["path"])
+        for item in job.get("files", [])
+        if item.get("input_id") == input_id
+        and item.get("path")
+        and Path(item["path"]).exists()
+        and Path(item["path"]).suffix.lower() in suffix_set
+    ]
+
+
+def validate_base_station_file_groups(job: dict):
+    base_files = uploaded_files_for(job, "base_rinex")
+    if not any(looks_like_rinex_obs(path) for path in base_files):
+        raise ValueError(
+            "Base Station validation needs a Base RINEX Folder containing at least one "
+            "RINEX observation file (.obs, .o, .21o/.25o/.26o). The uploaded Base RINEX "
+            "group does not contain one. Check that the operator_log folder was not "
+            "uploaded into the Base RINEX row."
+        )
+
+    if not paths_with_suffix(job, "anchor_session", (".json",)):
+        raise ValueError(
+            "Base Station Operator / Session Log Folder must contain at least one JSON file."
+        )
+
+    if not paths_with_suffix(job, "ant_setup", (".json",)):
+        raise ValueError(
+            "Base Station User Input / Antenna Setup Folder must contain at least one JSON file."
+        )
+
+
 def validate_job_inputs(job: dict, target: str):
     missing = []
     files = job.get("files", [])
@@ -364,6 +404,9 @@ def validate_job_inputs(job: dict, target: str):
     if missing:
         details = ", ".join(f"{item['label']} ({item['input_id']})" for item in missing)
         raise ValueError(f"Missing required upload group(s) for target '{target}': {details}")
+
+    if target in {"base_station", "all"}:
+        validate_base_station_file_groups(job)
 
 
 def module_commands(job_id: str, target: str, env: dict):
@@ -491,13 +534,13 @@ def write_base_station_job_config(job_id: str) -> Path:
         config = json.load(fh)
 
     config["inputs"]["rinex_folder"] = str(
-        uploaded_folder_for(job, "base_rinex")
+        uploaded_named_folder_for(job, "base_rinex", ("base_rinex", "rinex"))
     )
     config["inputs"]["operator_log_folder"] = str(
-        uploaded_folder_for(job, "anchor_session")
+        uploaded_named_folder_for(job, "anchor_session", ("operator_log", "operation_log", "anchor_session"))
     )
     config["inputs"]["user_input_folder"] = str(
-        uploaded_folder_for(job, "ant_setup")
+        uploaded_named_folder_for(job, "ant_setup", ("user_input", "ant_setup", "antenna_setup"))
     )
 
     return write_json_config(job_id, base_root, "base_station", config, "base_station")
