@@ -493,12 +493,35 @@ def uploaded_folder_for(job, input_id: str) -> Path:
         return matches[0]
 
 
+def path_is_inside(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
 def uploaded_named_folder_for(job, input_id: str, folder_names: tuple[str, ...]) -> Path:
     upload_dir = Path(job["upload_dir"])
+    wanted = {name.lower() for name in folder_names}
     for name in folder_names:
         candidate = upload_dir / name
         if candidate.is_dir():
             return candidate
+
+    for file_path in uploaded_files_for(job, input_id):
+        for parent in (file_path.parent, *file_path.parent.parents):
+            if parent == upload_dir:
+                break
+            if not path_is_inside(parent, upload_dir):
+                break
+            if parent.name.lower() in wanted:
+                return parent
+
+    for candidate in upload_dir.rglob("*"):
+        if candidate.is_dir() and candidate.name.lower() in wanted:
+            return candidate
+
     return uploaded_folder_for(job, input_id)
 
 
