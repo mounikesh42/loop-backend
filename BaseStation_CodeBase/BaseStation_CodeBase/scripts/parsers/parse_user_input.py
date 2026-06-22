@@ -177,9 +177,9 @@ def _discover_instance(form_folder: Path) -> Path | None:
         if p.name.startswith("."):
             continue
         try:
-            with p.open("r", encoding="utf-8") as fh:
+            with p.open("r", encoding="utf-8-sig", errors="replace") as fh:
                 doc = json.load(fh)
-        except (OSError, json.JSONDecodeError):
+        except (OSError, UnicodeError, json.JSONDecodeError):
             continue
         if not isinstance(doc, dict):
             continue
@@ -231,9 +231,9 @@ def parse(form_folder: Path, project_root: Path) -> dict[str, Any]:
         )
 
     try:
-        with instance_path.open("r", encoding="utf-8") as fh:
+        with instance_path.open("r", encoding="utf-8-sig", errors="replace") as fh:
             doc = json.load(fh)
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         notes.append(
             f"User Input form {instance_path.name} could not be parsed ({exc}); "
             "treating as absent — gates will trip as above."

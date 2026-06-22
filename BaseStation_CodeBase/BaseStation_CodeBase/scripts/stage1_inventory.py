@@ -195,6 +195,11 @@ FORM_REQUIRED = {
 }
 
 
+def _load_json_lenient(path: Path) -> dict[str, Any] | list[Any] | Any:
+    with path.open("r", encoding="utf-8-sig", errors="replace") as fh:
+        return json.load(fh)
+
+
 def _classify_json(path: Path) -> dict[str, Any]:
     entry: dict[str, Any] = {
         "path": str(path.name),
@@ -203,9 +208,8 @@ def _classify_json(path: Path) -> dict[str, Any]:
         "notes": [],
     }
     try:
-        with path.open("r", encoding="utf-8") as fh:
-            doc = json.load(fh)
-    except (OSError, json.JSONDecodeError) as exc:
+        doc = _load_json_lenient(path)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         entry["kind"] = "json_unreadable"
         entry["notes"].append(str(exc))
         return entry
@@ -334,9 +338,8 @@ def run(config: dict, project_root: Path, spec: dict) -> dict:
             if not p.exists():
                 continue
             try:
-                with p.open("r", encoding="utf-8") as fh:
-                    doc = json.load(fh)
-            except (OSError, json.JSONDecodeError):
+                doc = _load_json_lenient(p)
+            except (OSError, UnicodeError, json.JSONDecodeError):
                 continue
             if not isinstance(doc, dict):
                 continue

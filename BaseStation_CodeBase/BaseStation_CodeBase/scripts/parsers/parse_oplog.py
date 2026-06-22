@@ -138,9 +138,9 @@ def _discover_instance(operator_log_folder: Path) -> Path | None:
         if p.name.startswith("."):
             continue
         try:
-            with p.open("r", encoding="utf-8") as fh:
+            with p.open("r", encoding="utf-8-sig", errors="replace") as fh:
                 doc = json.load(fh)
-        except (OSError, json.JSONDecodeError):
+        except (OSError, UnicodeError, json.JSONDecodeError):
             continue
         if not isinstance(doc, dict):
             continue
@@ -190,9 +190,9 @@ def parse(operator_log_folder: Path, project_root: Path) -> dict[str, Any]:
 
     # ---- load instance ----
     try:
-        with instance_path.open("r", encoding="utf-8") as fh:
+        with instance_path.open("r", encoding="utf-8-sig", errors="replace") as fh:
             doc = json.load(fh)
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         notes.append(
             f"Operation Log file {instance_path.name} could not be parsed ({exc}); "
             "treating as absent and degrading to unconfirmed."

@@ -438,9 +438,9 @@ def _load_override(project_root: Path) -> dict | None:
     if not candidate.exists():
         return None
     try:
-        with candidate.open("r", encoding="utf-8") as fh:
+        with candidate.open("r", encoding="utf-8-sig", errors="replace") as fh:
             return json.load(fh)
-    except (OSError, json.JSONDecodeError):
+    except (OSError, UnicodeError, json.JSONDecodeError):
         return None
 
 
