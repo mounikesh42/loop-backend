@@ -348,22 +348,52 @@ def uploaded_files_for(job, input_id: str):
 
 
 def uploaded_folder_for(job, input_id: str) -> Path:
-    matches = [
-        path.parent
-        for path in uploaded_files_for(job, input_id)
-    ]
+    files = uploaded_files_for(job, input_id)
+    upload_dir = Path(job["upload_dir"])
+    direct_input_folder = upload_dir / input_id
+    if direct_input_folder.is_dir() and any(
+        direct_input_folder.resolve() == path.parent.resolve()
+        or direct_input_folder.resolve() in path.parent.resolve().parents
+        for path in files
+    ):
+        return direct_input_folder
+
+    matches = [path.parent for path in files]
     try:
         return Path(os.path.commonpath([str(parent) for parent in matches]))
     except ValueError:
         return matches[0]
 
 
+def path_is_inside(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
 def uploaded_named_folder_for(job, input_id: str, folder_names: tuple[str, ...]) -> Path:
     upload_dir = Path(job["upload_dir"])
+    wanted = {name.lower() for name in folder_names}
     for name in folder_names:
         candidate = upload_dir / name
         if candidate.is_dir():
             return candidate
+
+    for file_path in uploaded_files_for(job, input_id):
+        for parent in (file_path.parent, *file_path.parent.parents):
+            if parent == upload_dir:
+                break
+            if not path_is_inside(parent, upload_dir):
+                break
+            if parent.name.lower() in wanted:
+                return parent
+
+    for candidate in upload_dir.rglob("*"):
+        if candidate.is_dir() and candidate.name.lower() in wanted:
+            return candidate
+
     return uploaded_folder_for(job, input_id)
 
 
@@ -399,13 +429,13 @@ def write_base_station_job_config(job_id: str) -> Path:
         config = json.load(fh)
 
     config["inputs"]["rinex_folder"] = str(
-        uploaded_folder_for(job, "base_rinex")
+        uploaded_named_folder_for(job, "base_rinex", ("base_rinex", "rinex"))
     )
     config["inputs"]["operator_log_folder"] = str(
-        uploaded_folder_for(job, "anchor_session")
+        uploaded_named_folder_for(job, "anchor_session", ("operator_log", "operation_log", "anchor_session"))
     )
     config["inputs"]["user_input_folder"] = str(
-        uploaded_folder_for(job, "ant_setup")
+        uploaded_named_folder_for(job, "ant_setup", ("user_input", "ant_setup", "antenna_setup"))
     )
 
     return write_json_config(job_id, base_root, "base_station", config, "base_station")
