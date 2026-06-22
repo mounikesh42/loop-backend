@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import ssl
 import sqlite3
 import subprocess
@@ -184,6 +185,38 @@ def cleanup_old_uploads(retention_days: int = UPLOAD_RETENTION_DAYS, dry_run: bo
     }
 
 
+def reset_pipeline_tables():
+    with get_db() as conn:
+        tables = [
+            row["name"]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+            ).fetchall()
+        ]
+        for table in tables:
+            conn.execute(f'DROP TABLE "{table}"')
+        conn.commit()
+
+
+def reset_jobs_and_uploads():
+    upload_root = UPLOAD_ROOT.resolve()
+    upload_root.mkdir(parents=True, exist_ok=True)
+    for child in upload_root.iterdir():
+        resolved = child.resolve()
+        try:
+            resolved.relative_to(upload_root)
+        except ValueError:
+            continue
+        if child.is_dir():
+            shutil.rmtree(child, ignore_errors=True)
+        elif child.is_file():
+            child.unlink()
+
+    with get_jobs_db() as conn:
+        conn.execute("DELETE FROM jobs")
+        conn.commit()
+
+
 def update_job(job_id: str, **fields):
     if not fields:
         return
@@ -234,6 +267,8 @@ def pipeline_command():
 
 
 def add_site_packages(env: dict, root: Path):
+    if os.environ.get("LOOP_SKIP_MODULE_SITE_PACKAGES", "").lower() in {"1", "true", "yes"}:
+        return
     site_packages = root / ".venv" / "Lib" / "site-packages"
     if not site_packages.exists():
         return
@@ -322,6 +357,41 @@ def append_job_files(job_id: str, saved_files):
         abort(404, description=f"Job '{job_id}' not found")
 
     files = job.get("files", []) + saved_files
+    with get_jobs_db() as conn:
+        conn.execute(
+            """
+            UPDATE jobs
+            SET file_count = ?, files_json = ?
+            WHERE id = ?
+            """,
+            (len(files), json.dumps(files), job_id),
+        )
+        conn.commit()
+
+
+def replace_job_input_files(job_id: str, input_id: str, saved_files):
+    job = get_job(job_id)
+    if not job:
+        abort(404, description=f"Job '{job_id}' not found")
+
+    upload_dir = Path(job["upload_dir"]).resolve()
+    kept_files = []
+    for item in job.get("files", []):
+        if item.get("input_id") != input_id:
+            kept_files.append(item)
+            continue
+        path_value = item.get("path")
+        if not path_value:
+            continue
+        try:
+            path = Path(path_value).resolve()
+            path.relative_to(upload_dir)
+        except ValueError:
+            continue
+        if path.exists() and path.is_file():
+            path.unlink()
+
+    files = kept_files + saved_files
     with get_jobs_db() as conn:
         conn.execute(
             """
@@ -818,7 +888,8 @@ def health():
 
 @app.post("/api/jobs")
 def create_job():
-    cleanup_old_uploads()
+    reset_jobs_and_uploads()
+    reset_pipeline_tables()
     uploaded_files = []
     for field_name, values in request.files.lists():
         input_id = request.form.get("input_id") or (field_name if field_name != "files" else "")
@@ -937,7 +1008,12 @@ def add_job_files(job_id: str):
             "size_bytes": target.stat().st_size,
         })
 
-    append_job_files(job_id, saved_files)
+    replace_mode = request.form.get("replace", "").lower() in {"1", "true", "yes"}
+    input_ids = {input_id for input_id, _ in uploaded_files}
+    if replace_mode and len(input_ids) == 1:
+        replace_job_input_files(job_id, next(iter(input_ids)), saved_files)
+    else:
+        append_job_files(job_id, saved_files)
     update_job(job_id, status="uploaded", error=None)
     return jsonify(get_job(job_id)), 201
 

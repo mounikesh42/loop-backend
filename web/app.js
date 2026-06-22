@@ -8706,6 +8706,7 @@ function uploadFilesToCurrentJobBatched(selected,inputId,summary){
     chain=chain.then(function(){
       var body=new FormData();
       body.append('input_id',inputId||'');
+      if(idx===0 && LOAD_JOB_ID && LOAD_STATE[inputId]) body.append('replace','1');
       batch.forEach(function(file){
         body.append('files',file,file.webkitRelativePath || file.name);
       });
