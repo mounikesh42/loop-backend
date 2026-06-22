@@ -8621,6 +8621,10 @@ function fmtBytes(n){
   return (n/1024/1024/1024).toFixed(2)+' GB';
 }
 
+function withCacheBust(url){
+  return url+(url.indexOf('?')===-1?'?':'&')+'_ts='+Date.now();
+}
+
 function pollLoadJob(jobId){
   fetch(loopApiUrl('/api/jobs/'+encodeURIComponent(jobId)))
     .then(function(res){
@@ -10260,7 +10264,7 @@ function loadLiveScores() {
   BASE_API_LOADING=true;
   showLoadingState();
 
-  fetch(API_URL)
+  fetch(withCacheBust(API_URL),{cache:'no-store'})
     .then(function(res) {
       if (!res.ok) throw new Error("HTTP " + res.status);
       return res.json();
@@ -11973,7 +11977,7 @@ function loadLiveDroneScores(){
   if(DRONE_API_LOADING) return;
   DRONE_API_LOADING=true;
   droneShowLoadingState();
-  fetch(DRONE_API_URL)
+  fetch(withCacheBust(DRONE_API_URL),{cache:'no-store'})
     .then(function(res){
       if(!res.ok) throw new Error("HTTP "+res.status);
       return res.json();
@@ -13102,7 +13106,7 @@ function loadLiveGcpScores(){
   if(GCP_API_LOADING) return;
   GCP_API_LOADING=true;
   gcpShowLoadingState();
-  fetch(GCP_API_URL)
+  fetch(withCacheBust(GCP_API_URL),{cache:'no-store'})
     .then(function(res){
       if(!res.ok) throw new Error("HTTP "+res.status);
       return res.json();
@@ -14570,7 +14574,7 @@ function loadLiveCheckPointScores(){
   if(CHECK_POINT_API_LOADING) return;
   CHECK_POINT_API_LOADING=true;
   cpShowLoadingState();
-  fetch(CHECK_POINT_API_URL)
+  fetch(withCacheBust(CHECK_POINT_API_URL),{cache:'no-store'})
     .then(function(res){
       if(!res.ok) throw new Error("HTTP "+res.status);
       return res.json();

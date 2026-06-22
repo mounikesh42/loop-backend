@@ -45,6 +45,14 @@ SITE_REALITY_PROXIES = {
 }
 SSL_CTX = ssl._create_unverified_context()
 
+
+@app.after_request
+def no_store_api_responses(response):
+    if request.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
 TARGETS = {"base_station", "drone", "gcp", "check_point", "all"}
 TARGET_SEQUENCE = ("base_station", "drone", "gcp", "check_point")
 TARGET_REQUIRED_INPUTS = {
@@ -564,7 +572,12 @@ def first_row(table: str):
     with get_db() as conn:
         if not table_exists(conn, table):
             return None
-        return conn.execute(f'SELECT * FROM "{table}" LIMIT 1').fetchone()
+        columns = {
+            row["name"]
+            for row in conn.execute(f'PRAGMA table_info("{table}")').fetchall()
+        }
+        order_clause = "ORDER BY id DESC" if "id" in columns else ""
+        return conn.execute(f'SELECT * FROM "{table}" {order_clause} LIMIT 1').fetchone()
 
 
 def table_row_count(conn: sqlite3.Connection, table: str) -> int:
