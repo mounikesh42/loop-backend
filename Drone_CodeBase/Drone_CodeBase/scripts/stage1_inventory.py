@@ -9,7 +9,6 @@ import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from tkinter import NONE
 
 from path_utils import resolve_path
 

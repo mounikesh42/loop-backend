@@ -8635,10 +8635,11 @@ function pollLoadJob(jobId){
         LOAD_VALIDATING=false;
         renderLoad();
         if(job.status==='completed'){
-          if(typeof loadLiveScores==='function') loadLiveScores();
-          if(typeof loadLiveDroneScores==='function') loadLiveDroneScores();
-          if(typeof loadLiveGcpScores==='function') loadLiveGcpScores();
-          if(typeof loadLiveCheckPointScores==='function') loadLiveCheckPointScores();
+          var target=job.target||LOAD_TARGET||'base_station';
+          if((target==='base_station'||target==='all') && window.dsBase && window.dsBase.refreshApi) window.dsBase.refreshApi();
+          if((target==='drone'||target==='all') && window.dsDrone && window.dsDrone.refreshApi) window.dsDrone.refreshApi();
+          if((target==='gcp'||target==='all') && window.dsGcp && window.dsGcp.refreshApi) window.dsGcp.refreshApi();
+          if((target==='check_point'||target==='all') && window.dsCp && window.dsCp.refreshApi) window.dsCp.refreshApi();
         }
       }
     })
@@ -8675,13 +8676,66 @@ function uploadFilesToCurrentJob(selected,inputId,summary){
     });
 }
 
+var LOAD_UPLOAD_BATCH_MAX_BYTES=96*1024*1024;
+var LOAD_UPLOAD_BATCH_MAX_FILES=40;
+
+function chunkLoadFiles(files){
+  var batches=[],cur=[],bytes=0;
+  files.forEach(function(file){
+    var size=file.size||0;
+    if(cur.length && (cur.length>=LOAD_UPLOAD_BATCH_MAX_FILES || bytes+size>LOAD_UPLOAD_BATCH_MAX_BYTES)){
+      batches.push(cur);
+      cur=[];
+      bytes=0;
+    }
+    cur.push(file);
+    bytes+=size;
+  });
+  if(cur.length)batches.push(cur);
+  return batches;
+}
+
+function uploadFilesToCurrentJobBatched(selected,inputId,summary){
+  var batches=chunkLoadFiles(selected);
+  var chain=Promise.resolve();
+  batches.forEach(function(batch,idx){
+    chain=chain.then(function(){
+      var body=new FormData();
+      body.append('input_id',inputId||'');
+      batch.forEach(function(file){
+        body.append('files',file,file.webkitRelativePath || file.name);
+      });
+      setLoadJobStatus('Uploading '+inputId+' batch '+(idx+1)+' / '+batches.length+' ('+batch.length+' files)...');
+      var url=LOAD_JOB_ID?loopApiUrl('/api/jobs/'+encodeURIComponent(LOAD_JOB_ID)+'/files'):loopApiUrl('/api/jobs');
+      return fetch(url,{method:'POST',body:body})
+        .then(function(res){
+          return res.text().then(function(text){
+            if(!res.ok) throw new Error(extractLoadError(text) || ('HTTP '+res.status));
+            return text?JSON.parse(text):{};
+          });
+        })
+        .then(function(created){
+          LOAD_JOB_ID=created.job_id || created.id;
+        });
+    });
+  });
+  return chain.then(function(){
+    LOAD_STATE[inputId]=summary;
+    setLoadJobStatus('Upload ready - job '+LOAD_JOB_ID.slice(0,8));
+    renderLoad();
+  }).catch(function(err){
+    setLoadJobStatus('Upload failed: '+(err.message||String(err)));
+    throw err;
+  });
+}
+
 function submitLoadFilesToBackend(files,inputId,summary){
   var selected=[];
   for(var i=0;i<files.length;i++) selected.push(files[i]);
   if(!selected.length) return;
   setLoadJobStatus('Queued upload for '+inputId+'...');
   LOAD_UPLOAD_CHAIN=LOAD_UPLOAD_CHAIN.then(function(){
-    return uploadFilesToCurrentJob(selected,inputId,summary);
+    return uploadFilesToCurrentJobBatched(selected,inputId,summary);
   });
   return LOAD_UPLOAD_CHAIN;
 }
@@ -9954,7 +10008,7 @@ function renderAll(){
 }
 
 var REAL_OVERALL=computeOverallScore(REAL_SCORES).score;
-window.dsBase={openTrend:openTrend,closeTrend:closeTrend,toggleFleet:toggleFleet,toggleBBSection:toggleBBSection,selectScenario:selectScenario,toggleBBIndicators:toggleBBIndicators,openBBDetails:openBBDetails,openRecommendation:openRecommendation,closeDrawer:closeDrawer,setSection:setSection,toggleVerified:toggleVerified,render:renderAll,realScore:REAL_OVERALL};
+window.dsBase={openTrend:openTrend,closeTrend:closeTrend,toggleFleet:toggleFleet,toggleBBSection:toggleBBSection,selectScenario:selectScenario,toggleBBIndicators:toggleBBIndicators,openBBDetails:openBBDetails,openRecommendation:openRecommendation,closeDrawer:closeDrawer,setSection:setSection,toggleVerified:toggleVerified,render:renderAll,refreshApi:function(){ if(!BASE_API_READY) loadLiveScores(); },realScore:REAL_OVERALL};
 
 /* ============================================================
    INDICATOR CALCULATION ENGINE  (ported from v13_3 — chain v2.1 LOCKED)
@@ -10124,6 +10178,10 @@ function fmtLiveInputs(ind) {
    ============================================================ */
 
 var API_URL = loopApiUrl("/api/base-station/indicators");
+var BASE_API_RETRY_COUNT=0;
+var BASE_API_RETRY_MAX=240;
+var BASE_API_RETRY_MS=3000;
+var BASE_API_LOADING=false;
 
 function mapApiToScores(indicators) {
   /* Build the scores map {L3I_BASE_001: 100, ...} from API response */
@@ -10198,6 +10256,8 @@ function injectLiveScenario(indicators) {
 }
 
 function loadLiveScores() {
+  if(BASE_API_LOADING) return;
+  BASE_API_LOADING=true;
   showLoadingState();
 
   fetch(API_URL)
@@ -10206,18 +10266,25 @@ function loadLiveScores() {
       return res.json();
     })
     .then(function(data) {
+      BASE_API_LOADING=false;
       var indicators = data.indicators || data; /* handle both {indicators:[]} and bare [] */
       if (!Array.isArray(indicators) || indicators.length === 0) {
         throw new Error("empty indicators array");
       }
+      BASE_API_RETRY_COUNT=0;
       injectLiveScenario(indicators);
       renderAll();
     })
     .catch(function(err) {
       /* Graceful fallback — keep currentScenario as-is */
-      showErrorBadge(err.message || String(err));
+      BASE_API_LOADING=false;
+      if(BASE_API_RETRY_COUNT===0 || BASE_API_RETRY_COUNT%20===0) showErrorBadge(err.message || String(err));
       BASE_API_READY = false;
       renderBaseNoApi(err.message || String(err));
+      if(BASE_API_RETRY_COUNT<BASE_API_RETRY_MAX){
+        BASE_API_RETRY_COUNT++;
+        setTimeout(loadLiveScores,BASE_API_RETRY_MS);
+      }
     });
 }
 
@@ -10260,7 +10327,12 @@ loadLiveScores();
   }
 })();
 /* route the Hardware→Base entry to the new DATUM renderer */
-buildBasePage = function(){ if(window.dsBase) window.dsBase.render(); };
+buildBasePage = function(){
+  if(window.dsBase){
+    if(window.dsBase.refreshApi) window.dsBase.refreshApi();
+    window.dsBase.render();
+  }
+};
 
 
 /* ═══════════════════════════════════════════════
@@ -11846,12 +11918,15 @@ window.dsDrone={openTrend:openTrend,closeTrend:closeTrend,toggleFleet:toggleFlee
   toggleBBSection:toggleBBSection,selectScenario:selectScenario,
   toggleBBIndicators:toggleBBIndicators,openBBDetails:openBBDetails,
   openRecommendation:openRecommendation,closeDrawer:closeDrawer,
-  setSection:setSection,toggleVerified:toggleVerified,render:renderAll,realScore:REAL_OVERALL};
+  setSection:setSection,toggleVerified:toggleVerified,render:renderAll,
+  refreshApi:function(){ if(!DRONE_API_READY) loadLiveDroneScores(); },
+  realScore:REAL_OVERALL};
 
 var DRONE_API_URL = loopApiUrl("/api/drone/indicators");
 var DRONE_API_RETRY_COUNT=0;
-var DRONE_API_RETRY_MAX=20;
+var DRONE_API_RETRY_MAX=240;
 var DRONE_API_RETRY_MS=3000;
+var DRONE_API_LOADING=false;
 
 function droneShowLoadingState(){
   var el=document.getElementById("dn-scoreNum");
@@ -11895,6 +11970,8 @@ function injectLiveDroneScenario(indicators){
 }
 
 function loadLiveDroneScores(){
+  if(DRONE_API_LOADING) return;
+  DRONE_API_LOADING=true;
   droneShowLoadingState();
   fetch(DRONE_API_URL)
     .then(function(res){
@@ -11902,6 +11979,7 @@ function loadLiveDroneScores(){
       return res.json();
     })
     .then(function(data){
+      DRONE_API_LOADING=false;
       var indicators=data.indicators||data;
       if(!Array.isArray(indicators)||!indicators.length) throw new Error("empty indicators array");
       DRONE_API_RETRY_COUNT=0;
@@ -11910,7 +11988,8 @@ function loadLiveDroneScores(){
       renderAll();
     })
     .catch(function(err){
-      droneShowErrorBadge(err.message||String(err));
+      DRONE_API_LOADING=false;
+      if(DRONE_API_RETRY_COUNT===0 || DRONE_API_RETRY_COUNT%20===0) droneShowErrorBadge(err.message||String(err));
       DRONE_API_READY=false;
       renderDroneNoApi(err.message||String(err));
       if(DRONE_API_RETRY_COUNT<DRONE_API_RETRY_MAX){
@@ -11956,7 +12035,12 @@ loadLiveDroneScores();
   }
 })();
 /* route the Hardware→Drone entry to the new DATUM renderer */
-buildDronePage = function(){ if(window.dsDrone) window.dsDrone.render(); };
+buildDronePage = function(){
+  if(window.dsDrone){
+    if(window.dsDrone.refreshApi) window.dsDrone.refreshApi();
+    window.dsDrone.render();
+  }
+};
 
 
 /* ═══════════════════════════════════════════════
@@ -12928,7 +13012,9 @@ window.dsGcp={openTrend:openTrend,closeTrend:closeTrend,toggleFleet:toggleFleet,
   toggleBBSection:toggleBBSection,selectScenario:selectScenario,selectPoint:selectPoint,
   toggleBBIndicators:toggleBBIndicators,openBBDetails:openBBDetails,openPointDetails:openPointDetails,
   openRecommendation:openRecommendation,closeDrawer:closeDrawer,
-  setSection:setSection,toggleVerified:toggleVerified,render:renderAll,realScore:REAL_OVERALL};
+  setSection:setSection,toggleVerified:toggleVerified,render:renderAll,
+  refreshApi:function(){ if(!GCP_API_READY) loadLiveGcpScores(); },
+  realScore:REAL_OVERALL};
 
 /* ============================================================
    LIVE DATA — fetch from /api/indicators and hydrate Control Point UI
@@ -12939,8 +13025,9 @@ window.dsGcp={openTrend:openTrend,closeTrend:closeTrend,toggleFleet:toggleFleet,
 
 var GCP_API_URL = loopApiUrl("/api/gcp/indicators");
 var GCP_API_RETRY_COUNT=0;
-var GCP_API_RETRY_MAX=20;
+var GCP_API_RETRY_MAX=240;
 var GCP_API_RETRY_MS=3000;
+var GCP_API_LOADING=false;
 
 /* ---- live input_values formatter (per point, per indicator) ---- */
 function fmtLivePointInputs(ind,p){
@@ -13012,6 +13099,8 @@ function injectLiveGcpScenario(apiPoints){
 }
 
 function loadLiveGcpScores(){
+  if(GCP_API_LOADING) return;
+  GCP_API_LOADING=true;
   gcpShowLoadingState();
   fetch(GCP_API_URL)
     .then(function(res){
@@ -13019,6 +13108,7 @@ function loadLiveGcpScores(){
       return res.json();
     })
     .then(function(data){
+      GCP_API_LOADING=false;
       var points=Array.isArray(data) ? data : (data.points||data.indicators||data);
       if(!Array.isArray(points)||points.length===0) throw new Error("empty points array");
       GCP_API_RETRY_COUNT=0;
@@ -13026,7 +13116,8 @@ function loadLiveGcpScores(){
       renderAll();
     })
     .catch(function(err){
-      gcpShowErrorBadge(err.message||String(err));
+      GCP_API_LOADING=false;
+      if(GCP_API_RETRY_COUNT===0 || GCP_API_RETRY_COUNT%20===0) gcpShowErrorBadge(err.message||String(err));
       GCP_API_READY=false;
       renderGcpNoApi(err.message||String(err));
       if(GCP_API_RETRY_COUNT<GCP_API_RETRY_MAX){
@@ -13066,7 +13157,12 @@ loadLiveGcpScores();
     if(typeof buildScoreLabels==='function'){try{buildScoreLabels();}catch(e){}}
   }
 })();
-buildGcpPage = function(){ if(window.dsGcp) window.dsGcp.render(); };
+buildGcpPage = function(){
+  if(window.dsGcp){
+    if(window.dsGcp.refreshApi) window.dsGcp.refreshApi();
+    window.dsGcp.render();
+  }
+};
 
 
 /* ═══════════════════════════════════════════════
@@ -14413,12 +14509,15 @@ window.dsCp={openTrend:openTrend,closeTrend:closeTrend,toggleFleet:toggleFleet,
   toggleBBSection:toggleBBSection,selectScenario:selectScenario,selectPoint:selectPoint,
   toggleBBIndicators:toggleBBIndicators,openBBDetails:openBBDetails,openPointDetails:openPointDetails,
   openRecommendation:openRecommendation,closeDrawer:closeDrawer,
-  setSection:setSection,toggleVerified:toggleVerified,render:renderAll,realScore:REAL_OVERALL};
+  setSection:setSection,toggleVerified:toggleVerified,render:renderAll,
+  refreshApi:function(){ if(!CHECK_POINT_API_READY) loadLiveCheckPointScores(); },
+  realScore:REAL_OVERALL};
 
 var CHECK_POINT_API_URL = loopApiUrl("/api/check-point/indicators");
 var CHECK_POINT_API_RETRY_COUNT=0;
-var CHECK_POINT_API_RETRY_MAX=20;
+var CHECK_POINT_API_RETRY_MAX=240;
 var CHECK_POINT_API_RETRY_MS=3000;
+var CHECK_POINT_API_LOADING=false;
 
 function cpShowLoadingState(){
   var el=document.getElementById("cp-scoreNum");
@@ -14468,6 +14567,8 @@ function injectLiveCheckPointScenario(apiPoints){
 }
 
 function loadLiveCheckPointScores(){
+  if(CHECK_POINT_API_LOADING) return;
+  CHECK_POINT_API_LOADING=true;
   cpShowLoadingState();
   fetch(CHECK_POINT_API_URL)
     .then(function(res){
@@ -14475,6 +14576,7 @@ function loadLiveCheckPointScores(){
       return res.json();
     })
     .then(function(data){
+      CHECK_POINT_API_LOADING=false;
       var points=Array.isArray(data)?data:(data.points||[]);
       if(!Array.isArray(points)||!points.length) throw new Error("empty points array");
       injectLiveCheckPointScenario(points);
@@ -14483,7 +14585,8 @@ function loadLiveCheckPointScores(){
       renderAll();
     })
     .catch(function(err){
-      cpShowErrorBadge(err.message||String(err));
+      CHECK_POINT_API_LOADING=false;
+      if(CHECK_POINT_API_RETRY_COUNT===0 || CHECK_POINT_API_RETRY_COUNT%20===0) cpShowErrorBadge(err.message||String(err));
       CHECK_POINT_API_READY=false;
       renderCheckPointNoApi(err.message||String(err));
       if(CHECK_POINT_API_RETRY_COUNT<CHECK_POINT_API_RETRY_MAX){
@@ -14524,4 +14627,9 @@ loadLiveCheckPointScores();
     if(typeof buildScoreLabels==='function'){try{buildScoreLabels();}catch(e){}}
   }
 })();
-var buildCheckpointPage = function(){ if(window.dsCp) window.dsCp.render(); };
+var buildCheckpointPage = function(){
+  if(window.dsCp){
+    if(window.dsCp.refreshApi) window.dsCp.refreshApi();
+    window.dsCp.render();
+  }
+};

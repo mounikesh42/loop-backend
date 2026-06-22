@@ -13,6 +13,8 @@ numpy==2.2.6
 openpyxl==3.1.5
 packaging==26.2
 pandas==2.3.3
+Pillow==11.3.0
+pymavlink>=2.4.41,<3
 python-dateutil==2.9.0.post0
 pytz==2026.2
 setuptools==57.4.0

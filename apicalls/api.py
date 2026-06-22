@@ -350,6 +350,15 @@ def uploaded_folder_for(job, input_id: str) -> Path:
         return matches[0]
 
 
+def uploaded_named_folder_for(job, input_id: str, folder_names: tuple[str, ...]) -> Path:
+    upload_dir = Path(job["upload_dir"])
+    for name in folder_names:
+        candidate = upload_dir / name
+        if candidate.is_dir():
+            return candidate
+    return uploaded_folder_for(job, input_id)
+
+
 def uploaded_file_for(job, input_id: str) -> Path:
     return uploaded_files_for(job, input_id)[-1]
 
@@ -404,13 +413,13 @@ def write_drone_job_config(job_id: str) -> Path:
         config = json.load(fh)
 
     config["inputs"]["images_folder"] = str(
-        uploaded_folder_for(job, "raw_images")
+        uploaded_named_folder_for(job, "raw_images", ("images",))
     )
     config["inputs"]["rinex_folder"] = str(
-        uploaded_folder_for(job, "rover_rinex")
+        uploaded_named_folder_for(job, "rover_rinex", ("rover_rinex",))
     )
     config["inputs"]["bin_folder"] = str(
-        uploaded_folder_for(job, "mrk")
+        uploaded_named_folder_for(job, "mrk", ("telemetry",))
     )
     config["inputs"]["user_input_file"] = str(
         uploaded_file_for(job, "drone_user_input")
@@ -558,7 +567,38 @@ def first_row(table: str):
         return conn.execute(f'SELECT * FROM "{table}" LIMIT 1').fetchone()
 
 
+def table_row_count(conn: sqlite3.Connection, table: str) -> int:
+    if not table_exists(conn, table):
+        return 0
+    row = conn.execute(f'SELECT COUNT(*) AS count FROM "{table}"').fetchone()
+    return int(row["count"]) if row else 0
+
+
+def latest_table_payload(table: str):
+    row = first_row(table)
+    if not row:
+        return {}
+
+    keys = row.keys()
+    if "data" in keys:
+        parsed = json_or_raw(row["data"])
+        if isinstance(parsed, dict):
+            return parsed
+    if "envelope" in keys:
+        parsed = json_or_raw(row["envelope"])
+        if isinstance(parsed, dict):
+            return parsed.get("data", parsed)
+
+    payload = {}
+    for key in keys:
+        payload[key] = json_or_raw(row[key])
+    return payload
+
+
 def envelope_data(table: str):
+    payload = latest_table_payload(table)
+    if payload:
+        return payload
     row = first_row(table)
     if not row or "envelope" not in row.keys():
         return {}
@@ -951,12 +991,73 @@ def get_job_results(job_id: str):
     })
 
 
+@app.get("/api/health/all")
+def all_pipeline_health():
+    expected = {
+        "base_station": (
+            "base_station_stage3b_indicators",
+            "base_station_stage3c_building_blocks",
+            "base_station_stage3d_base_station_score",
+        ),
+        "drone": (
+            "drone_stage3_indicators",
+            "drone_stage3_building_blocks",
+            "drone_stage3_drone_score",
+        ),
+        "gcp": (
+            "gcp_stage3_indicators",
+            "gcp_stage3_building_blocks",
+            "gcp_stage3_gcp_score",
+        ),
+        "check_point": (
+            "check_point_stage3_indicators",
+            "check_point_stage3_building_blocks",
+            "check_point_stage3_check_point_score",
+        ),
+    }
+    with get_db() as conn:
+        namespaces = {
+            namespace: {
+                "ready": all(
+                    table_exists(conn, table) and table_row_count(conn, table) > 0
+                    for table in tables
+                ),
+                "tables": {
+                    table: {
+                        "exists": table_exists(conn, table),
+                        "rows": table_row_count(conn, table),
+                    }
+                    for table in tables
+                },
+            }
+            for namespace, tables in expected.items()
+        }
+    return jsonify({
+        "status": "ok",
+        "database": str(DB_PATH),
+        "namespaces": namespaces,
+    })
+
+
 @app.get("/api/base-station")
 def base_station_health():
+    with get_db() as conn:
+        tables = {
+            name: {
+                "exists": table_exists(conn, name),
+                "rows": table_row_count(conn, name),
+            }
+            for name in (
+                "base_station_stage3b_indicators",
+                "base_station_stage3c_building_blocks",
+                "base_station_stage3d_base_station_score",
+            )
+        }
     return jsonify({
         "status": "ok",
         "database": str(DB_PATH),
         "namespace": "base_station",
+        "tables": tables,
     })
 
 
@@ -1023,7 +1124,10 @@ def get_base_station_meta():
 def gcp_health():
     with get_db() as conn:
         tables = {
-            name: table_exists(conn, name)
+            name: {
+                "exists": table_exists(conn, name),
+                "rows": table_row_count(conn, name),
+            }
             for name in (
                 "gcp_stage3_indicators",
                 "gcp_stage3_building_blocks",
@@ -1137,7 +1241,10 @@ def get_gcp_meta():
 def drone_health():
     with get_db() as conn:
         tables = {
-            name: table_exists(conn, name)
+            name: {
+                "exists": table_exists(conn, name),
+                "rows": table_row_count(conn, name),
+            }
             for name in (
                 "drone_stage3_indicators",
                 "drone_stage3_building_blocks",
@@ -1154,15 +1261,21 @@ def drone_health():
 
 @app.get("/api/drone/indicators")
 def get_drone_indicators():
-    indicators = row_json_field("drone_stage3_indicators", "indicators", [])
+    data = latest_table_payload("drone_stage3_indicators")
+    indicators = data.get("indicators", [])
     if not isinstance(indicators, list):
         indicators = []
-    return jsonify({"count": len(indicators), "indicators": indicators})
+    return jsonify({
+        "count": len(indicators),
+        "indicators": indicators,
+        "indicator_scores": data.get("indicator_scores", {}),
+        "flags_raised_stage3b": data.get("flags_raised_stage3b", []),
+    })
 
 
 @app.get("/api/drone/indicators/<indicator_id>")
 def get_drone_indicator(indicator_id: str):
-    indicators = row_json_field("drone_stage3_indicators", "indicators", [])
+    indicators = latest_table_payload("drone_stage3_indicators").get("indicators", [])
     if not isinstance(indicators, list):
         indicators = []
     for item in indicators:
@@ -1173,19 +1286,20 @@ def get_drone_indicator(indicator_id: str):
 
 @app.get("/api/drone/building-blocks")
 def get_drone_building_blocks():
-    return jsonify(row_dict("drone_stage3_building_blocks"))
+    return jsonify(latest_table_payload("drone_stage3_building_blocks"))
 
 
 @app.get("/api/drone/score")
 def get_drone_score():
-    return jsonify(row_dict("drone_stage3_drone_score"))
+    return jsonify(latest_table_payload("drone_stage3_drone_score"))
 
 
 @app.get("/api/drone/flags")
 def get_drone_flags():
-    flags = row_json_field("drone_stage3_drone_score", "all_flags_aggregated", None)
+    score_data = latest_table_payload("drone_stage3_drone_score")
+    flags = score_data.get("all_flags_aggregated")
     if flags is None:
-        flags = row_json_field("drone_stage3_indicators", "flags_raised_stage3b", [])
+        flags = latest_table_payload("drone_stage3_indicators").get("flags_raised_stage3b", [])
     if not isinstance(flags, list):
         flags = []
     return jsonify({"count": len(flags), "flags": flags})
@@ -1195,7 +1309,10 @@ def get_drone_flags():
 def check_point_health():
     with get_db() as conn:
         tables = {
-            name: table_exists(conn, name)
+            name: {
+                "exists": table_exists(conn, name),
+                "rows": table_row_count(conn, name),
+            }
             for name in (
                 "check_point_stage3_indicators",
                 "check_point_stage3_building_blocks",
