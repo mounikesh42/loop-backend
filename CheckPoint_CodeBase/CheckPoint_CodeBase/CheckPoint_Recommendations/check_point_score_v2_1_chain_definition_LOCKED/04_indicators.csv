@@ -1,0 +1,15 @@
+Indicator ID,Indicator Name,Block ID,Weight in Block,Meaning,Gate Condition,Gate Action,gate_scope,per_point_gate_action,v2_1_q_lock_note
+,,,,,,,none,,
+,,,,,,,per_point_only,"When fix_type at capture is FLOAT or AUTONOMOUS (not FIXED RTK), this point's score is zeroed. Other points continue to score. Per-point aggregation penalizes this point but does not kill the chain.",Q-CP-2: promoted to per-point gate. FLOAT/AUTONOMOUS fix on a single point zeros that point; aggregation dilutes across fleet.
+,,,,,,,none,,
+,,,,,,,none,,
+,,,,,,,per_point_only,,
+,,,,,,,none,,
+,,,,,,,none,,
+,,,,,,,none,,
+,,,,,,,none,,
+,,,,,,,none,,
+,,,,,,,none,,
+,,,,,,,none,,
+,,,,,,,none,,
+,,,,,,,none,,

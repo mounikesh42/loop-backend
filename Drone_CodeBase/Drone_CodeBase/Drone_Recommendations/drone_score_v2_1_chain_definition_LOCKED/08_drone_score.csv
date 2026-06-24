@@ -1,0 +1,5 @@
+block_id,block_name,weight
+BB_IMG_CAPTURE,image_capture_score,0.4
+BB_ROVER_GNSS,rover_gnss_score,0.3
+BB_MISSION_EXEC,mission_execution_score,0.2
+BB_CAL_CONF,CAL_CONF,0.1

@@ -21,6 +21,7 @@ loop-upload-smoke-*/
 **/tests/scenarios/
 **/.claude/settings.local.json
 *.log
+*.bak
 *.zip
 *.7z
 *.rar

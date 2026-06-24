@@ -1,0 +1,25 @@
+derived_id,derived_name,kind,formula_expression,meaning,input_field_names
+L2D_BASE_001,base_flight_coverage_ratio,scoring,base obs window ∩ flight window / flight window,Fraction of the drone flight covered by base observations. Must equal 1.0; any less means PPK gaps.,obs_start_utc;obs_end_utc;flight_start_utc;flight_end_utc
+L2D_BASE_002,pre_flight_buffer_sec,scoring,flight_start_utc − obs_start_utc,"Seconds the base was recording before flight start. Threshold ≥120s ideal, ≥60s acceptable.",obs_start_utc;flight_start_utc
+L2D_BASE_003,post_flight_buffer_sec,scoring,obs_end_utc − flight_end_utc,Seconds the base kept recording after flight end. Threshold ≥60s.,obs_end_utc;flight_end_utc
+L2D_BASE_004,dual_freq_available,scoring,dual_freq_present == True,"Whether dual-frequency data is available (better ambiguity resolution, iono mitigation).",dual_freq_present
+L2D_BASE_005,cycle_slip_count,scoring,count of cycle_slip_markers,Total cycle slips. Elevated = obstruction/disturbance/multipath.,cycle_slip_markers
+L2D_BASE_006,gap_gt_5s_count,scoring,count of inter-epoch gaps > 5s,Short recording gaps.,epoch_interval_sec;total_epochs
+L2D_BASE_007,any_gap_gt_60s,scoring,max inter-epoch gap > 60s,Any major recording gap.,epoch_interval_sec;total_epochs
+L2D_BASE_008,cn0_mean_dbhz,scoring,mean of cn0_per_sat,Mean signal strength across the session.,cn0_per_sat
+L2D_BASE_009,multipath_risk_level,scoring,std-dev of cn0_per_sat across sats at equal elevation,"Proxy for multipath from a fixed reflector geometry. Risk indicator, not an error magnitude.",cn0_per_sat
+L2D_BASE_010,mean_pdop,scoring,mean of pdop_per_epoch during flight window,Average sky-geometry quality.,pdop_per_epoch
+L2D_BASE_011,max_pdop,scoring,max of pdop_per_epoch during flight window,Worst-case geometry.,pdop_per_epoch
+L2D_BASE_012,base_acquisition_time_sec,scoring,time from power-on to stable sat_count,How quickly the base reached a stable solution.,sat_count_per_epoch
+L2D_BASE_013,rinex_version_supported,scoring,rinex_version ∈ supported set,Whether the RINEX version is accepted by the PPK pipeline (#10).,rinex_version
+L2D_BASE_014,header_completeness,scoring,required header records all present,"Whether antenna type, receiver type, approx position are present in the header (#10).",antenna_type;receiver_type;approx_position_xyz
+L2D_BASE_015,constellation_count,scoring,count of constellation_set,Number of constellations the base tracked. Base-side input to #16 cross-check.,constellation_set
+L2D_BASE_016,session_integrity_ok,scoring,completed_normally AND shutdowns==0 AND battery_min adequate,Whether the session terminated cleanly with adequate power. Degrades to unconfirmed if Operation Log absent/null.,session_completed_normally;unexpected_shutdown_count;battery_min_pct
+L2D_BASE_017,antenna_type_match,scoring,antenna_model == antenna_type (normalised),"Whether the operator-entered antenna model matches the RINEX header type. Type consistency, NOT ANTEX calibration (#21).",antenna_model;antenna_type
+L2D_BASE_018,antenna_height_agreement,scoring,|antenna_height_m − antenna_delta_h| within tolerance (when delta_h ≠ 0),Whether the form height agrees with the RINEX-recorded ARP height. Agreement raises confidence; conflict flags the wrong-reference blunder (#1).,antenna_height_m;antenna_delta_h
+L2D_BASE_019,kp_index,scoring,NOAA SWPC Kp at session time,Geomagnetic activity index. High Kp + single-freq = degraded accuracy (#20). External dependency.,obs_start_utc
+L2D_BASE_020,disturbance_signature,composite_flag,gap_gt_5s_count↑ AND cycle_slip_count↑ AND cn0 variance↑ co-occurring,"Correlation detector for physical base disturbance (#7). FLAG-ONLY, no weight. BLIND to slow settling that produces no gap/slip.",gap_gt_5s_count;cycle_slip_count;cn0_per_sat
+L2D_BASE_021,log_match_check,composite_flag,flight window ⊆ base obs window,Whether the flight falls inside this base log (#15). FLAG-ONLY. Guards wrong multi-flight log matching.,obs_start_utc;obs_end_utc;flight_start_utc;flight_end_utc
+L2D_BASE_022,truncation_check,composite_flag,|session_end_utc − obs_end_utc| within tolerance,Internal device-clock vs observation end cross-check (#17 cross). Disagreement = silent truncation.,session_end_utc;obs_end_utc
+L2D_BASE_023,autonomous_seed_flag,handoff,approx_position_xyz is autonomous (always true at S1),Records that the base position is an autonomous seed (#3). NON-scoring; judgement deferred to pre-processing.,approx_position_xyz
+L2D_BASE_024,benchmark_unverified,handoff,over_known_mark reused AND NOT verified_by_second_person,Risk signal for unstable/unverified benchmark (#2). NON-scoring warning + monument_id handoff to Learning Engine (#13).,over_known_mark;verified_by_second_person;monument_id

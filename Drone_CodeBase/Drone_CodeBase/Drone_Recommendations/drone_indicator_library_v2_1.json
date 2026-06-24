@@ -1,0 +1,1012 @@
+{
+  "_meta": {
+    "title": "drone_indicator_library",
+    "version": "2.1.1 (boundary patched)",
+    "generated_at": "2026-06-11T04:57:48Z",
+    "description": "Library of customer-facing text for every indicator at every band of the drone chain. Layered annotation ON TOP OF the canonical chain definition (drone_confidence_score_v2_1_LOCKED.json). References chain indicator IDs (L3I_IMG_*, L3I_GNSS_*, L3I_FC_*, L3I_CAL_*). INTRODUCES indicator-level null pattern (Q-DRONE-4): L3I_FC_005 wind_condition has a null band for API failure cases.",
+    "three_tier_architecture": {
+      "tier_1_chain_definition": "drone_confidence_score_v2_1_LOCKED.json \u2014 canonical scoring",
+      "tier_2_library_this_file": "drone_indicator_library_v2_1.json \u2014 customer-voice text per indicator per band",
+      "tier_3_reference_html": "drone_multi_view_v1_LOCKED.html \u2014 five-tab reference implementation"
+    },
+    "text_authorship_status": "CLAUDE-DRAFTED PLACEHOLDER. Per pattern Q1: structure locked, library text marked as placeholder pending domain refinement.",
+    "q_locks_applied": [
+      "Q-DRONE-1",
+      "Q-DRONE-2",
+      "Q-DRONE-3",
+      "Q-DRONE-4",
+      "Q-DRONE-5",
+      "v2.1.1_boundary_patch"
+    ],
+    "indicators_count": 21,
+    "total_bands_count": 53,
+    "critical_path_indicators": [
+      "L3I_IMG_001",
+      "L3I_GNSS_001",
+      "L3I_FC_001"
+    ],
+    "null_supported_indicators": [
+      "L3I_FC_005"
+    ],
+    "new_pattern_concepts": {
+      "indicator_level_null": "L3I_FC_005 wind_condition supports null band for API failure. Distinct from GCP's chain-level null. Library schema extends to allow null bands with score_range: [null, null].",
+      "multiple_chain_level_hard_gates": "Three critical-path indicators (L3I_IMG_001, L3I_GNSS_001, L3I_FC_001). All three independently fire hard gates. global_gate_condition lists with OR."
+    },
+    "schema_notes": {
+      "null_band": "Bands with score_range: [null, null] and level: \"null\" indicate the indicator cannot be measured. Rendering layer should surface as informational/audit-only, NOT score-affecting.",
+      "gate_scope": "chain_level (kills entire chain) / per_point_only (degrades point in per-point chains) / none."
+    }
+  },
+  "library": {
+    "L3I_IMG_001": {
+      "id": "L3I_IMG_001",
+      "num": "#01",
+      "block": "BB_IMG_CAPTURE",
+      "weight": 0.34,
+      "name": "Image validity",
+      "fullName": "image_validity_score",
+      "is_critical_path": true,
+      "gate_scope": "chain_level",
+      "verified_statement": "All captured images are valid and usable for processing.",
+      "bands": [
+        {
+          "score_range": [
+            95,
+            100
+          ],
+          "level": "good",
+          "label": "\u226599% of captured images are valid",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            70,
+            94
+          ],
+          "level": "good",
+          "label": "95-99% valid \u2014 minor losses acceptable",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            30,
+            69
+          ],
+          "level": "review",
+          "label": "85-95% valid \u2014 significant image losses",
+          "impact": "A meaningful fraction of captured images are corrupted or unusable. Coverage may be reduced; processing may need to compensate with reduced overlap margin.",
+          "actions": [
+            "Verify which images failed and why (storage, sensor, transmission)",
+            "Check whether failed images create coverage gaps",
+            "Inspect camera firmware and storage card health for next flight"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            29
+          ],
+          "level": "resurvey",
+          "label": "<85% valid (HARD GATE)",
+          "impact": "Too many images failed for the survey to be salvageable. Coverage gaps will be unrecoverable; the flight must be re-flown.",
+          "actions": [
+            "Refly the survey with verified camera and storage hardware",
+            "Inspect camera/storage system for systemic faults before refly",
+            "Verify firmware versions match drone and camera spec"
+          ]
+        }
+      ],
+      "derivation": "Hard gate at 30 reflects industry threshold for unrecoverable image loss (>15% lost). Below this, coverage cannot be maintained even with aggressive overlap.",
+      "flag": "CRITICAL_IMAGE_FAILURE"
+    },
+    "L3I_IMG_002": {
+      "id": "L3I_IMG_002",
+      "num": "#02",
+      "block": "BB_IMG_CAPTURE",
+      "weight": 0.27,
+      "name": "Image geotag",
+      "fullName": "image_geotag_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Every image carries a valid GPS geotag from the rover.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "All images geotagged with rover-derived positions",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            84
+          ],
+          "level": "review",
+          "label": "Some images missing geotags or using onboard GPS only",
+          "impact": "Images without rover-derived geotags rely on the drone's autonomous GPS \u2014 less accurate. PPK correction skipped for those frames; positioning weaker.",
+          "actions": [
+            "Verify rover-to-camera time sync was active during flight",
+            "Check log for events that disabled geotag injection",
+            "Confirm next flight maintains continuous rover-camera link"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "review",
+          "label": "Majority of images missing geotags",
+          "impact": "Most images lack rover-derived position. PPK correction provides little uplift; output accuracy may be similar to autonomous GPS (~3-5m).",
+          "actions": [
+            "Inspect rover-camera sync configuration",
+            "Review time-sync calibration procedure",
+            "Consider whether this dataset meets accuracy requirements before processing"
+          ]
+        }
+      ],
+      "derivation": "Geotag injection from rover is the basis for PPK position uplift. Coverage threshold 85 reflects minimum for PPK to add meaningful accuracy.",
+      "flag": null
+    },
+    "L3I_IMG_003": {
+      "id": "L3I_IMG_003",
+      "num": "#03",
+      "block": "BB_IMG_CAPTURE",
+      "weight": 0.18,
+      "name": "Image overlap",
+      "fullName": "image_overlap_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Captured imagery has sufficient forward and side overlap for reconstruction.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Forward \u226575% AND side \u226565% (or mission-specified higher)",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            84
+          ],
+          "level": "review",
+          "label": "Overlap below planned but within reconstructable range",
+          "impact": "Reduced overlap means weaker tie-point density. Reconstruction may have holes in low-texture areas (water, sand, snow, asphalt).",
+          "actions": [
+            "Inspect orthomosaic for holes after processing",
+            "Increase planned overlap for similar future surveys",
+            "Review whether wind or speed affected actual capture density"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "review",
+          "label": "Overlap below reconstructable range",
+          "impact": "Overlap too low to reconstruct reliably. Output orthomosaic and DSM may have significant holes or distortions.",
+          "actions": [
+            "Check whether speed during flight was higher than planned",
+            "Consider re-flying critical areas with tighter overlap",
+            "Verify mission planner overlap settings for next flight"
+          ]
+        }
+      ],
+      "derivation": "75/65 forward/side overlap from industry photogrammetric standards (Agisoft, Pix4D documentation). Below 60/45 reconstruction quality degrades sharply.",
+      "flag": "INSUFFICIENT_OVERLAP"
+    },
+    "L3I_IMG_004": {
+      "id": "L3I_IMG_004",
+      "num": "#04",
+      "block": "BB_IMG_CAPTURE",
+      "weight": 0.12,
+      "name": "Image format",
+      "fullName": "image_format_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "All images are in a consistent supported format.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Single supported format (JPEG/TIFF/RAW), consistent across all images",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            84
+          ],
+          "level": "review",
+          "label": "Mixed formats or unsupported variants present",
+          "impact": "Format inconsistency can disrupt processing pipelines that expect uniform input. Mixed JPEG/RAW can cause exposure inconsistencies in the orthomosaic.",
+          "actions": [
+            "Verify camera was set to single output format for the survey",
+            "If mixed, consider whether to process formats separately",
+            "Standardize camera config for future surveys"
+          ]
+        }
+      ],
+      "derivation": "Format mixing is rare with modern cameras; flag is a hygiene check rather than a quality concern.",
+      "flag": "MIXED_IMAGE_FORMAT"
+    },
+    "L3I_IMG_005": {
+      "id": "L3I_IMG_005",
+      "num": "#05",
+      "block": "BB_IMG_CAPTURE",
+      "weight": 0.09,
+      "name": "Exposure consistency",
+      "fullName": "image_exposure_consistency_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Image exposure stays consistent across the flight.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "Exposure variance within camera auto-exposure tolerance",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "minor",
+          "label": "High exposure variation across flight (hygiene signal)",
+          "impact": "Cloud cover or terrain shadows during flight caused exposure variations. Orthomosaic may show patches of brighter/darker areas. Reconstruction still works.",
+          "actions": [
+            "Inspect ortho for visible exposure seams",
+            "Consider flying under more uniform lighting next time",
+            "Apply post-process color matching if needed"
+          ]
+        }
+      ],
+      "derivation": "Q-DRONE-5 alignment: exposure variation is a hygiene signal, not a quality killer. Downgraded to minor (audit-only).",
+      "flag": "HIGH_EXPOSURE_VARIATION"
+    },
+    "L3I_GNSS_001": {
+      "id": "L3I_GNSS_001",
+      "num": "#06",
+      "block": "BB_ROVER_GNSS",
+      "weight": 0.3,
+      "name": "Rover coverage",
+      "fullName": "rover_coverage_score",
+      "is_critical_path": true,
+      "gate_scope": "chain_level",
+      "verified_statement": "Rover recorded continuously through the entire flight with adequate buffer.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Rover covered full flight + \u226560s buffer either side",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            84
+          ],
+          "level": "review",
+          "label": "Rover covered flight but buffer is short or partial",
+          "impact": "Rover started recording too close to takeoff or stopped too soon after landing. PPK convergence may be incomplete at flight start; positions near edges may be weaker.",
+          "actions": [
+            "Start rover 2-3 minutes before takeoff next time",
+            "Stop rover only after motors off (60s post-landing)",
+            "Inspect early/late epoch sigma in processed output"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "resurvey",
+          "label": "Rover did not cover flight window (HARD GATE)",
+          "impact": "Rover RINEX has a gap during the flight. PPK cannot correct those flight epochs; positioning falls back to autonomous GPS (~3-5m accuracy).",
+          "actions": [
+            "Refly with rover recording verified before takeoff",
+            "Inspect rover hardware (battery, storage, antenna connection)",
+            "Set up rover recording 2-3 minutes before mission planned start"
+          ]
+        }
+      ],
+      "derivation": "Q-DRONE-2 promotion to chain-level hard gate. Without rover observations during flight, PPK has no reference data \u2014 output is autonomous-GPS accuracy regardless of how clean everything else is.\n\nv2.1.1 boundary patch: resurvey band widened from [0,0] to [0,39] so pipeline scores of 20 (emitted by the threshold ladder when the bottom band fires) land in the resurvey level alongside gate-forced 0. Pipeline spec sheet 05 emits 20 in the worst band by design; the library originally assumed gates were the only path to resurvey.",
+      "flag": "RINEX_CRITICAL_GAP"
+    },
+    "L3I_GNSS_002": {
+      "id": "L3I_GNSS_002",
+      "num": "#07",
+      "block": "BB_ROVER_GNSS",
+      "weight": 0.25,
+      "name": "Rover signal quality",
+      "fullName": "rover_signal_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Rover maintained strong signal-to-noise throughout the flight.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "C/N0 consistently high (\u226540 dB-Hz on most satellites)",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            74
+          ],
+          "level": "review",
+          "label": "Moderate C/N0 \u2014 signal partially degraded",
+          "impact": "Rover signal degraded during portions of the flight. Affected epochs may have higher position uncertainty even after PPK.",
+          "actions": [
+            "Check rover antenna mounting \u2014 direct line of sight to sky?",
+            "Inspect for interference sources (radio, power lines, drone radio at low altitude)",
+            "Verify rover antenna is the right band for receiver"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "review",
+          "label": "Poor C/N0 \u2014 significant signal issues",
+          "impact": "Rover signal was severely compromised. PPK output likely has elevated position uncertainty; some epochs may not converge.",
+          "actions": [
+            "Inspect environment for interference (high-voltage lines, radio masts)",
+            "Replace rover antenna or cable if recurring",
+            "Choose less-obstructed setup location for next flight"
+          ]
+        }
+      ],
+      "derivation": "C/N0 thresholds from GNSS receiver documentation. 40 dB-Hz is typical 'strong signal' baseline for survey-grade receivers.",
+      "flag": "POOR_SKY_VIEW_DURING_FLIGHT"
+    },
+    "L3I_GNSS_003": {
+      "id": "L3I_GNSS_003",
+      "num": "#08",
+      "block": "BB_ROVER_GNSS",
+      "weight": 0.15,
+      "name": "Rover frequency",
+      "fullName": "rover_frequency_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Rover recorded at sufficient frequency (e.g., 5Hz) to support fast-moving drone.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "5Hz or higher recording rate",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            84
+          ],
+          "level": "review",
+          "label": "Recording rate below 5Hz (drone moves faster than rover samples)",
+          "impact": "Rover sampled too slowly for drone speed. Image geotag interpolation introduces position error, especially at flight turns.",
+          "actions": [
+            "Set rover to \u22655Hz recording for next flight",
+            "Verify rover receiver capability and configuration",
+            "Consider whether this dataset meets accuracy requirements"
+          ]
+        }
+      ],
+      "derivation": "5Hz is industry standard for survey drones flying \u226415 m/s. Higher speeds require proportionally higher rover rates.",
+      "flag": null
+    },
+    "L3I_GNSS_004": {
+      "id": "L3I_GNSS_004",
+      "num": "#09",
+      "block": "BB_ROVER_GNSS",
+      "weight": 0.1,
+      "name": "Rover continuity",
+      "fullName": "rover_continuity_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Rover observations are continuous with minimal cycle slips.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "Minimal cycle slips, no gaps >5s",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "review",
+          "label": "Cycle slips or gaps >5s detected",
+          "impact": "Rover lost lock briefly during flight. PPK must re-converge after each event; position accuracy reduced in those windows.",
+          "actions": [
+            "Inspect rover environment for signal blockage during flight",
+            "Check rover antenna stability (vibration, wind shaking)",
+            "Position next setup with clearer sky view"
+          ]
+        }
+      ],
+      "derivation": "Cycle slip tolerance threshold from PPK processing best practice.",
+      "flag": null
+    },
+    "L3I_GNSS_005": {
+      "id": "L3I_GNSS_005",
+      "num": "#10",
+      "block": "BB_ROVER_GNSS",
+      "weight": 0.1,
+      "name": "Rover acquisition",
+      "fullName": "rover_acquisition_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Rover acquired satellites within normal startup time.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "<3 min \u2014 normal acquisition",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "minor",
+          "label": ">3 min \u2014 slow acquisition (hygiene signal)",
+          "impact": "Rover was slow to lock satellites. Usually cold start. Recurring slowness can indicate receiver health issues but rarely affects this flight's data.",
+          "actions": [
+            "Check rover antenna mounting and view of sky",
+            "Verify firmware and battery state",
+            "Service receiver if slow acquisition recurs"
+          ]
+        }
+      ],
+      "derivation": "Following base_station Q4 / GCP Q-GCP pattern: acquisition slowness is hygiene signal, not deliverable-quality.",
+      "flag": "SLOW_ROVER_ACQUISITION"
+    },
+    "L3I_GNSS_006": {
+      "id": "L3I_GNSS_006",
+      "num": "#11",
+      "block": "BB_ROVER_GNSS",
+      "weight": 0.1,
+      "name": "Rover PDOP",
+      "fullName": "rover_pdop_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Strong satellite geometry during flight \u2014 PDOP within standard ranges.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "PDOP <4 throughout flight",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "review",
+          "label": "PDOP >4 during flight",
+          "impact": "Satellite geometry was suboptimal during flight. PPK still works but position uncertainty is elevated; sigma values higher than nominal.",
+          "actions": [
+            "Use mission planner with satellite forecast for future flights",
+            "Reschedule flight if PDOP forecast >6 for accuracy-critical work",
+            "Check processed sigma values for elevated uncertainty"
+          ]
+        }
+      ],
+      "derivation": "Standard PDOP categorization from GNSS handbooks.",
+      "flag": null
+    },
+    "L3I_FC_001": {
+      "id": "L3I_FC_001",
+      "num": "#12",
+      "block": "BB_MISSION_EXEC",
+      "weight": 0.3,
+      "name": "Mission coverage",
+      "fullName": "mission_coverage_score",
+      "is_critical_path": true,
+      "gate_scope": "chain_level",
+      "verified_statement": "Drone flew the full planned mission area.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "\u226599% of planned mission area covered",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            84
+          ],
+          "level": "review",
+          "label": "95-99% covered \u2014 minor gap",
+          "impact": "Small portion of the planned area was not flown. Output deliverable will have a corresponding gap; check whether the missed area was operationally important.",
+          "actions": [
+            "Identify which polygon edge was missed and why",
+            "Re-fly missing area if critical",
+            "Verify mission was correctly uploaded next time"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "resurvey",
+          "label": "<95% of planned area covered (HARD GATE)",
+          "impact": "Significant portion of the planned area was not surveyed. Deliverable is fundamentally incomplete; re-fly required.",
+          "actions": [
+            "Refly with mission verified on drone before takeoff",
+            "Check whether early battery, weather, or operator abort caused short flight",
+            "Allocate adequate battery margin for similar future missions"
+          ]
+        }
+      ],
+      "derivation": "Q-DRONE-2 promotion to chain-level hard gate. <95% coverage means deliverable is fundamentally incomplete regardless of other quality.\n\nv2.1.1 boundary patch: resurvey band widened from [0,0] to [0,39] so pipeline scores of 20 (emitted by the threshold ladder when the bottom band fires) land in the resurvey level alongside gate-forced 0. Pipeline spec sheet 05 emits 20 in the worst band by design; the library originally assumed gates were the only path to resurvey.",
+      "flag": "COVERAGE_GAP"
+    },
+    "L3I_FC_002": {
+      "id": "L3I_FC_002",
+      "num": "#13",
+      "block": "BB_MISSION_EXEC",
+      "weight": 0.22,
+      "name": "GSD consistency",
+      "fullName": "mission_gsd_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Ground Sample Distance (GSD) is consistent with mission spec.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "GSD within \u00b110% of planned value",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            84
+          ],
+          "level": "review",
+          "label": "GSD deviates from planned by more than 10%",
+          "impact": "Actual ground resolution differs from planned. Output may not meet specified resolution for client deliverable.",
+          "actions": [
+            "Inspect altitude logs \u2014 was drone too high or too low?",
+            "Verify mission altitude was correctly entered",
+            "Recalculate deliverable resolution claim against actual GSD"
+          ]
+        }
+      ],
+      "derivation": "\u00b110% tolerance from photogrammetric practice \u2014 wider variance affects output GSD claims.",
+      "flag": null
+    },
+    "L3I_FC_003": {
+      "id": "L3I_FC_003",
+      "num": "#14",
+      "block": "BB_MISSION_EXEC",
+      "weight": 0.22,
+      "name": "Actual overlap",
+      "fullName": "mission_overlap_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Actual flown overlap matches mission specification.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Actual overlap within \u00b15% of planned",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            84
+          ],
+          "level": "review",
+          "label": "Actual overlap deviates from planned by more than 5%",
+          "impact": "Speed during flight differed from plan, changing capture spacing. Reconstruction may be weaker in affected regions.",
+          "actions": [
+            "Check whether wind affected actual ground speed",
+            "Inspect ortho/DSM for weak-reconstruction patches",
+            "Tighten planned overlap to account for typical wind"
+          ]
+        }
+      ],
+      "derivation": "Couples L3I_IMG_003 image overlap \u2014 same concern measured from different sources (image inter-distance vs flight log).",
+      "flag": null
+    },
+    "L3I_FC_004": {
+      "id": "L3I_FC_004",
+      "num": "#15",
+      "block": "BB_MISSION_EXEC",
+      "weight": 0.13,
+      "name": "Flight altitude consistency",
+      "fullName": "mission_altitude_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Flight altitude held within mission tolerance.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Altitude variance <5m from planned",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            84
+          ],
+          "level": "review",
+          "label": "Altitude variance >5m",
+          "impact": "Drone climbed or descended significantly during flight. GSD inconsistent across the dataset; reconstruction may show stretching or compression artifacts.",
+          "actions": [
+            "Inspect altitude profile in flight log",
+            "Check terrain follow setting \u2014 was AGL or AMSL used correctly?",
+            "Verify no GPS altitude glitches in flight log"
+          ]
+        }
+      ],
+      "derivation": "5m altitude tolerance from typical photogrammetric variance budget.",
+      "flag": "HIGH_ALTITUDE_VARIANCE"
+    },
+    "L3I_FC_005": {
+      "id": "L3I_FC_005",
+      "num": "#16",
+      "block": "BB_MISSION_EXEC",
+      "weight": 0.05,
+      "name": "Wind condition",
+      "fullName": "wind_condition_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "null_band_supported": true,
+      "verified_statement": "Wind conditions during flight were within drone operating spec.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "Wind \u22648 m/s \u2014 within typical drone spec",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            74
+          ],
+          "level": "review",
+          "label": "Wind 8-12 m/s \u2014 drone struggling against wind",
+          "impact": "High wind during flight stressed the drone's stabilization. Actual ground track may have deviated from plan; image blur or off-axis attitude possible.",
+          "actions": [
+            "Inspect flight log for unusual roll/pitch values",
+            "Check images for motion blur",
+            "Postpone flights when forecast wind exceeds drone spec"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "review",
+          "label": "Wind >12 m/s \u2014 flight beyond drone spec",
+          "impact": "Wind exceeded drone operational limit. Flight integrity compromised; data quality likely degraded.",
+          "actions": [
+            "Refly under calmer conditions",
+            "Check forecast vs actual wind for future trip planning",
+            "Consider drone class for high-wind operations"
+          ]
+        },
+        {
+          "score_range": [
+            null,
+            null
+          ],
+          "level": "null",
+          "label": "Wind data unavailable (Open-Meteo API failure)",
+          "impact": "Could not verify wind conditions during this flight. This is an infrastructure limitation, not a flight quality concern.",
+          "actions": [
+            "No action required \u2014 indicator returns null and does not affect overall score",
+            "Flight quality is judged from other indicators",
+            "If wind verification is critical, retry API lookup or check independent wind station"
+          ]
+        }
+      ],
+      "derivation": "Q-DRONE-4 introduces indicator-level null pattern. When Open-Meteo API unavailable, returns null + WIND_API_FALLBACK flag. Block aggregation renormalizes across measured indicators only. 8/12 m/s thresholds from typical drone manufacturer specs.",
+      "flag": "HIGH_WIND_SURVEY"
+    },
+    "L3I_FC_006": {
+      "id": "L3I_FC_006",
+      "num": "#17",
+      "block": "BB_MISSION_EXEC",
+      "weight": 0.05,
+      "name": "Altitude consistency (in-block)",
+      "fullName": "mission_altitude_consistency_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Altitude held steady throughout the flight with minimal oscillation.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "Altitude oscillation <2m per flight line",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "minor",
+          "label": "Altitude oscillation >2m (hygiene signal)",
+          "impact": "Drone bobbed in altitude during flight. Usually wind-related. Generally doesn't affect output but creates uneven GSD.",
+          "actions": [
+            "Cross-reference with wind during flight",
+            "Consider stiffer flight controller tuning if recurring",
+            "Verify GPS altitude not glitchy"
+          ]
+        }
+      ],
+      "derivation": "Hygiene signal, downgraded to minor \u2014 affects appearance but rarely affects measurement quality.",
+      "flag": null
+    },
+    "L3I_FC_007": {
+      "id": "L3I_FC_007",
+      "num": "#18",
+      "block": "BB_MISSION_EXEC",
+      "weight": 0.03,
+      "name": "Mission completion",
+      "fullName": "mission_completion_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Mission completed cleanly without operator abort.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "Mission completed normally, no operator interrupt",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "minor",
+          "label": "Mission interrupted but completed (audit hygiene)",
+          "impact": "Operator paused or restarted the mission. Generally doesn't affect output, but worth knowing for incident review.",
+          "actions": [
+            "Note reason for interrupt in flight log if not recorded",
+            "Verify no data gap at interrupt point",
+            "Consider operator training if interrupts are recurring"
+          ]
+        }
+      ],
+      "derivation": "Hygiene/audit signal. Downgraded to minor.",
+      "flag": null
+    },
+    "L3I_CAL_001": {
+      "id": "L3I_CAL_001",
+      "num": "#19",
+      "block": "BB_CAL_CONF",
+      "weight": 0.5,
+      "name": "Calibration source",
+      "fullName": "calibration_source_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Camera was calibrated with a pre-existing lab calibration file.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Lab-calibrated camera with current calibration file",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            50,
+            84
+          ],
+          "level": "review",
+          "label": "Self-calibrated lens \u2014 no pre-existing calibration",
+          "impact": "Photogrammetry software is solving camera intrinsics from the imagery itself. Works for most cases, but adds uncertainty especially in non-flat terrain.",
+          "actions": [
+            "Inspect self-calibration outputs for outlier focal length or distortion values",
+            "Consider pre-calibrating camera for high-accuracy work",
+            "Note in deliverable that self-calibration was used"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            49
+          ],
+          "level": "review",
+          "label": "No calibration file and self-calibration also failed",
+          "impact": "Both pre-calibration and self-calibration unsuccessful. Photogrammetric output reliability is uncertain; expect elevated residuals.",
+          "actions": [
+            "Pre-calibrate camera in lab before next survey",
+            "Inspect reconstruction residuals carefully",
+            "Consider re-flying with calibrated camera if accuracy is critical"
+          ]
+        }
+      ],
+      "derivation": "Q-DRONE-5 lock: self-calibration stays material/review. Operator decides whether to insist on pre-calibration based on accuracy requirements.",
+      "flag": "NO_CALIBRATION_FILE"
+    },
+    "L3I_CAL_002": {
+      "id": "L3I_CAL_002",
+      "num": "#20",
+      "block": "BB_CAL_CONF",
+      "weight": 0.35,
+      "name": "Calibration match",
+      "fullName": "calibration_match_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Calibration file matches the camera that captured the imagery.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Camera model and serial match calibration file",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            84
+          ],
+          "level": "review",
+          "label": "Camera doesn't match calibration file",
+          "impact": "Calibration file is for a different camera. Using it introduces systematic distortion bias. Better to self-calibrate than use wrong file.",
+          "actions": [
+            "Verify which physical camera was used vs calibration file",
+            "Replace calibration file with correct one or disable",
+            "Re-process with correct calibration if available"
+          ]
+        }
+      ],
+      "derivation": "Camera-calibration mismatch is more harmful than no calibration. Reviewer-blocking flag.",
+      "flag": "CALIBRATION_CAMERA_MISMATCH"
+    },
+    "L3I_CAL_003": {
+      "id": "L3I_CAL_003",
+      "num": "#21",
+      "block": "BB_CAL_CONF",
+      "weight": 0.15,
+      "name": "Calibration age",
+      "fullName": "calibration_age_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Camera calibration is recent enough to be reliable.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "Calibration \u22646 months old",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            74
+          ],
+          "level": "minor",
+          "label": "Calibration 6-18 months old (audit hygiene)",
+          "impact": "Calibration is aging. Cameras drift over time due to handling and temperature; older calibrations are less reliable.",
+          "actions": [
+            "Plan to re-calibrate in next maintenance cycle",
+            "Inspect residuals for distortion patterns",
+            "Document calibration date in deliverable metadata"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "review",
+          "label": "Calibration >18 months old",
+          "impact": "Calibration may no longer reflect current camera state. Distortion model may be outdated; output accuracy could be degraded.",
+          "actions": [
+            "Re-calibrate camera in lab before next survey",
+            "Compare current and lab-calibration distortion parameters if available",
+            "Note calibration age in deliverable QA notes"
+          ]
+        }
+      ],
+      "derivation": "6-month / 18-month thresholds from photogrammetric best practice \u2014 cameras drift with handling.",
+      "flag": "CALIBRATION_POTENTIALLY_OUTDATED"
+    }
+  }
+}

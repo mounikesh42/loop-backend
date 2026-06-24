@@ -1,0 +1,268 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Drone Confidence Score — v2.1 LOCKED</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--accent:#4A8BBF;--accent2:#5fa3d8;--gold:#c9a84c;--green:#3dba78;--teal:#3dd8c0;
+--orange:#e08c3a;--purple:#9b6fe0;--red:#e05555;--minor:#8aa2b5;--navy:#0d1b2a;
+--navy2:#112236;--navy3:#162d44;--text:#d6e4f0;--textdim:#7a9bb5;
+--textfaint:#4a6a80;--border:rgba(122,155,181,.18);--border2:rgba(122,155,181,.30);
+--mono:'SF Mono',ui-monospace,Menlo,monospace;--sans:-apple-system,Segoe UI,Roboto,sans-serif}
+body{background:var(--navy);color:var(--text);font-family:var(--sans);line-height:1.55;padding:40px 32px 80px;max-width:1180px;margin:0 auto}
+.hdr-eye{font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin-bottom:6px}
+.hdr-title{font-size:30px;font-weight:700;letter-spacing:-.5px}
+.hdr-title span{color:var(--accent2);font-weight:400}
+.hdr-sub{font-size:13px;color:var(--textdim);margin-top:8px;line-height:1.65;max-width:880px}
+.flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:22px 0 8px;font-family:var(--mono);font-size:11px}
+.flow span{padding:5px 11px;border-radius:5px;background:var(--navy3);border:1px solid var(--border2);color:var(--textdim)}
+.flow b{color:var(--gold)}
+.sec{margin:38px 0 0}
+.sec-bar{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border2);padding-bottom:8px;margin-bottom:16px}
+.sec-name{font-size:18px;font-weight:700;color:var(--accent2)}
+.sec-sub{font-size:12px;color:var(--textdim)}
+.card{background:var(--navy2);border:1px solid var(--border);border-radius:9px;padding:18px 20px;margin-bottom:14px}
+.card.gate{border-color:rgba(224,140,58,.35)}
+.row-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.name{font-family:var(--mono);font-size:14px;color:var(--gold);font-weight:600}
+.lname{font-size:13px;color:var(--text)}
+.wt{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--teal)}
+.pill{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:3px;border:1px solid var(--border2);color:var(--textdim)}
+.pill.cp{color:var(--red);border-color:rgba(224,85,85,.4)}
+.pill.null{color:var(--accent);border-color:rgba(74,139,191,.4)}
+.meaning{font-size:12.5px;color:var(--textdim);margin:4px 0}
+.formula{font-family:var(--mono);font-size:12px;color:var(--text);background:var(--navy);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin:8px 0;white-space:pre-wrap;line-height:1.7}
+.src{font-family:var(--mono);font-size:11px;color:var(--accent);margin-top:4px}
+.thr{font-size:11.5px;color:var(--textdim);background:var(--navy);border-left:2px solid var(--accent);padding:7px 10px;border-radius:0 5px 5px 0;margin-top:8px;font-family:var(--mono);line-height:1.6}
+.gatetag{font-size:11px;color:var(--orange);background:rgba(224,140,58,.08);border:1px solid rgba(224,140,58,.25);border-radius:5px;padding:7px 10px;margin-top:8px;font-family:var(--mono)}
+.qlocktag{font-size:11px;color:var(--gold);background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:5px;padding:7px 10px;margin-top:8px;font-family:var(--mono)}
+.vsbox{font-size:12px;color:var(--purple);background:rgba(155,111,224,.05);border:1px solid rgba(155,111,224,.35);border-radius:8px;padding:14px 18px;margin-top:14px;line-height:1.7}
+.vsbox b{color:var(--text)}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+th{text-align:left;color:var(--gold);font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--border2)}
+td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--textdim);vertical-align:top}
+td.kw{font-family:var(--mono);color:var(--text)}
+.sev-CATASTROPHIC,.sev-CRITICAL{color:var(--red);font-weight:600}
+.sev-HIGH{color:var(--gold)}
+.sev-MEDIUM{color:var(--textdim)}
+.sev-MINOR{color:var(--minor);font-style:italic}
+.sev-INFORMATIONAL{color:var(--purple)}
+.note{font-size:12px;color:var(--textdim);background:var(--navy3);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-top:14px;line-height:1.7}
+.note b{color:var(--gold)}
+</style></head><body>
+<div class="hdr-eye">CrystalBall Infinity — Capture Subsystem — Drone — LOCKED</div>
+<div class="hdr-title">Drone Confidence Score <span>v2.1 LOCKED · PPK workflow · 4 Blocks · 21 Indicators · 3 Chain-Level Hard Gates · Indicator-Level Null Pattern</span></div>
+<div class="hdr-sub">Four-block evidence-based drone confidence chain. PPK workflow. Largest chain to date (4 blocks, 21 indicators after Q-DRONE-1 dedup). Confidence-only output: score (0-100) + tier + recommendation. THREE chain-level hard gates (Q-DRONE-2): image validity, rover coverage, mission coverage. Q-DRONE-4 introduces indicator-level null pattern (wind API failure → null, not fabricated score). Severity vocabulary at band level: none / minor / material / critical. Recommendation vocabulary: good_to_go / review_recommended / resurvey_recommended.</div>
+<div class="flow">
+<span><b>Raw Images</b></span>→<span>+ Rover RINEX</span>→<span>+ ArduPilot .BIN</span>→<span>+ Camera Calibration</span>→<span>+ Open-Meteo wind</span>→<span>Indicators (21)</span>→<span>Blocks (4)</span>→<span><b>drone_score</b></span>
+</div>
+
+<div class="sec"><div class="sec-bar"><div class="sec-name">v2.1 Q-Locks Applied (5 decisions)</div></div>
+<div class="card">
+<div class="qlocktag" style="margin-bottom:8px"><b>Q-DRONE-1:</b> Deduplicate calibration indicators — removed L3I_IMG_006/007 from BB_IMG_CAPTURE; retained L3I_CAL_001/002 in BB_CAL_CONF. BB_IMG_CAPTURE renormalized.</div>
+<div class="qlocktag" style="margin-bottom:8px"><b>Q-DRONE-2:</b> 3 chain-level hard gates promoted: image_validity (existing), rover_coverage (new), mission_coverage (new).</div>
+<div class="qlocktag" style="margin-bottom:8px"><b>Q-DRONE-3:</b> BB_CAL_CONF retained as 4th block, weight 0.10. Calibration is operationally distinct from image quality.</div>
+<div class="qlocktag" style="margin-bottom:8px"><b>Q-DRONE-4:</b> Wind API failure → indicator-level null (new pattern). L3I_FC_005 returns null when Open-Meteo API unavailable, NOT fabricated score.</div>
+<div class="qlocktag" style="margin-bottom:8px"><b>Q-DRONE-5:</b> SELF_CALIBRATED_LENS stays MEDIUM (material). Flagging at review level lets operator decide based on accuracy requirements.</div>
+</div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">New Pattern Concepts (introduced by drone)</div></div>
+<div class="card">
+<div class="qlocktag" style="margin-bottom:8px;color:var(--accent2);border-color:rgba(74,139,191,.3);background:rgba(74,139,191,.05)"><b>indicator_level_null:</b> Q-DRONE-4: First chain to introduce indicator-level null (distinct from GCP&#x27;s chain-level null). When a specific indicator&#x27;s input is unavailable, that indicator returns null and block aggregation renormalizes across measured indicators. Composite scoring must respect indicator-null vs zero.</div>
+<div class="qlocktag" style="margin-bottom:8px;color:var(--accent2);border-color:rgba(74,139,191,.3);background:rgba(74,139,191,.05)"><b>multiple_chain_level_hard_gates:</b> Q-DRONE-2: First chain with 3 chain-level hard gates. Pattern: multiple critical-path indicators can each independently kill the chain. global_gate_condition string lists all gates with OR.</div>
+</div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Core — drone_score</div></div>
+<div class="card gate"><div class="row-top"><div class="name">drone_score</div><div class="lname">Drone Quality Score</div></div>
+<div class="formula">0.40 * image_capture_score + 0.30 * rover_gnss_score + 0.20 * mission_execution_score + 0.10 * calibration_confidence_score</div>
+<div class="gatetag">⊘ GLOBAL GATE (3 chain-level): Any one of the following forces drone_score = 0 (HARD GATE — Q-DRONE-2 lock):
+  (1) L3I_IMG_001 image_validity_score == 0 → CRITICAL_IMAGE_FAILURE (no usable images)
+  (2) L3I_GNSS_001 rover_coverage_score == 0 → RINEX_CRITICAL_GAP (no rover observations during flight)
+  (3) L3I_FC_001 mission_coverage_score == 0 → COVERAGE_GAP (mission area not covered)
+When any gate fires, overall score is forced to 0. Audit trail must identify which gate(s) fired.</div>
+<div class="qlocktag">∅ NULL HANDLING (chain-level): drone_score = null when (a) primary source files not provided (raw images, rover RINEX, flight controller log), or (b) all three hard gates would fire (effectively empty survey). Indicator-level null (Q-DRONE-4 new pattern): L3I_FC_005 wind_condition returns null when Open-Meteo API unavailable. Block aggregation treats indicator-null as &quot;not measured&quot; — renormalizes block weight across measured indicators.</div>
+<div class="qlocktag" style="color:var(--accent2);border-color:rgba(74,139,191,.3);background:rgba(74,139,191,.05)">∅ INDICATOR-LEVEL NULL (Q-DRONE-4 NEW pattern): Q-DRONE-4 lock v2.1: Drone introduces INDICATOR-LEVEL null (distinct from GCP&#x27;s chain-level null). When a specific indicator cannot be measured (e.g., wind API unavailable), that indicator returns null rather than fabricating a score. Block aggregation renormalizes across measured indicators only. Distinguishes &quot;we don&#x27;t know&quot; from &quot;score=0&quot; and from &quot;score=100.&quot; Composite scoring at chain and OJS level must respect indicator-null vs zero.</div>
+<div class="vsbox"><b>Severity of finding vocabulary (band-level):</b><br>Indicator-band level severity. Four values, in increasing severity: NONE (band passed) → MINOR (hygiene signal, audit-only, doesn&#x27;t drive recommendation) → MATERIAL (warrants review) → CRITICAL (warrants resurvey).</div>
+<div class="vsbox"><b>verification_status field (separate categorical):</b><br>Separate categorical field reporting drone-level verification quality. VALUES: DRONE_VERIFIED_HIGH (all blocks passed cleanly); DRONE_VERIFIED_MARGINAL (one or more material findings; review_recommended); DRONE_VERIFIED_FAIL (critical finding present; resurvey_recommended); DRONE_HARD_GATE_FIRED (one of three hard gates fired). NEVER score-gating. Score reflects measurement quality; status reports verification basis.</div>
+<div class="vsbox" style="border-color:rgba(201,168,76,.35);background:rgba(201,168,76,.05);color:var(--gold)"><b style="color:var(--text)">Tier interpretation:</b><br>BASE TIER (from numerical score): Gold 90-100; Silver 75-89; Bronze 60-74; Marginal 40-59; Poor &lt;40. 
+
+HARD GATE: When any of three hard gates fires, drone_score = 0. Tier = Poor (HARD GATE). 
+
+Q-DRONE-1/2/3/4/5 lock decisions (v2.1):
+  Q-DRONE-1: Deduplicated calibration indicators (removed from BB_IMG_CAPTURE; retained in BB_CAL_CONF).
+  Q-DRONE-2: 3 chain-level hard gates (image validity + rover coverage + mission coverage).
+  Q-DRONE-3: BB_CAL_CONF retained as 4th block.
+  Q-DRONE-4: Wind API failure → indicator-level null (new pattern concept).
+  Q-DRONE-5: SELF_CALIBRATED_LENS stays MEDIUM/material.
+</div>
+<div class="meaning" style="margin-top:10px">Drone is one of three capture chains (drone, base_station, GCP). drone_score feeds upward into capture_score (eventual OJS integration layer). 4 blocks: Image Capture (0.40) + Rover GNSS (0.30) + Mission Execution (0.20) + Calibration Confidence (0.10). PPK workflow — depends on rover RINEX + base RINEX downstream.</div></div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 1 — Building Blocks (4)</div></div>
+<div class="card">
+<div class="row-top"><div class="name" style="color:var(--red)">BB_IMG_CAPTURE</div>
+<div class="lname">Image Capture Quality</div><div class="wt">weight 0.4 in drone_score</div></div>
+<div class="meaning"></div></div>
+<div class="card">
+<div class="row-top"><div class="name" style="color:var(--orange)">BB_ROVER_GNSS</div>
+<div class="lname">Rover GNSS Quality</div><div class="wt">weight 0.3 in drone_score</div></div>
+<div class="meaning"></div></div>
+<div class="card">
+<div class="row-top"><div class="name" style="color:var(--teal)">BB_MISSION_EXEC</div>
+<div class="lname">Mission Execution Quality</div><div class="wt">weight 0.2 in drone_score</div></div>
+<div class="meaning"></div></div>
+<div class="card">
+<div class="row-top"><div class="name" style="color:var(--purple)">BB_CAL_CONF</div>
+<div class="lname">Camera Calibration Deliverable Confidence Score</div><div class="wt">weight 0.1 in drone_score</div></div>
+<div class="meaning"></div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 3 — Indicators (21)</div><div class="sec-sub">3 chain-level critical-path (image validity, rover coverage, mission coverage). 1 null-supported (wind condition, Q-DRONE-4).</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--red);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for BB_IMG_CAPTURE</div>
+<div class="card gate">
+<div class="row-top"><div class="name">L3I_IMG_001</div><div class="lname">image_validity_score</div>
+<span class="pill cp">CHAIN-LEVEL CRITICAL-PATH</span><div class="wt">weight 0.34</div></div>
+<div class="meaning">What fraction of captured images are usable? Corrupted images remove coverage — below 30 triggers the critical drone gate.</div>
+<div class="src">← L2D_IMG_001</div>
+<div class="gatetag">⊘ image_validity_score &lt; 30 → Sets image_capture_score = 0 (no recoverable survey data). Raises FLAG: CRITICAL_IMAGE_FAILURE.</div><div class="qlocktag">v2.1 Q-lock: Q-DRONE-2: existing hard gate (image_validity &lt; 30). Confirmed chain-level critical-path.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_IMG_002</div><div class="lname">image_geotag_score</div>
+<div class="wt">weight 0.27</div></div>
+<div class="meaning">What fraction of valid images have GPS coordinates? Images without geotags cannot be used in photogrammetric reconstruction.</div>
+<div class="src">← L2D_IMG_002</div>
+</div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_IMG_003</div><div class="lname">image_overlap_score</div>
+<div class="wt">weight 0.18</div></div>
+<div class="meaning">Do the actual image positions prove sufficient overlap exists? Computed from real EXIF positions, independent of any GCS log.</div>
+<div class="src">← L2D_IMG_004;L2D_IMG_005</div>
+</div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_IMG_004</div><div class="lname">image_format_score</div>
+<div class="wt">weight 0.12</div></div>
+<div class="meaning">Are images in a format that preserves full radiometric data? DNG and RAW formats preserve full sensor depth.</div>
+<div class="src">← L2D_IMG_003</div>
+</div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_IMG_005</div><div class="lname">image_exposure_consistency_score</div>
+<div class="wt">weight 0.09</div></div>
+<div class="meaning">How stable was camera exposure throughout the entire flight session? High exposure variance means radiometric inconsistency.</div>
+<div class="src">← L2D_IMG_009</div>
+</div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for BB_ROVER_GNSS</div>
+<div class="card gate">
+<div class="row-top"><div class="name">L3I_GNSS_001</div><div class="lname">rover_coverage_score</div>
+<span class="pill cp">CHAIN-LEVEL CRITICAL-PATH</span><div class="wt">weight 0.3</div></div>
+<div class="meaning">Did the rover record throughout the entire flight with adequate buffer before and after?</div>
+<div class="src">← L2D_GNSS_001</div>
+<div class="gatetag">⊘ rover_coverage_score == 0 → Sets drone_score = 0 (HARD GATE — Q-DRONE-2 lock v2.1). Raises FLAG: RINEX_CRITICAL_GAP. PPK has no rover observations during flight; output is unrecoverable.</div><div class="qlocktag">v2.1 Q-lock: Q-DRONE-2: promoted to chain-level hard gate. Rover coverage gap during flight makes PPK fundamentally impossible.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_GNSS_002</div><div class="lname">rover_signal_score</div>
+<div class="wt">weight 0.25</div></div>
+<div class="meaning">How strong and clean was the satellite signal during the flight? C/N0 below 30dBHz indicates degraded signal.</div>
+<div class="src">← </div>
+</div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_GNSS_003</div><div class="lname">rover_frequency_score</div>
+<div class="wt">weight 0.15</div></div>
+<div class="meaning">Is dual-frequency GNSS data available? Enables ionospheric correction critical for PPK precision.</div>
+<div class="src">← L2D_GNSS_002</div>
+</div>
+<div class="card gate">
+<div class="row-top"><div class="name">L3I_GNSS_004</div><div class="lname">rover_continuity_score</div>
+<div class="wt">weight 0.1</div></div>
+<div class="meaning">Were there any critical recording gaps? A gap over 60 seconds during a short drone flight effectively breaks PPK.</div>
+<div class="src">← L2D_GNSS_003</div>
+<div class="gatetag">⊘ critical_gap_present == True → HARD RULE: Sets rover_continuity_score = 0. Raises FLAG: RINEX_CRITICAL_GAP.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_GNSS_005</div><div class="lname">rover_acquisition_score</div>
+<div class="wt">weight 0.1</div></div>
+<div class="meaning">How quickly did the rover reach stable satellite tracking after recording began?</div>
+<div class="src">← L2D_GNSS_004</div>
+</div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_GNSS_006</div><div class="lname">rover_pdop_score</div>
+<div class="wt">weight 0.1</div></div>
+<div class="meaning">How good was satellite geometry during the actual flight window? PDOP magnifies all measurement errors.</div>
+<div class="src">← L2D_GNSS_005;L2D_GNSS_006</div>
+</div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--teal);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for BB_MISSION_EXEC</div>
+<div class="card gate">
+<div class="row-top"><div class="name">L3I_FC_001</div><div class="lname">mission_coverage_score</div>
+<span class="pill cp">CHAIN-LEVEL CRITICAL-PATH</span><div class="wt">weight 0.3</div></div>
+<div class="meaning">What fraction of the planned survey area was actually flown? An unflown area is unflown data.</div>
+<div class="src">← L2D_FC_010</div>
+<div class="gatetag">⊘ mission_coverage_score == 0 → Sets drone_score = 0 (HARD GATE — Q-DRONE-2 lock v2.1). Raises FLAG: COVERAGE_GAP. Mission area not covered; deliverable is fundamentally incomplete.</div><div class="qlocktag">v2.1 Q-lock: Q-DRONE-2: promoted to chain-level hard gate. Mission coverage gap means survey area is not actually surveyed.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_FC_002</div><div class="lname">mission_gsd_score</div>
+<div class="wt">weight 0.22</div></div>
+<div class="meaning">How closely did the achieved GSD match what was planned? GSD determines the resolution of the deliverable.</div>
+<div class="src">← L2D_FC_005</div>
+</div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_FC_003</div><div class="lname">mission_overlap_score</div>
+<div class="wt">weight 0.22</div></div>
+<div class="meaning">How closely did achieved overlap match planned overlap? Insufficient overlap creates reconstruction gaps.</div>
+<div class="src">← L2D_FC_006;L2D_FC_007</div>
+</div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_FC_004</div><div class="lname">mission_altitude_score</div>
+<div class="wt">weight 0.13</div></div>
+<div class="meaning">How consistently did the drone maintain the planned altitude?</div>
+<div class="src">← L2D_FC_008</div>
+</div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_FC_005</div><div class="lname">wind_condition_score</div>
+<span class="pill null">NULL-SUPPORTED</span><div class="wt">weight 0.05</div></div>
+<div class="meaning">Were wind conditions within safe operating limits during the survey?</div>
+<div class="src">← L2D_FC_011</div>
+<div class="qlocktag">v2.1 Q-lock: Q-DRONE-4: introduces INDICATOR-LEVEL null pattern. When Open-Meteo API unavailable, indicator returns null + WIND_API_FALLBACK flag. Does NOT score 100 (don&#x27;t make up data) or 0 (not a failure — just unavailable). Composite scoring at block level treats indicator null as &quot;not measured.&quot;</div></div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_FC_006</div><div class="lname">mission_altitude_consistency_score</div>
+<div class="wt">weight 0.05</div></div>
+<div class="meaning">How much did altitude fluctuate during the survey cruise lines?</div>
+<div class="src">← L2D_FC_012</div>
+</div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_FC_007</div><div class="lname">mission_completion_score</div>
+<div class="wt">weight 0.03</div></div>
+<div class="meaning">Did the drone complete all planned waypoints?</div>
+<div class="src">← L2D_FC_009</div>
+</div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--purple);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for BB_CAL_CONF</div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_CAL_001</div><div class="lname">calibration_source_score</div>
+<div class="wt">weight 0.5</div></div>
+<div class="meaning">Where did the calibration parameters originate? Physically measured calibration is ground truth.</div>
+<div class="src">← </div>
+</div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_CAL_002</div><div class="lname">calibration_match_score</div>
+<div class="wt">weight 0.35</div></div>
+<div class="meaning">Does the calibration file match the actual camera hardware used in this survey?</div>
+<div class="src">← L2D_IMG_006;L2D_IMG_007</div>
+</div>
+<div class="card">
+<div class="row-top"><div class="name">L3I_CAL_003</div><div class="lname">calibration_age_score</div>
+<div class="wt">weight 0.15</div></div>
+<div class="meaning">How recently was this calibration performed or verified?</div>
+<div class="src">← L2D_IMG_008</div>
+</div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Flags (19)</div></div><div class="card"><table><tr><th>Flag</th><th>Severity</th><th>Meaning</th><th>v2.1 Q-lock</th></tr>
+<tr><td class="kw">CRITICAL_IMAGE_FAILURE</td><td class="sev-CRITICAL">CRITICAL</td><td>No recoverable survey data — too many corrupted/unreadable images. Causes image_capture_score = 0 and drone_score = 0.</td><td></td></tr>
+<tr><td class="kw">INSUFFICIENT_OVERLAP</td><td class="sev-HIGH">HIGH</td><td>Actual image positions do not provide enough overlap for photogrammetric reconstruction.</td><td></td></tr>
+<tr><td class="kw">MIXED_IMAGE_FORMAT</td><td class="sev-MEDIUM">MEDIUM</td><td>Inconsistent radiometric quality across the dataset.</td><td></td></tr>
+<tr><td class="kw">HIGH_EXPOSURE_VARIATION</td><td class="sev-MEDIUM">MEDIUM</td><td>Lighting changed significantly during the survey — radiometric calibration affected.</td><td></td></tr>
+<tr><td class="kw">RINEX_CRITICAL_GAP</td><td class="sev-CRITICAL">CRITICAL</td><td>A RINEX recording gap of 60s+ effectively breaks the carrier phase solution. Hard rule zeros rover_continuity_score.</td><td></td></tr>
+<tr><td class="kw">SLOW_ROVER_ACQUISITION</td><td class="sev-MEDIUM">MEDIUM</td><td>Rover took over 5 minutes to reach stable tracking — limited pre-flight convergence time.</td><td></td></tr>
+<tr><td class="kw">POOR_SKY_VIEW_DURING_FLIGHT</td><td class="sev-HIGH">HIGH</td><td>Satellite geometry was poor during the flight — significant sky obstruction.</td><td></td></tr>
+<tr><td class="kw">COVERAGE_GAP</td><td class="sev-CRITICAL">CRITICAL</td><td>Planned survey area not fully flown. Unflown area cannot be recovered without re-flight.</td><td></td></tr>
+<tr><td class="kw">HIGH_WIND_SURVEY</td><td class="sev-MEDIUM">MEDIUM</td><td>Survey flown in wind exceeding safe operating limits — image blur and unstable flight.</td><td></td></tr>
+<tr><td class="kw">WIND_API_FALLBACK</td><td class="sev-INFORMATIONAL">INFORMATIONAL (null trigger — Q-DRONE-4 lock v2.1)</td><td>Wind speed could not be confirmed from API and BIN attitude proxy was inconclusive — wind_condition_score derived from fallback band only.</td><td>Q-DRONE-4: triggers indicator-level null on L3I_FC_005 (wind_condition_score). Different from missing input — explicit &quot;infrastructure couldn&#x27;t verify&quot; condition. Composite scoring should respect indicator-null.</td></tr>
+<tr><td class="kw">HIGH_ALTITUDE_VARIANCE</td><td class="sev-HIGH">HIGH</td><td>Significant altitude fluctuation during cruise — GSD inconsistent across the site.</td><td></td></tr>
+<tr><td class="kw">SELF_CALIBRATED_LENS</td><td class="sev-MEDIUM">MEDIUM</td><td>ODM estimated lens parameters from the images themselves — circular dependency with the reconstruction.</td><td>Q-DRONE-5: stays MEDIUM (material). Self-calibration works for most cases; flagging at review level lets operator decide whether to insist on pre-calibration based on accuracy requirements.</td></tr>
+<tr><td class="kw">NO_CALIBRATION_FILE</td><td class="sev-HIGH">HIGH</td><td>No calibration file present at all.</td><td></td></tr>
+<tr><td class="kw">CALIBRATION_CAMERA_MISMATCH</td><td class="sev-HIGH">HIGH</td><td>Calibration file is for a different camera than the one used in this survey.</td><td></td></tr>
+<tr><td class="kw">CALIBRATION_POTENTIALLY_OUTDATED</td><td class="sev-MEDIUM">MEDIUM</td><td>Calibration older than 36 months — lens parameters may have drifted.</td><td></td></tr>
+<tr><td class="kw">CALIBRATION_DATE_UNKNOWN</td><td class="sev-MEDIUM">MEDIUM</td><td>Calibration date cannot be determined — recency cannot be assessed.</td><td></td></tr>
+<tr><td class="kw">DRONE_CRITICAL_FAILURE</td><td class="sev-CRITICAL">CRITICAL</td><td>Drone produced no recoverable data. drone_score=0. All downstream processing stops.</td><td></td></tr>
+<tr><td class="kw">CAM_RECORDS_MISSING</td><td class="sev-MEDIUM">MEDIUM</td><td>No CAM records found in the BIN. PPK falls back to less-precise EXIF timestamps for epoch matching. (Was MRK_FILE_MISSING.)</td><td></td></tr>
+<tr><td class="kw">CAM_COUNT_MISMATCH</td><td class="sev-MEDIUM">MEDIUM</td><td>Number of CAM shutter records in the BIN does not match total_images on the SD card. Indicates a recording error or missing images.</td><td></td></tr>
+</table></div></div>
+<div class="note"><b>Three-tier artifact architecture:</b><br>Tier 1 (this bundle) — chain definition<br>Tier 2 (separate) — drone_indicator_library_v2_1.json (customer-voice text per indicator per band)<br>Tier 3 (separate) — drone_multi_view_v1_LOCKED.html (5-tab reference implementation)<br><br><b>Drone introduces two new pattern concepts:</b><br>(1) <b>Indicator-level null</b> — Q-DRONE-4. When an indicator's input is unavailable (e.g., wind API failure), that indicator returns null and block aggregation renormalizes. Distinct from GCP's chain-level null.<br>(2) <b>Multiple chain-level hard gates</b> — Q-DRONE-2. Three critical-path indicators independently fire hard gates. global_gate_condition lists with OR.<br><br>See cbmi_chain_library_pattern.md for the propagation blueprint.</div>
+</body></html>

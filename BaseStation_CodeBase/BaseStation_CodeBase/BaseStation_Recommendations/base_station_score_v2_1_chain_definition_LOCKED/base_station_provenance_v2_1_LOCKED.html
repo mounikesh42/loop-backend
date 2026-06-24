@@ -1,0 +1,222 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Base Station Confidence Score — v2.1 LOCKED</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--accent:#4A8BBF;--accent2:#5fa3d8;--gold:#c9a84c;--green:#3dba78;--teal:#3dd8c0;
+--orange:#e08c3a;--purple:#9b6fe0;--red:#e05555;--minor:#8aa2b5;--navy:#0d1b2a;
+--navy2:#112236;--navy3:#162d44;--navy4:#1a3350;--text:#d6e4f0;--textdim:#7a9bb5;
+--textfaint:#4a6a80;--border:rgba(122,155,181,.18);--border2:rgba(122,155,181,.30);
+--mono:'SF Mono',ui-monospace,Menlo,monospace;--sans:-apple-system,Segoe UI,Roboto,sans-serif}
+body{background:var(--navy);color:var(--text);font-family:var(--sans);line-height:1.55;padding:40px 32px 80px;max-width:1180px;margin:0 auto}
+.hdr-eye{font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin-bottom:6px}
+.hdr-title{font-size:30px;font-weight:700;letter-spacing:-.5px}
+.hdr-title span{color:var(--accent2);font-weight:400}
+.hdr-sub{font-size:13px;color:var(--textdim);margin-top:8px;line-height:1.65;max-width:880px}
+.flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:22px 0 8px;font-family:var(--mono);font-size:11px}
+.flow span{padding:5px 11px;border-radius:5px;background:var(--navy3);border:1px solid var(--border2);color:var(--textdim)}
+.flow b{color:var(--gold)}
+.sec{margin:38px 0 0}
+.sec-bar{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border2);padding-bottom:8px;margin-bottom:16px}
+.sec-name{font-size:18px;font-weight:700;color:var(--accent2)}
+.sec-sub{font-size:12px;color:var(--textdim)}
+.card{background:var(--navy2);border:1px solid var(--border);border-radius:9px;padding:18px 20px;margin-bottom:14px}
+.card.gate{border-color:rgba(224,140,58,.35)}
+.row-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.name{font-family:var(--mono);font-size:14px;color:var(--gold);font-weight:600}
+.lname{font-size:13px;color:var(--text)}
+.wt{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--teal)}
+.pill{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:3px;border:1px solid var(--border2);color:var(--textdim)}
+.pill.cp{color:var(--red);border-color:rgba(224,85,85,.4)}
+.pill.cov{color:var(--purple);border-color:rgba(155,111,224,.4)}
+.meaning{font-size:12.5px;color:var(--textdim);margin:4px 0}
+.formula{font-family:var(--mono);font-size:12px;color:var(--text);background:var(--navy);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin:8px 0;white-space:pre-wrap;line-height:1.7}
+.src{font-family:var(--mono);font-size:11px;color:var(--accent);margin-top:4px}
+.thr{font-size:11.5px;color:var(--textdim);background:var(--navy);border-left:2px solid var(--accent);padding:7px 10px;border-radius:0 5px 5px 0;margin-top:8px;font-family:var(--mono);line-height:1.6}
+.gatetag{font-size:11px;color:var(--orange);background:rgba(224,140,58,.08);border:1px solid rgba(224,140,58,.25);border-radius:5px;padding:7px 10px;margin-top:8px;font-family:var(--mono)}
+.qlocktag{font-size:11px;color:var(--gold);background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:5px;padding:7px 10px;margin-top:8px;font-family:var(--mono)}
+.vsbox{font-size:12px;color:var(--purple);background:rgba(155,111,224,.05);border:1px solid rgba(155,111,224,.35);border-radius:8px;padding:14px 18px;margin-top:14px;line-height:1.7}
+.vsbox b{color:var(--text)}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+th{text-align:left;color:var(--gold);font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--border2)}
+td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--textdim);vertical-align:top}
+td.kw{font-family:var(--mono);color:var(--text)}
+.sev-CATASTROPHIC,.sev-CRITICAL{color:var(--red);font-weight:600}
+.sev-HIGH{color:var(--gold)}
+.sev-MEDIUM{color:var(--textdim)}
+.sev-MINOR{color:var(--minor);font-style:italic}
+.sev-INFORMATIONAL{color:var(--purple)}
+.note{font-size:12px;color:var(--textdim);background:var(--navy3);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-top:14px;line-height:1.7}
+.note b{color:var(--gold)}
+</style></head><body>
+<div class="hdr-eye">CrystalBall Infinity — Capture Subsystem — Base Station — LOCKED</div>
+<div class="hdr-title">Base Station Confidence Score <span>v2.1 LOCKED · 3 Blocks · 2 Hard Gates · 4-Severity Vocabulary</span></div>
+<div class="hdr-sub">Three-block evidence-based base station confidence chain. Confidence-only output: score (0-100) + tier + recommendation. Two HARD gates: coverage gap (L3I_BASE_001=0) and antenna height missing (L3I_BASE_005=0) — both force overall score to 0 (Q1, Q6 locks). Severity vocabulary at band level: none / minor / material / critical. Recommendation vocabulary at chain level: good_to_go / review_recommended / resurvey_recommended. Vocabularies are deliberately separate. Minor findings (per Q4 lock: slow acquisition, log download unconfirmed) are audit-only — do not drive recommendation, visible only in &quot;what passed/what else was checked&quot; expandable per Q5 lock.</div>
+<div class="flow">
+<span><b>RINEX Observation File</b></span>→<span>+ Manifest (antenna, mark, equipment)</span>→<span>+ Operation Log</span>→<span>Indicators (11)</span>→<span>Blocks (3)</span>→<span><b>base_station_score</b></span> + <span><b>tier</b></span>
+</div>
+
+<div class="sec"><div class="sec-bar"><div class="sec-name">v2.1 Q-Locks Applied (6 decisions)</div></div>
+<div class="card">
+<div class="qlocktag" style="margin-bottom:8px"><b>Q1:</b> antenna_height = true HARD GATE (is_critical_path=true; forces overall score=0)</div>
+<div class="qlocktag" style="margin-bottom:8px"><b>Q2:</b> RINEX version unsupported = material (not critical) — data fixable via conversion</div>
+<div class="qlocktag" style="margin-bottom:8px"><b>Q3:</b> session interrupted stays critical for v2.1; v2 enhancement (flight-window overlap) pending</div>
+<div class="qlocktag" style="margin-bottom:8px"><b>Q4:</b> SLOW_BASE_ACQUISITION and BASE_LOG_DOWNLOAD_UNCONFIRMED = minor (hygiene, audit-only)</div>
+<div class="qlocktag" style="margin-bottom:8px"><b>Q5:</b> minor findings hidden from default customer view; visible only in &quot;what passed&quot; expandable</div>
+<div class="qlocktag" style="margin-bottom:8px"><b>Q6:</b> global_gate_condition lists both hard gates explicitly (coverage + antenna_height)</div>
+</div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Core — base_station_score</div></div>
+<div class="card gate"><div class="row-top"><div class="name">base_station_score</div><div class="lname">Base Station Confidence Score</div></div>
+<div class="formula">0.45*base_completeness_integrity_score + 0.35*base_setup_confidence_score + 0.20*base_observation_environment_score</div>
+<div class="gatetag">⊘ GLOBAL GATE (2 hard gates): Any one of the following forces base_station_score = 0 (HARD GATE):
+  (1) L3I_BASE_001 coverage_score == 0 (flight gap: BASE_RINEX_FLIGHT_GAP)
+  (2) L3I_BASE_005 antenna_height_documented_score == 0 (no height: ANTENNA_HEIGHT_MISSING)
+When either fires, overall score is forced to 0 regardless of other indicators. Audit trail must identify which gate(s) fired.</div>
+<div class="vsbox"><b>Severity of finding vocabulary (band-level):</b><br>Indicator-band level severity (used in operator_action templates and rendering). Four values, in increasing severity: NONE (band passed, no concern) → MINOR (hygiene signal, audit-only; does NOT drive recommendation; visible only in &quot;what passed/what else was checked&quot; expandable per Q5 lock) → MATERIAL (warrants human review before processing; drives review_recommended recommendation) → CRITICAL (serious finding warranting recollection; drives resurvey_recommended recommendation). Note: severity_of_finding is the BAND-LEVEL vocabulary. The CHAIN-LEVEL recommendation vocabulary is good_to_go / review_recommended / resurvey_recommended. These are deliberately separate to prevent conflation (resolved during v2.1 design).</div>
+<div class="vsbox"><b>verification_status field (separate categorical):</b><br>Separate categorical field reporting base-station-level verification quality. VALUES: BASE_VERIFIED_HIGH (clean session, all blocks passed, no findings); BASE_VERIFIED_MARGINAL (one or more material findings present; review_recommended); BASE_VERIFIED_FAIL (critical finding present; resurvey_recommended); BASE_HARD_GATE_FIRED (one or both hard gates fired — coverage gap or antenna height missing). NEVER score-gating. Score reflects measurement quality; status reports verification basis.</div>
+<div class="vsbox" style="border-color:rgba(201,168,76,.35);background:rgba(201,168,76,.05);color:var(--gold)"><b style="color:var(--text)">Tier interpretation:</b><br>BASE TIER (from numerical score): Gold 90-100; Silver 75-89; Bronze 60-74; Marginal 40-59; Poor &lt;40. 
+
+HARD GATE: When either hard gate fires (coverage_score = 0 OR antenna_height_documented_score = 0), overall base_station_score is forced to 0. Tier = Poor (HARD GATE). This is enforced at the chain level, not at indicator-band level. 
+
+Q1-Q6 lock decisions (v2.1):
+  Q1: antenna_height = true hard gate (forces overall score to 0)
+  Q2: RINEX version unsupported = review (not resurvey) — data fixable via conversion
+  Q3: session interrupted stays critical for v2.1; v2 enhancement (flight-window overlap) pending
+  Q4: SLOW_BASE_ACQUISITION and BASE_LOG_DOWNLOAD_UNCONFIRMED = minor (hygiene signals)
+  Q5: minor findings hidden from default customer view, visible only in expandables
+  Q6: global_gate_condition lists both hard gates explicitly
+</div>
+<div class="meaning" style="margin-top:10px">Feeds capture_score alongside drone_score, gcp_score, pre_processing_score. Excludes everything from CORS/known-point/datum/geoid (those live in pre_processing_score). RTK-only concerns out of scope.</div></div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 1 — Building Blocks (3)</div></div>
+<div class="card gate">
+<div class="row-top"><div class="name" style="color:var(--red)">base_completeness_integrity_score</div>
+<div class="lname">Data Completeness &amp; Integrity</div><div class="wt">weight 0.45 in base_station_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Is the data there, complete, and usable?  ·  <b style="color:var(--text)">Owner:</b> Recording / hardware</div>
+<div class="formula">indicators:  </div><div class="gatetag">⊘ Sets block = 0 and base_station_score = 0. FLAG: BASE_RINEX_FLIGHT_GAP + BASE_CRITICAL_FAILURE.</div></div>
+<div class="card gate">
+<div class="row-top"><div class="name" style="color:var(--orange)">base_setup_confidence_score</div>
+<div class="lname">Setup &amp; Documentation Confidence</div><div class="wt">weight 0.35 in base_station_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Is the operator metadata trustworthy?  ·  <b style="color:var(--text)">Owner:</b> Human (operator)</div>
+<div class="formula">indicators:  </div><div class="gatetag">⊘ Sets block = 0. FLAG: ANTENNA_HEIGHT_MISSING. (Scores documentation rigor, not measured correctness.)</div></div>
+<div class="card">
+<div class="row-top"><div class="name" style="color:var(--teal)">base_observation_environment_score</div>
+<div class="lname">Observation Environment Quality</div><div class="wt">weight 0.2 in base_station_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Was the sky / site good enough?  ·  <b style="color:var(--text)">Owner:</b> Sky / site</div>
+<div class="formula">indicators:  </div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 3 — Indicators (11)</div><div class="sec-sub">2 critical-path indicators can fire hard gates (forces overall score = 0).</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--red);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for base_completeness_integrity_score</div>
+<div class="card gate">
+<div class="row-top"><div class="name">coverage_score</div><div class="lname">Flight Coverage &amp; Buffer</div>
+<span class="pill cp">CRITICAL-PATH</span><div class="wt">weight 0.35</div></div>
+<div class="meaning">covers <span class="pill cov">#6</span></div>
+<div class="src">← base_flight_coverage_ratio;pre_flight_buffer_sec;post_flight_buffer_sec</div>
+<div class="thr">Coverage=1.0 &amp; pre≥120s &amp; post≥60s →100; coverage=1.0 &amp; pre≥60s →88; coverage=1.0 &amp; pre&lt;60s →72; coverage&lt;1.0 →0+gate.</div><div class="gatetag">⊘ base_flight_coverage_ratio &lt; 1.0 → Sets completeness block = 0. FLAG: BASE_RINEX_FLIGHT_GAP.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">integrity_score</div><div class="lname">Session &amp; Power Integrity</div>
+<div class="wt">weight 0.3</div></div>
+<div class="meaning">covers <span class="pill cov">#8</span> <span class="pill cov">#17</span></div>
+<div class="src">← session_integrity_ok;raw_log_download_confirmed</div>
+<div class="thr">completed_normally &amp; 0 shutdowns &amp; battery ok →100; shutdown≥1 →20 (BASE_SESSION_INTERRUPTED); Operation Log absent/null → unconfirmed (≈60), never silent pass; download not confirmed → advisory flag.</div><div class="qlocktag">v2.1 Q-lock: Q3: session_interrupted band stays critical for v2.1 (safe default). v2 enhancement to check timestamp overlap with flight window pending — when implemented, will conditionally downgrade to material if shutdown is outside flight window.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">format_score</div><div class="lname">RINEX Format &amp; Compatibility</div>
+<div class="wt">weight 0.2</div></div>
+<div class="meaning">covers <span class="pill cov">#10</span> <span class="pill cov">#16</span> <span class="pill cov">#19</span></div>
+<div class="src">← rinex_version_supported;header_completeness;dual_freq_available;constellation_count</div>
+<div class="thr">version supported &amp; header complete &amp; dual-freq →100; single-freq →70; version unsupported →35 (BASE_RINEX_VERSION_UNSUPPORTED); header incomplete →40.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">continuity_score</div><div class="lname">Recording Continuity</div>
+<div class="wt">weight 0.15</div></div>
+<div class="meaning">covers <span class="pill cov">#7</span></div>
+<div class="src">← cycle_slip_count;gap_gt_5s_count;any_gap_gt_60s</div>
+<div class="thr">no gaps &amp; low slips →100; minor gaps →75; any_gap_gt_60s →40; feeds disturbance_signature composite.</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for base_setup_confidence_score</div>
+<div class="card gate">
+<div class="row-top"><div class="name">antenna_height_documented_score</div><div class="lname">Antenna Height Documentation</div>
+<span class="pill cp">CRITICAL-PATH</span><div class="wt">weight 0.55</div></div>
+<div class="meaning">covers <span class="pill cov">#1</span></div>
+<div class="src">← antenna_measurement_type;measured_to_reference;height_measured_count;antenna_height_agreement</div>
+<div class="thr">vertical + reference=ARP + ≥3 measurements + RINEX agreement →100; single vertical →88; slant →72; height entered but conflicts with RINEX delta-H →55 (review); no height →0+gate.</div><div class="gatetag">⊘ antenna_height_m absent → Sets base_station_score = 0 (HARD GATE — Q1 lock v2.1). FLAG: ANTENNA_HEIGHT_MISSING.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">setup_verification_score</div><div class="lname">Setup Verification</div>
+<div class="wt">weight 0.3</div></div>
+<div class="meaning">covers <span class="pill cov">#2</span></div>
+<div class="src">← over_known_mark;monument_id;verified_by_second_person</div>
+<div class="thr">over known mark &amp; verified by 2nd person →100; known mark only →80; unverified reused mark →50 (BASE_BENCHMARK_UNVERIFIED, non-scoring warn + LE handoff).</div></div>
+<div class="card">
+<div class="row-top"><div class="name">antenna_type_match_score</div><div class="lname">Antenna Type Consistency</div>
+<div class="wt">weight 0.15</div></div>
+<div class="meaning">covers <span class="pill cov">#21</span></div>
+<div class="src">← antenna_type_match</div>
+<div class="thr">form model matches RINEX type →100; mismatch →40 (type inconsistent; NOT a true ANTEX calibration check — that is Stage 2).</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--teal);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for base_observation_environment_score</div>
+<div class="card">
+<div class="row-top"><div class="name">multipath_score</div><div class="lname">Multipath Environment</div>
+<div class="wt">weight 0.45</div></div>
+<div class="meaning">covers <span class="pill cov">#14</span></div>
+<div class="src">← multipath_risk_level;cn0_mean_dbhz</div>
+<div class="thr">low C/N0 variance →100; moderate →65; high variance →35 (BASE_MULTIPATH_RISK). Risk proxy, not error magnitude.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">ionospheric_risk_score</div><div class="lname">Ionospheric Risk</div>
+<div class="wt">weight 0.2</div></div>
+<div class="meaning">covers <span class="pill cov">#20</span></div>
+<div class="src">← kp_index;dual_freq_available</div>
+<div class="thr">Kp low OR dual-freq →100; Kp high &amp; single-freq →40 (BASE_IONO_RISK). External NOAA SWPC dependency; not yet built.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">pdop_score</div><div class="lname">Sky Geometry (PDOP)</div>
+<div class="wt">weight 0.2</div></div>
+<div class="meaning">covers <span class="pill cov">(general quality)</span></div>
+<div class="src">← mean_pdop;max_pdop</div>
+<div class="thr">mean PDOP &lt;2 →100; 2–4 →80; 4–6 →55; &gt;6 →30. General geometry hygiene; no enumerated problem.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">acquisition_score</div><div class="lname">Satellite Acquisition</div>
+<div class="wt">weight 0.15</div></div>
+<div class="meaning">covers <span class="pill cov">(general quality)</span></div>
+<div class="src">← base_acquisition_time_sec</div>
+<div class="thr">fast acquisition (&lt;60s) →100; 60–180s →80; 180–300s →55; &gt;300s →30 (SLOW_BASE_ACQUISITION). General hygiene.</div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Flags (17)</div></div><div class="card"><table><tr><th>Flag</th><th>Type</th><th>When</th><th>Sev</th><th>Covers</th><th>Meaning</th></tr>
+<tr><td class="kw">BASE_CRITICAL_FAILURE</td><td>score</td><td>base_completeness_integrity_score == 0</td><td class="sev-CRITICAL">CRITICAL</td><td>#6/#10</td><td>Foundational base data unusable — base_station_score = 0. Parallels DRONE_CRITICAL_FAILURE.</td></tr>
+<tr><td class="kw">ANTENNA_HEIGHT_MISSING</td><td>indicator_gate</td><td>antenna_height_m absent</td><td class="sev-CRITICAL">CRITICAL</td><td>#1</td><td>No antenna height documented — setup block = 0. The catastrophic-case guard.</td></tr>
+<tr><td class="kw">BASE_RINEX_FLIGHT_GAP</td><td>indicator_gate</td><td>base_flight_coverage_ratio &lt; 1.0</td><td class="sev-CRITICAL">CRITICAL</td><td>#6</td><td>Base RINEX does not cover the full flight; PPK will have gaps.</td></tr>
+<tr><td class="kw">BASE_SESSION_INTERRUPTED</td><td>indicator</td><td>unexpected_shutdown_count &gt;= 1 OR session_completed_normally == False</td><td class="sev-HIGH">HIGH</td><td>#17</td><td>Recording session was interrupted by power/shutdown event.</td></tr>
+<tr><td class="kw">BASE_LOG_DOWNLOAD_UNCONFIRMED</td><td>indicator</td><td>raw_log_download_confirmed != True</td><td class="sev-MINOR">MINOR (audit-only — formalized per Q4 v2.1 lock)</td><td>#8</td><td>Raw log transfer off the device not confirmed (advisory).</td></tr>
+<tr><td class="kw">BASE_RINEX_VERSION_UNSUPPORTED</td><td>indicator</td><td>rinex_version not in supported set</td><td class="sev-MEDIUM">MEDIUM (material — downgraded per Q2 v2.1 lock)</td><td>#10</td><td>RINEX version may not be accepted / may degrade in the PPK pipeline.</td></tr>
+<tr><td class="kw">BASE_MULTIPATH_RISK</td><td>indicator</td><td>multipath_risk_level high</td><td class="sev-HIGH">HIGH</td><td>#14</td><td>Elevated multipath risk from the placement environment.</td></tr>
+<tr><td class="kw">BASE_IONO_RISK</td><td>indicator</td><td>kp_index high AND single-frequency</td><td class="sev-HIGH">HIGH</td><td>#20</td><td>Ionospheric disturbance likely degraded single-frequency accuracy.</td></tr>
+<tr><td class="kw">SLOW_BASE_ACQUISITION</td><td>indicator</td><td>base_acquisition_time_sec &gt; 300</td><td class="sev-MINOR">MINOR (audit-only — downgraded per Q4 v2.1 lock)</td><td>(general)</td><td>Base took unusually long to reach a stable solution.</td></tr>
+<tr><td class="kw">BASE_POSITION_DISCONTINUITY</td><td>composite</td><td>gap + cycle-slip + CN0-variance co-occur</td><td class="sev-HIGH">HIGH</td><td>#7</td><td>Likely physical base disturbance. FLAG-ONLY (no weight). Blind to slow settling.</td></tr>
+<tr><td class="kw">BASE_FLIGHT_LOG_MISMATCH</td><td>composite</td><td>flight window not inside base obs window</td><td class="sev-HIGH">HIGH</td><td>#15</td><td>Possible wrong base-log/flight match. FLAG-ONLY.</td></tr>
+<tr><td class="kw">BASE_RINEX_TRUNCATED</td><td>composite</td><td>session_end_utc vs obs_end_utc disagree</td><td class="sev-HIGH">HIGH</td><td>#17</td><td>Device end-time and observation end-time disagree — silent truncation.</td></tr>
+<tr><td class="kw">BASE_AUTONOMOUS_SEED</td><td>handoff</td><td>approx_position is autonomous</td><td class="sev-MEDIUM">MEDIUM</td><td>#3</td><td>Base position is an autonomous seed. NON-scoring; judgement deferred to pre-processing.</td></tr>
+<tr><td class="kw">BASE_BENCHMARK_UNVERIFIED</td><td>handoff</td><td>reused monument without verification</td><td class="sev-MEDIUM">MEDIUM</td><td>#2,#13</td><td>Benchmark may be unstable/unverified. NON-scoring warning + monument_id handoff to Learning Engine.</td></tr>
+<tr><td class="kw">BASE_TIME_OFFSET_CROSSDOC</td><td>handoff</td><td>base time vs drone flight log time offset</td><td class="sev-HIGH">HIGH</td><td>#18</td><td>UTC/local offset between base and flight logs. Cross-document — not Stage-1-closeable.</td></tr>
+<tr><td class="kw">BASE_CONSTELLATION_CROSSDOC</td><td>handoff</td><td>base vs rover constellation mismatch</td><td class="sev-HIGH">HIGH</td><td>#16</td><td>Base-side constellations captured; comparison needs the rover document.</td></tr>
+<tr><td class="kw">BASE_FIRMWARE_CROSSDOC</td><td>handoff</td><td>base vs rover firmware mismatch</td><td class="sev-HIGH">HIGH</td><td>#19</td><td>Base-side firmware captured; comparison needs the rover document.</td></tr>
+</table></div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Problem Coverage (22)</div></div><div class="card"><table><tr><th>#</th><th>Problem</th><th>Severity</th><th>Frequency</th><th>Disposition</th><th>Covered by</th></tr>
+<tr><td class="kw">1</td><td>Antenna Height Blunder</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>UNIVERSAL</td><td>OWNED</td><td>antenna_height_documented_score + ANTENNA_HEIGHT_MISSING gate</td></tr>
+<tr><td class="kw">2</td><td>Unstable/Unverified Benchmark</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>VERY COMMON</td><td>PARTIAL+LE</td><td>setup_verification_score + BASE_BENCHMARK_UNVERIFIED + Learning Engine</td></tr>
+<tr><td class="kw">3</td><td>Autonomous Position as Known Base</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>COMMON</td><td>WARN</td><td>BASE_AUTONOMOUS_SEED (non-scoring); judgement to pre-processing</td></tr>
+<tr><td class="kw">4</td><td>Wrong CRS/Datum</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>VERY COMMON</td><td>PRE-PROC</td><td>removed to pre_processing_score (datum)</td></tr>
+<tr><td class="kw">5</td><td>Height Mode Confusion</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>COMMON</td><td>PRE-PROC</td><td>removed to pre_processing_score (datum)</td></tr>
+<tr><td class="kw">6</td><td>Short Observation Window</td><td class="sev-CRITICAL">CRITICAL</td><td>VERY COMMON</td><td>OWNED</td><td>coverage_score + BASE_RINEX_FLIGHT_GAP gate</td></tr>
+<tr><td class="kw">7</td><td>Base Disturbed Mid-Observation</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td>FLAG</td><td>BASE_POSITION_DISCONTINUITY (blind to slow settling)</td></tr>
+<tr><td class="kw">8</td><td>Base Log Not Downloaded</td><td class="sev-CRITICAL">CRITICAL</td><td>VERY COMMON</td><td>OWNED</td><td>integrity_score via raw_log_download_confirmed</td></tr>
+<tr><td class="kw">9</td><td>Baseline Too Long (PPK)</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td>PRE-PROC</td><td>PPK baseline needs Stage-2 known position</td></tr>
+<tr><td class="kw">10</td><td>RINEX Incompatibility</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td>OWNED</td><td>format_score + BASE_RINEX_VERSION_UNSUPPORTED</td></tr>
+<tr><td class="kw">11</td><td>Float Solution Accepted as Fixed</td><td class="sev-CRITICAL">CRITICAL</td><td>OCCASIONAL</td><td>OUT-OF-SCOPE</td><td>RTK-only — not in PPK base scope</td></tr>
+<tr><td class="kw">12</td><td>Geoid Model Mismatch</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td>PRE-PROC</td><td>removed to pre_processing_score (geoid)</td></tr>
+<tr><td class="kw">13</td><td>Re-Occupation Error Across Sessions</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td>LE</td><td>monument_id handoff to Learning Engine</td></tr>
+<tr><td class="kw">14</td><td>Multipath from Structures</td><td class="sev-HIGH">HIGH</td><td>COMMON</td><td>OWNED</td><td>multipath_score</td></tr>
+<tr><td class="kw">15</td><td>Multiple Flights Wrong Log Matched</td><td class="sev-HIGH">HIGH</td><td>COMMON</td><td>FLAG</td><td>BASE_FLIGHT_LOG_MISMATCH</td></tr>
+<tr><td class="kw">16</td><td>Constellation Mismatch Base/Rover</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td>PARTIAL</td><td>format_score base-side + BASE_CONSTELLATION_CROSSDOC</td></tr>
+<tr><td class="kw">17</td><td>Power Interruption Mid-Observation</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td>OWNED</td><td>integrity_score (battery+shutdown); oplog-absent edge handled</td></tr>
+<tr><td class="kw">18</td><td>UTC/Time Offset Error</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td>CROSSDOC</td><td>BASE_TIME_OFFSET_CROSSDOC — not Stage-1-closeable</td></tr>
+<tr><td class="kw">19</td><td>Firmware Version Mismatch</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td>PARTIAL</td><td>firmware_version captured + BASE_FIRMWARE_CROSSDOC</td></tr>
+<tr><td class="kw">20</td><td>Ionospheric Storm</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td>OWNED</td><td>ionospheric_risk_score (external NOAA SWPC)</td></tr>
+<tr><td class="kw">21</td><td>Phase Centre / ANTEX Uncalibrated</td><td class="sev-MEDIUM">MEDIUM</td><td>OCCASIONAL</td><td>OWNED</td><td>antenna_type_match_score (type-match only, not ANTEX calibration)</td></tr>
+<tr><td class="kw">22</td><td>L-Band Correction Conflict</td><td class="sev-MEDIUM">MEDIUM</td><td>RARE</td><td>OUT-OF-SCOPE</td><td>RTK/Trimble-only — not in PPK base scope</td></tr>
+</table></div>
+<div class="note"><b>Three-tier artifact architecture:</b><br>Tier 1 (this document) — chain definition (canonical scoring + indicator weights + thresholds)<br>Tier 2 — base_station_indicator_library_v2_1.json (customer-voice text, layered annotation)<br>Tier 3 — base_station_multi_view_v3.html (five-tab reference implementation)<br><br>See cbmi_chain_library_pattern.md for the propagation blueprint to other chains.</div>
+</div></body></html>

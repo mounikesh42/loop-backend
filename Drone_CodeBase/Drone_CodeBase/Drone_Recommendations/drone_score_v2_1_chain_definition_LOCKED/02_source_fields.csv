@@ -1,0 +1,89 @@
+field_id,field_name,file_id,category,meaning,acquisition_mode,is_aspirational,notes
+L1F_IMG_001,total_images,SRC_IMG_01,Image Inventory,Total number of image files found on the SD card for this flight. Counted automatically by the ingestion script.,auto,False,
+L1F_IMG_002,valid_images,SRC_IMG_01,Image Inventory,Images that open and parse without errors or file corruption. Corrupted files are excluded from downstream processing.,auto,False,
+L1F_IMG_003,geotagged_images,SRC_IMG_01,Image Inventory,Images with GPS coordinates present in EXIF. Even approximate coordinates from the onboard GNSS chip count.,auto,False,
+L1F_IMG_004,image_format,SRC_IMG_01,Image Inventory,"File format of the images: JPG (compressed, smaller) or DNG/RAW (full sensor data, larger).",auto,False,
+L1F_IMG_005,EXIF.GPSLatitude,SRC_IMG_01,EXIF Position,Latitude at time of capture from onboard GNSS chip. Approximate (2–5m) in PPK workflow.,auto,False,"PPK workflow: approximate position, corrected in Stage 2."
+L1F_IMG_006,EXIF.GPSLongitude,SRC_IMG_01,EXIF Position,Longitude at time of capture from onboard GNSS chip.,auto,False,
+L1F_IMG_007,EXIF.GPSAltitude,SRC_IMG_01,EXIF Position,Altitude above sea level at capture from onboard GNSS chip.,auto,False,
+L1F_IMG_008,EXIF.GPSTimeStamp,SRC_IMG_01,EXIF Position,UTC time of capture. Written by camera firmware from GNSS time signal. Used to sync each image with the BIN CAM record / RINEX epoch.,auto,False,Used for image-to-RINEX-epoch matching when CAM records or MRK are absent.
+L1F_IMG_009,EXIF.Make,SRC_IMG_01,EXIF Camera,Camera manufacturer name. Written by camera firmware. Used to match against the calibration file Make.,auto,False,
+L1F_IMG_010,EXIF.Model,SRC_IMG_01,EXIF Camera,Camera model name. Used alongside Make to identify the correct lens calibration entry in the CB library or ODM database.,auto,False,
+L1F_IMG_011,EXIF.ImageWidth,SRC_IMG_01,EXIF Sensor,Pixel width of the image sensor output. Determines GSD together with altitude and focal length.,auto,False,
+L1F_IMG_012,EXIF.ImageLength,SRC_IMG_01,EXIF Sensor,Pixel height of the image sensor output.,auto,False,
+L1F_IMG_013,EXIF.FocalLength,SRC_IMG_01,EXIF Sensor,Lens focal length in mm as reported by camera firmware. Used in GSD calculation. Less precise than the calibration file value.,auto,False,
+L1F_IMG_014,EXIF.SubjectDistance,SRC_IMG_01,EXIF Sensor,Focus distance. Indicates whether the camera was correctly focused at survey altitude (typically should be infinity).,auto,False,
+L1F_IMG_015,EXIF.ISOSpeedRatings,SRC_IMG_01,EXIF Exposure,Sensor sensitivity setting. High ISO can introduce noise affecting image quality.,auto,False,
+L1F_IMG_016,EXIF.ExposureTime,SRC_IMG_01,EXIF Exposure,"Shutter speed in seconds. Long exposures at high drone speed cause motion blur, especially at low light.",auto,False,Feeds exposure_consistency_ratio derived field.
+L1F_IMG_017,EXIF.FNumber,SRC_IMG_01,EXIF Exposure,Aperture f-stop. Affects depth of field and image sharpness across the survey area.,auto,False,
+L1F_CAL_001,camera_make,SRC_IMG_02,Camera Identity,Camera manufacturer in the calibration file. Must match EXIF.Make for the calibration to be valid for this hardware.,auto_from_library,False,
+L1F_CAL_002,camera_model,SRC_IMG_02,Camera Identity,Camera model in the calibration file. Must match EXIF.Model.,auto_from_library,False,
+L1F_CAL_003,focal_length_mm,SRC_IMG_02,Camera Identity,Calibrated focal length in millimetres. More precise than the EXIF value which is rounded by camera firmware. Feeds GSD and overlap computations.,auto_from_library,False,
+L1F_CAL_004,sensor_width_mm,SRC_IMG_02,Camera Identity,Physical sensor width. Combined with focal length and altitude to compute true GSD and image footprint.,auto_from_library,False,
+L1F_CAL_005,sensor_height_mm,SRC_IMG_02,Camera Identity,Physical sensor height.,auto_from_library,False,
+L1F_CAL_006,calibration_source,SRC_IMG_02,Camera Identity,"Where the calibration came from: CB_LIBRARY, ODM_DATABASE, or SELF_CALIBRATED. Determines confidence level.",auto_from_library,False,Drives calibration_source_score in both image_capture_score and CAL_CONF.
+L1F_CAL_007,calibration_date,SRC_IMG_02,Camera Identity,Date the camera calibration was last performed or verified. Used to compute calibration_age_months.,auto_from_library,False,Feeds calibration_age_score in CAL_CONF.
+L1F_CAL_008,principal_point_x,SRC_IMG_02,Lens Distortion,"Horizontal offset of the optical centre from the image centre (cx). Corrects for manufacturing imperfection where the optical centre is not perfectly centred on the sensor. Consumed by ODM, not by drone_score.",auto,False,HANDOFF TO PROCESSING — used by ODM lens correction; no drone_score dependency.
+L1F_CAL_009,principal_point_y,SRC_IMG_02,Lens Distortion,Vertical offset of the optical centre (cy). Consumed by ODM.,auto,False,HANDOFF TO PROCESSING.
+L1F_CAL_010,k1,SRC_IMG_02,Lens Distortion,Radial distortion coefficient k1. Corrects barrel or pincushion distortion. Consumed by ODM during reconstruction.,auto,False,"HANDOFF TO PROCESSING. Part of k1,k2,k3 radial distortion set."
+L1F_CAL_011,k2,SRC_IMG_02,Lens Distortion,Radial distortion coefficient k2.,auto,False,HANDOFF TO PROCESSING.
+L1F_CAL_012,k3,SRC_IMG_02,Lens Distortion,Radial distortion coefficient k3.,auto,False,HANDOFF TO PROCESSING.
+L1F_CAL_013,p1,SRC_IMG_02,Lens Distortion,Tangential distortion coefficient p1. Corrects asymmetric distortion from lens not being perfectly parallel to sensor.,auto,False,HANDOFF TO PROCESSING.
+L1F_CAL_014,p2,SRC_IMG_02,Lens Distortion,Tangential distortion coefficient p2.,auto,False,HANDOFF TO PROCESSING.
+L1F_CAL_015,odm_format_valid,SRC_IMG_02,Lens Distortion,Boolean: the calibration file is in a format that ODM can directly consume without conversion.,auto,False,HANDOFF TO PROCESSING.
+L1F_GNSS_001,obs_start_utc,SRC_GNSS_01,Recording Quality,UTC timestamp when the receiver began recording. Should start before takeoff to ensure full coverage.,auto,False,
+L1F_GNSS_002,obs_end_utc,SRC_GNSS_01,Recording Quality,UTC timestamp when recording stopped. Should continue after landing.,auto,False,
+L1F_GNSS_003,obs_duration_sec,SRC_GNSS_01,Recording Quality,Total recording duration in seconds. Compared against flight_duration_sec to compute coverage ratio.,auto,False,
+L1F_GNSS_004,pre_buffer_sec,SRC_GNSS_01,Recording Quality,Seconds of recording before takeoff (obs_start_utc minus flight_start_utc). PPK ambiguity resolution benefits from generous pre-flight buffer.,auto,False,Computed by joining Rover RINEX with BIN ARM event — surfaced as source-level for convenience.
+L1F_GNSS_005,post_buffer_sec,SRC_GNSS_01,Recording Quality,Seconds of recording after landing (obs_end_utc minus flight_end_utc). Post-flight buffer aids PPK fixed-solution convergence.,auto,False,See pre_buffer_sec note.
+L1F_GNSS_006,epochs_total,SRC_GNSS_01,Recording Quality,"Total observation epochs recorded. At 1Hz sampling, equals obs_duration_sec.",auto,False,
+L1F_GNSS_007,epochs_per_second,SRC_GNSS_01,Recording Quality,Sampling rate of the receiver. Higher rate gives better PPK temporal resolution.,auto,False,
+L1F_GNSS_008,cn0_mean_dbhz,SRC_GNSS_01,Recording Quality,Mean carrier-to-noise ratio across all satellites and epochs in dBHz. Values above 35 dBHz indicate clean signal.,auto,False,
+L1F_GNSS_009,cn0_min_dbhz,SRC_GNSS_01,Recording Quality,Minimum C/N0 recorded. Persistent low values indicate signal obstruction or multipath.,auto,False,
+L1F_GNSS_010,sat_count_mean,SRC_GNSS_01,Recording Quality,Mean number of satellites tracked per epoch. More satellites improves PPK solution geometry.,auto,False,
+L1F_GNSS_011,sat_count_min,SRC_GNSS_01,Recording Quality,Minimum satellites in any epoch. Below 4 means no valid position can be computed for that epoch.,auto,False,
+L1F_GNSS_012,cycle_slip_count,SRC_GNSS_01,Signal Integrity,Number of loss-of-lock events (LLI flags in RINEX). Cycle slips corrupt the carrier phase solution.,auto,False,
+L1F_GNSS_013,dual_freq_ratio,SRC_GNSS_01,Signal Integrity,Fraction of epochs with both L1 and L2 observations. Dual frequency enables ionospheric correction.,auto,False,
+L1F_GNSS_014,triple_freq_ratio,SRC_GNSS_01,Signal Integrity,"Fraction of epochs with L1, L2, and L5 observations. Triple frequency further improves precision.",auto,False,
+L1F_GNSS_015,constellation_count,SRC_GNSS_01,Signal Integrity,"Number of GNSS constellations tracked: GPS, GLONASS, Galileo, BeiDou. More constellations improves geometry and redundancy.",auto,False,
+L1F_GNSS_016,gap_gt_5s_count,SRC_GNSS_01,Signal Integrity,Number of recording gaps longer than 5 seconds. Gaps interrupt the carrier phase solution and force re-acquisition.,auto,False,
+L1F_GNSS_017,any_gap_gt_60s,SRC_GNSS_01,Signal Integrity,Boolean: any single gap exceeding 60 seconds. A gap this long during a short survey effectively breaks PPK.,auto,False,Drives critical_gap_present derived and rover_continuity_score hard rule.
+L1F_GNSS_018,receiver_type,SRC_GNSS_01,Signal Integrity,Receiver hardware model from RINEX header. Used to apply receiver-specific corrections during processing.,auto,False,
+L1F_GNSS_019,antenna_type,SRC_GNSS_01,Signal Integrity,Antenna model from RINEX header. Used for antenna phase centre corrections in precise positioning.,auto,False,
+L1F_BIN_CAM_001,image_id,SRC_FC_BIN,CAM Per-Image (was MRK),"Image file identifier (CAM.Img). One CAM record per shutter trigger, matching each physical image on the SD card.",auto,False,Replaces former L1F_MRK_001 from MRK file.
+L1F_BIN_CAM_002,gnss_timestamp_utc,SRC_FC_BIN,CAM Per-Image (was MRK),Precise UTC timestamp of the shutter trigger event derived from CAM.GPSWeek + CAM.GPSTime.,auto,False,Replaces former L1F_MRK_002.
+L1F_BIN_CAM_003,gnss_week,SRC_FC_BIN,CAM Per-Image (was MRK),GPS week number at time of capture (CAM.GPSWeek).,auto,False,Replaces former L1F_MRK_003.
+L1F_BIN_CAM_004,time_of_week_sec,SRC_FC_BIN,CAM Per-Image (was MRK),Seconds elapsed since the start of the GPS week at shutter trigger (CAM.GPSTime).,auto,False,Replaces former L1F_MRK_004.
+L1F_BIN_CAM_005,cam_record_count,SRC_FC_BIN,CAM File Integrity,Total number of CAM records in the BIN. Equivalent to mrk_image_count. Should match total_images from the SD card.,auto,False,Replaces former L1F_MRK_005.
+L1F_BIN_CAM_006,cam_records_present,SRC_FC_BIN,CAM File Integrity,Boolean: CAM messages were found in the BIN. Equivalent to mrk_file_present. Absence forces fallback to EXIF timestamps for epoch matching.,auto,False,Replaces former L1F_MRK_006. Absence flagged as CAM_RECORDS_MISSING (was MRK_FILE_MISSING).
+L1F_BIN_MP_001,planned_altitude_m,SRC_FC_BIN,Mission Plan (CMD),"Target flight altitude AGL in metres, read from CMD.Alt for each NAV_WAYPOINT.",user_set,False,From BIN CMD messages.
+L1F_BIN_MP_002,planned_speed_ms,SRC_FC_BIN,Mission Plan (CMD),"Target cruise speed in m/s, read from DO_CHANGE_SPEED commands (CId=178) in CMD.",user_set,False,From BIN CMD messages.
+L1F_BIN_MP_003,planned_waypoint_count,SRC_FC_BIN,Mission Plan (CMD),"Total waypoints in the mission, read from CMD.CTot. NAV_WAYPOINT count specifically used for completion ratio.",user_set,False,From BIN CMD messages.
+L1F_BIN_MP_004,takeoff_point_latitude,SRC_FC_BIN,Mission Plan (CMD),"Planned launch latitude, read from NAV_TAKEOFF CMD.Lat.",user_set,False,From BIN CMD NAV_TAKEOFF.
+L1F_BIN_MP_005,takeoff_point_longitude,SRC_FC_BIN,Mission Plan (CMD),"Planned launch longitude, read from NAV_TAKEOFF CMD.Lng.",user_set,False,From BIN CMD NAV_TAKEOFF.
+L1F_BIN_MP_006,takeoff_point_altitude,SRC_FC_BIN,Mission Plan (CMD),"Planned launch elevation, read from NAV_TAKEOFF CMD.Alt. AGL altitude calculations use this as the ground reference.",user_set,False,From BIN CMD NAV_TAKEOFF.
+L1F_BIN_TLM_001,actual_altitude_mean_m,SRC_FC_BIN,Mission Execution (telemetry),"Mean actual flight altitude AGL throughout the survey, computed from CTUN.Alt during cruise.",auto,False,From BIN CTUN messages.
+L1F_BIN_TLM_002,actual_altitude_min_m,SRC_FC_BIN,Mission Execution (telemetry),Lowest altitude recorded during the survey (CTUN.Alt min). Includes takeoff/landing if not filtered.,auto,False,From BIN CTUN messages.
+L1F_BIN_TLM_003,actual_altitude_max_m,SRC_FC_BIN,Mission Execution (telemetry),Highest altitude recorded (CTUN.Alt max). Large altitude variance indicates terrain-following issues or wind disturbance.,auto,False,From BIN CTUN messages.
+L1F_BIN_TLM_004,flight_duration_sec,SRC_FC_BIN,Flight Events,"Total airborne time in seconds, computed as ARM event timestamp delta (DISARM minus ARM).",auto,False,From BIN ARM/EV messages.
+L1F_BIN_TLM_005,waypoints_completed,SRC_FC_BIN,Flight Events,"Number of mission waypoints the drone successfully visited, counted from MISE NAV_WAYPOINT execution events.",auto,False,From BIN MISE messages.
+L1F_BIN_TLM_006,battery_start_pct,SRC_FC_BIN,Flight Events,"Battery level at takeoff, read from BAT.RemPct at the ARM event. Low starting battery increases RTB risk.",auto,False,From BIN BAT messages at ARM event.
+L1F_BIN_TLM_007,battery_end_pct,SRC_FC_BIN,Flight Events,"Battery level at landing, read from BAT.RemPct at the DISARM event. Very low values indicate near-forced landing.",auto,False,From BIN BAT messages at DISARM event.
+L1F_BIN_FDR_001,log_present,SRC_FC_BIN,FDR IMU & Vibration,Boolean: BIN file exists and parsed successfully. Always TRUE in this consolidated pipeline as the BIN is the primary FC source.,auto,False,No longer aspirational — BIN is the primary FC source.
+L1F_BIN_FDR_002,log_duration_sec,SRC_FC_BIN,FDR IMU & Vibration,Duration of the recorded BIN log. Should match flight_duration_sec.,auto,False,No longer aspirational.
+L1F_BIN_FDR_003,vibration_x_mean_ms2,SRC_FC_BIN,FDR IMU & Vibration,Mean vibration on X axis during cruise (VIBE.VibeX mean). High vibration causes image blur and degrades photogrammetric reconstruction.,auto,False,No longer aspirational — from BIN VIBE messages.
+L1F_BIN_FDR_004,vibration_y_mean_ms2,SRC_FC_BIN,FDR IMU & Vibration,Mean vibration on Y axis during cruise (VIBE.VibeY mean).,auto,False,No longer aspirational.
+L1F_BIN_FDR_005,vibration_z_mean_ms2,SRC_FC_BIN,FDR IMU & Vibration,Mean vibration on Z axis (VIBE.VibeZ mean). Vertical vibration directly affects image sharpness.,auto,False,No longer aspirational.
+L1F_BIN_FDR_006,vibration_x_max_ms2,SRC_FC_BIN,FDR IMU & Vibration,Peak vibration on X axis (VIBE.VibeX max). Spikes indicate turbulence or mechanical issues.,auto,False,No longer aspirational.
+L1F_BIN_FDR_007,vibration_y_max_ms2,SRC_FC_BIN,FDR IMU & Vibration,Peak vibration on Y axis (VIBE.VibeY max).,auto,False,No longer aspirational.
+L1F_BIN_FDR_008,vibration_z_max_ms2,SRC_FC_BIN,FDR IMU & Vibration,Peak vibration on Z axis (VIBE.VibeZ max).,auto,False,No longer aspirational.
+L1F_BIN_FDR_009,roll_variance_deg,SRC_FC_BIN,FDR Attitude & Gimbal,Variance of drone roll angle during cruise (ATT.Roll). High variance means unstable platform during image capture.,auto,False,No longer aspirational — from BIN ATT messages.
+L1F_BIN_FDR_010,pitch_variance_deg,SRC_FC_BIN,FDR Attitude & Gimbal,Variance of drone pitch during cruise (ATT.Pitch). Forward/backward tilting affects image footprint.,auto,False,No longer aspirational.
+L1F_BIN_FDR_011,yaw_variance_deg,SRC_FC_BIN,FDR Attitude & Gimbal,Variance of drone heading during cruise (ATT.Yaw). Heading instability causes image rows to misalign.,auto,False,No longer aspirational. Naturally large during survey heading changes — interpret over cruise lines only.
+L1F_BIN_FDR_012,gimbal_roll_mean_deg,SRC_FC_BIN,FDR Attitude & Gimbal,Mean gimbal roll during cruise (CAM.R mean). Should be near zero for nadir-looking survey cameras.,auto,False,No longer aspirational — from BIN CAM messages.
+L1F_BIN_FDR_013,gimbal_pitch_mean_deg,SRC_FC_BIN,FDR Attitude & Gimbal,Mean gimbal pitch (CAM.P mean). For mapping surveys typically near −90° (nadir); deviations indicate gimbal misconfiguration.,auto,False,No longer aspirational.
+L1F_BIN_FDR_014,gimbal_error_count,SRC_FC_BIN,FDR Attitude & Gimbal,Number of gimbal stabilisation failure events logged. Scanned from ERR/EV messages in the BIN.,auto,False,No longer aspirational. May require event-pattern matching in EV/ERR streams.
+L1F_BIN_FDR_015,attitude_sample_rate_hz,SRC_FC_BIN,FDR Attitude & Gimbal,Sampling frequency of ATT records in Hz. Higher rate gives more precise variance characterisation.,auto,False,No longer aspirational.
+L1F_UI_001,planned_overlap_fwd_pct,SRC_UI_01,Mission Plan (user input),Target forward (along-track) overlap percentage between consecutive images. Pure operator intent entered once per mission in the JSON form. Used as the planned denominator for overlap_fwd_execution_ratio.,user_set,False,Only available from operator — not encoded in BIN waypoint geometry without circular dependency on camera footprint.
+L1F_UI_002,planned_overlap_lat_pct,SRC_UI_01,Mission Plan (user input),Target lateral (cross-track) overlap percentage between adjacent flight lines. Pure operator intent entered once per mission in the JSON form. Used as the planned denominator for overlap_lat_execution_ratio.,user_set,False,Only available from operator — see L1F_UI_001 note.
+L1F_API_001,mean_wind_speed_ms,SRC_API_01,Weather,"Mean wind speed at 10m height during the flight window, fetched from Open-Meteo historical API using takeoff lat/lng (BIN) and flight_start/end_utc (derived from BIN). Feeds wind_impact_ratio and wind_condition_score.",external_api,False,Falls back to ATT-derived proxy if API unavailable — see BIN-internal fallback rule in wind_condition_score script hint.

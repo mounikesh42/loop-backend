@@ -1,0 +1,20 @@
+flag_id,flag_name,severity,condition,meaning,v2_1_q_lock
+FLG_001,CRITICAL_IMAGE_FAILURE,CRITICAL,image_validity_score < 30 (internal gate),No recoverable survey data — too many corrupted/unreadable images. Causes image_capture_score = 0 and drone_score = 0.,
+FLG_002,INSUFFICIENT_OVERLAP,HIGH,"min(image_computed_overlap_fwd_pct, image_computed_overlap_lat_pct) < 40%",Actual image positions do not provide enough overlap for photogrammetric reconstruction.,
+FLG_003,MIXED_IMAGE_FORMAT,MEDIUM,Images are a mix of DNG and JPG formats,Inconsistent radiometric quality across the dataset.,
+FLG_004,HIGH_EXPOSURE_VARIATION,MEDIUM,exposure_consistency_ratio (CV) >= 0.35,Lighting changed significantly during the survey — radiometric calibration affected.,
+FLG_005,RINEX_CRITICAL_GAP,CRITICAL,critical_gap_present == True (gap >= 60s),A RINEX recording gap of 60s+ effectively breaks the carrier phase solution. Hard rule zeros rover_continuity_score.,
+FLG_006,SLOW_ROVER_ACQUISITION,MEDIUM,rover_acquisition_time_sec >= 300,Rover took over 5 minutes to reach stable tracking — limited pre-flight convergence time.,
+FLG_007,POOR_SKY_VIEW_DURING_FLIGHT,HIGH,max_pdop_during_flight >= 8.0,Satellite geometry was poor during the flight — significant sky obstruction.,
+FLG_008,COVERAGE_GAP,CRITICAL,area_coverage_ratio < 0.88,Planned survey area not fully flown. Unflown area cannot be recovered without re-flight.,
+FLG_009,HIGH_WIND_SURVEY,MEDIUM,mean_wind_speed_ms >= 12,Survey flown in wind exceeding safe operating limits — image blur and unstable flight.,
+FLG_010,WIND_API_FALLBACK,INFORMATIONAL (null trigger — Q-DRONE-4 lock v2.1),Open-Meteo API unavailable; ATT-derived proxy band == unknown,Wind speed could not be confirmed from API and BIN attitude proxy was inconclusive — wind_condition_score derived from fallback band only.,"Q-DRONE-4: triggers indicator-level null on L3I_FC_005 (wind_condition_score). Different from missing input — explicit ""infrastructure couldn't verify"" condition. Composite scoring should respect indicator-null."
+FLG_011,HIGH_ALTITUDE_VARIANCE,HIGH,altitude_variance_m >= 20,Significant altitude fluctuation during cruise — GSD inconsistent across the site.,
+FLG_012,SELF_CALIBRATED_LENS,MEDIUM,calibration_source == 'SELF_CALIBRATED',ODM estimated lens parameters from the images themselves — circular dependency with the reconstruction.,Q-DRONE-5: stays MEDIUM (material). Self-calibration works for most cases; flagging at review level lets operator decide whether to insist on pre-calibration based on accuracy requirements.
+FLG_013,NO_CALIBRATION_FILE,HIGH,calibration_source is absent,No calibration file present at all.,
+FLG_014,CALIBRATION_CAMERA_MISMATCH,HIGH,camera_make_match == False (in CAL_CONF context),Calibration file is for a different camera than the one used in this survey.,
+FLG_015,CALIBRATION_POTENTIALLY_OUTDATED,MEDIUM,calibration_age_months >= 36,Calibration older than 36 months — lens parameters may have drifted.,
+FLG_016,CALIBRATION_DATE_UNKNOWN,MEDIUM,calibration_date is unknown/null,Calibration date cannot be determined — recency cannot be assessed.,
+FLG_017,DRONE_CRITICAL_FAILURE,CRITICAL,image_capture_score == 0,Drone produced no recoverable data. drone_score=0. All downstream processing stops.,
+FLG_018,CAM_RECORDS_MISSING,MEDIUM,cam_records_present == False,No CAM records found in the BIN. PPK falls back to less-precise EXIF timestamps for epoch matching. (Was MRK_FILE_MISSING.),
+FLG_019,CAM_COUNT_MISMATCH,MEDIUM,cam_image_count_match == False,Number of CAM shutter records in the BIN does not match total_images on the SD card. Indicates a recording error or missing images.,

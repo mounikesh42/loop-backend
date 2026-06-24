@@ -1,0 +1,1413 @@
+{
+  "_meta": {
+    "version": "2.1.0 (LOCKED)",
+    "previous": "1.0.0 (RTK single-phase, per-point scoring, mean-minus-worst aggregation)",
+    "locked_at": "2026-06-11T09:57:36Z",
+    "q_locks_applied": {
+      "Q-CP-1": "Complex global gate retained as-is. Documents operational condition: all CHECK_POINT-role points failed in at least one dimension (fix_type=FLOAT/AUTONOMOUS OR position_sigma=catastrophic).",
+      "Q-CP-2": "Fix type promoted to per-point gate. FLOAT/AUTONOMOUS on a single point zeros that point's score; other points continue. Affects per-point aggregation, not chain.",
+      "Q-CP-3": "Per-point aggregation formula mean - 0.25*(100 - worst_point) LOCKED as v2.1 design. k=0.25 penalty coefficient is operationally calibrated.",
+      "Q-CP-4": "No device-type special handling. All device types (CB_X, AEROPOINT, DGPS, OTHER) treated uniformly. RTK antenna height documentation is field operation, not factory-known.",
+      "Q-CP-5": "No new pattern concepts. Check_point propagates existing patterns: per-point scoring, per-point gates, per-point aggregation, null case, device-types."
+    },
+    "severity_vocabulary": [
+      "none",
+      "minor",
+      "material",
+      "critical"
+    ],
+    "recommendation_vocabulary": [
+      "good_to_go",
+      "review_recommended",
+      "resurvey_recommended"
+    ],
+    "design_summary": "Per-point RTK capture-confidence score with mean-minus-worst aggregation. Hardware-independent of other capture chains; purely device exports + operation logs + user input + timing context. Simplest capture chain (14 indicators, 3 blocks). Per-point aggregation formula: mean - 0.25*(100-min). Two indicator-level gates (Q-CP-2 fix_type per-point, antenna_height per-point). Global gate fires when ALL points fail in at least one dimension. Null case when no CHECK_POINT-role points designated.",
+    "three_tier_architecture": {
+      "tier_1_chain_definition": "check_point_confidence_score_v2_1_LOCKED.json",
+      "tier_2_library": "check_point_indicator_library_v2_1.json (customer-voice text)",
+      "tier_3_reference_html": "check_point_multi_view_v1_LOCKED.html (5-tab reference)"
+    }
+  },
+  "source_files": [
+    {
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "file_name": "RTK Device Export (per point)",
+      "subsystem": "RTK Rover Device (per point)",
+      "file_extensions": ".csv / .jxl / .pos / .gpx (vendor-specific)",
+      "physical_source": "Exported from RTK rover (CB_X / Trimble / Emlid / OTHER) per occupation",
+      "how_to_obtain": "Each RTK check-point capture produces a record in the device export: per-point coordinate, fix_type at capture moment, receiver-estimated sigma (H/V precision), correction age at capture, fix hold duration, PDOP, satellite count, CN0, antenna info. CB_X exports full set; Trimble/Emlid exports subset depending on export config; OTHER variable.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": "Per-point RTK device record. Replaces RINEX from PPK chains \u2014 RTK does not produce extended observation file for post-processing. Per-point sigma is the universal anchor indicator."
+    },
+    {
+      "file_id": "SRC_CP_OPLOG",
+      "file_name": "Check-Point Operation Log",
+      "subsystem": "RTK Capture Session (operator)",
+      "file_extensions": ".json",
+      "physical_source": "Exported from capture app session (CB_X app, Trimble Access, Emlid Reach app)",
+      "how_to_obtain": "Session-level log: download confirmation, signature/integrity verification, session boundaries. CB_X expected-present with signature; Trimble/Emlid expected-present without signature; OTHER expected-absent.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": "Behaviour branches on device_type. CB_X is designed to produce signed logs for tamper-evidence; third-party gear typically does not."
+    },
+    {
+      "file_id": "SRC_CP_FORM",
+      "file_name": "Check-Point User Input (per point)",
+      "subsystem": "Operator Field Form (per point)",
+      "file_extensions": ".json (cp_user_input.json)",
+      "physical_source": "Entered by operator in CB capture app at upload, one record per occupation",
+      "how_to_obtain": "Structured field form filled per occupation: device_type, antenna setup, baseline length, NTRIP mountpoint, expected mountpoint, target/mark info, accuracy target. Operator-declarative fields (mark_integrity_confirmed, tilt_compensation_used on non-tilt-comp gear, mark_photo_captured) are advisory only \u2014 zero scoring weight per Concern 5.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": "Per-point operator metadata. Form design itself is the safeguard against antenna-height blunders. Tilt-compensation reads logged tilt verifiably on tilt-comp devices; falls back to advisory boolean on hand-held pole."
+    }
+  ],
+  "source_fields": [
+    {
+      "field_id": "L1F_CP_001",
+      "field_name": "marker_name",
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "category": "Identity",
+      "meaning": "Mark/point identifier from device export.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_002",
+      "field_name": "captured_position_ecef",
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "category": "Position",
+      "meaning": "Final captured ECEF coordinate from RTK device.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_003",
+      "field_name": "position_sigma_horizontal_m",
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "category": "Quality",
+      "meaning": "Receiver-estimated per-point horizontal standard deviation (sigma). The universal anchor indicator. Exported by all RTK devices in principle; may be absent in restricted export configs.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_004",
+      "field_name": "position_sigma_vertical_m",
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "category": "Quality",
+      "meaning": "Receiver-estimated per-point vertical standard deviation.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_005",
+      "field_name": "fix_type_at_capture",
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "category": "Quality",
+      "meaning": "Solution status at capture moment: FIXED / FLOAT / AUTONOMOUS. Hard-gates per-point completeness if FLOAT or AUTONOMOUS.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_006",
+      "field_name": "correction_age_at_capture_sec",
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "category": "Quality",
+      "meaning": "Age of the RTK correction stream at the capture moment. May be missing on some third-party exports (Trimble JXL / Emlid CSV).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_007",
+      "field_name": "fix_hold_duration_sec",
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "category": "Quality",
+      "meaning": "How long the rover held FIXED before this capture. CB_X full; Trimble/Emlid partial; OTHER often N/A.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_008",
+      "field_name": "pdop_at_capture",
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "category": "Geometry",
+      "meaning": "Position dilution of precision at the capture epoch.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_009",
+      "field_name": "sat_count_at_capture",
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "category": "Geometry",
+      "meaning": "Tracked satellite count at the capture epoch.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_010",
+      "field_name": "cn0_mean_at_capture",
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "category": "Signal",
+      "meaning": "Mean carrier-to-noise density across tracked satellites at capture.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_011",
+      "field_name": "antenna_type",
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "category": "Identity",
+      "meaning": "Antenna model as configured/auto-detected by the rover.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_012",
+      "field_name": "device_id",
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "category": "Identity",
+      "meaning": "Device serial / ID from the rover.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_013",
+      "field_name": "tilt_logged_deg",
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "category": "Setup",
+      "meaning": "Logged tilt angle at capture (tilt-compensated rovers only \u2014 CB_X, Trimble R12+, Emlid RS3+). N/A for older devices.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_014",
+      "field_name": "capture_utc",
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "category": "Timing",
+      "meaning": "UTC timestamp of the capture moment.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_015",
+      "field_name": "firmware_version",
+      "file_id": "SRC_CP_RTK_EXPORT",
+      "category": "Identity",
+      "meaning": "RTK device firmware version.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_016",
+      "field_name": "raw_log_download_confirmed",
+      "file_id": "SRC_CP_OPLOG",
+      "category": "Integrity",
+      "meaning": "True once the device session has been downloaded/synced from the rover.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_017",
+      "field_name": "raw_log_signature_valid",
+      "file_id": "SRC_CP_OPLOG",
+      "category": "Integrity",
+      "meaning": "Signature validation result. CB_X expected; Trimble partial; Emlid/OTHER typically N/A.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_018",
+      "field_name": "session_completed_normally",
+      "file_id": "SRC_CP_OPLOG",
+      "category": "Integrity",
+      "meaning": "True if session was closed deliberately (not via crash/power loss).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_019",
+      "field_name": "session_end_utc",
+      "file_id": "SRC_CP_OPLOG",
+      "category": "Timing",
+      "meaning": "Device-reported session end (UTC). Cross-check against capture timestamps.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_020",
+      "field_name": "device_type",
+      "file_id": "SRC_CP_FORM",
+      "category": "Device Identity",
+      "meaning": "Enum: CB_X / AEROPOINT / DGPS / OTHER. Drives oplog branching, antenna-height auto-fill, and indicator data-availability logic.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_021",
+      "field_name": "device_id",
+      "file_id": "SRC_CP_FORM",
+      "category": "Device Identity",
+      "meaning": "Operator-entered device ID. Cross-checked vs RTK device-reported device_id.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_022",
+      "field_name": "device_role",
+      "file_id": "SRC_CP_FORM",
+      "category": "Survey Role",
+      "meaning": "Locked to CHECK_POINT for this score. GCP-role points are excluded (covered by gcp_score).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_023",
+      "field_name": "antenna_model",
+      "file_id": "SRC_CP_FORM",
+      "category": "Antenna Setup",
+      "meaning": "Operator-selected antenna model. Cross-checked vs RTK device antenna_type.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_024",
+      "field_name": "antenna_height_m",
+      "file_id": "SRC_CP_FORM",
+      "category": "Antenna Setup",
+      "meaning": "Operator-entered antenna height. CB_X / AEROPOINT: factory-known and auto-filled (indicator = 100). DGPS / OTHER: operator-measured.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_025",
+      "field_name": "antenna_height_units",
+      "file_id": "SRC_CP_FORM",
+      "category": "Antenna Setup",
+      "meaning": "Explicit units (m/ft).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_026",
+      "field_name": "antenna_measurement_type",
+      "file_id": "SRC_CP_FORM",
+      "category": "Antenna Setup",
+      "meaning": "VERTICAL or SLANT. Only meaningful for DGPS / OTHER.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_027",
+      "field_name": "measured_to_reference",
+      "file_id": "SRC_CP_FORM",
+      "category": "Antenna Setup",
+      "meaning": "ARP / SLANT_MARK / MOUNT_BOTTOM / OTHER. Only meaningful for DGPS / OTHER.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_028",
+      "field_name": "height_measured_count",
+      "file_id": "SRC_CP_FORM",
+      "category": "Antenna Setup",
+      "meaning": "Number of independent height measurements. Only meaningful for DGPS / OTHER.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_029",
+      "field_name": "tilt_compensation_used",
+      "file_id": "SRC_CP_FORM",
+      "category": "Setup",
+      "meaning": "Boolean \u2014 operator-declarative. ADVISORY only on non-tilt-comp devices (cannot be verified). On tilt-comp devices, replaced by logged tilt_logged_deg which IS verifiable.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_030",
+      "field_name": "baseline_length_km",
+      "file_id": "SRC_CP_FORM",
+      "category": "Setup",
+      "meaning": "Distance from rover to base/CORS at capture time. Critical for India where CORS coverage is patchy.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_031",
+      "field_name": "ntrip_mountpoint",
+      "file_id": "SRC_CP_FORM",
+      "category": "Setup",
+      "meaning": "NTRIP mountpoint operator was connected to.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_032",
+      "field_name": "expected_mountpoint",
+      "file_id": "SRC_CP_FORM",
+      "category": "Setup",
+      "meaning": "Project-declared expected mountpoint. Cross-check against actual.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_033",
+      "field_name": "accuracy_target_m",
+      "file_id": "SRC_CP_FORM",
+      "category": "Survey Config",
+      "meaning": "Survey accuracy target (e.g. 0.02 m for cm-grade work). \u03c3 thresholds expressed as multiples of this target.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_034",
+      "field_name": "target_type",
+      "file_id": "SRC_CP_FORM",
+      "category": "Target",
+      "meaning": "Mark physical type (printed_paper / painted / cb_x_surface / aeropoint_surface / dgps_peg / other).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_035",
+      "field_name": "mark_integrity_confirmed",
+      "file_id": "SRC_CP_FORM",
+      "category": "Target",
+      "meaning": "Operator confirmation that the mark was intact at capture. ADVISORY only \u2014 not scored.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_036",
+      "field_name": "mark_photo_captured",
+      "file_id": "SRC_CP_FORM",
+      "category": "Target",
+      "meaning": "Boolean \u2014 was a photo of the mark taken. ADVISORY flag CP_NO_MARK_PHOTO if False.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_037",
+      "field_name": "flight_start_utc",
+      "file_id": "SRC_CP_FORM",
+      "category": "Flight Context",
+      "meaning": "Drone flight start (UTC) from upload bundle. Used to compute capture-to-flight delay.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    },
+    {
+      "field_id": "L1F_CP_038",
+      "field_name": "flight_end_utc",
+      "file_id": "SRC_CP_FORM",
+      "category": "Flight Context",
+      "meaning": "Drone flight end (UTC) from upload bundle.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": null
+    }
+  ],
+  "derived_fields": [
+    {
+      "derived_id": "L2D_CP_001",
+      "derived_name": "sigma_relative_to_target",
+      "kind": "scoring",
+      "formula_expression": "position_sigma_horizontal_m / accuracy_target_m",
+      "meaning": "Ratio of receiver-estimated horizontal sigma to survey accuracy target. The primary quality indicator. Banded at 1\u00d7/2\u00d7/5\u00d7 target.",
+      "input_field_names": "position_sigma_horizontal_m;accuracy_target_m"
+    },
+    {
+      "derived_id": "L2D_CP_002",
+      "derived_name": "sigma_available",
+      "kind": "scoring",
+      "formula_expression": "position_sigma_horizontal_m IS NOT NULL",
+      "meaning": "Whether per-point sigma is available in the device export. False triggers either Scenario 1 (exported subset missing sigma) or Scenario 2 (device truly does not report).",
+      "input_field_names": "position_sigma_horizontal_m"
+    },
+    {
+      "derived_id": "L2D_CP_003",
+      "derived_name": "sigma_expected_for_device",
+      "kind": "scoring",
+      "formula_expression": "device_type IN {CB_X, AEROPOINT, DGPS}",
+      "meaning": "Whether sigma should be exported for this device type. If True but sigma is missing \u2192 Scenario 1 (fixable by re-export). If False and sigma is missing \u2192 Scenario 2 (device limit, N/A treatment).",
+      "input_field_names": "device_type"
+    },
+    {
+      "derived_id": "L2D_CP_004",
+      "derived_name": "antenna_height_auto_known",
+      "kind": "scoring",
+      "formula_expression": "device_type IN {CB_X, AEROPOINT}",
+      "meaning": "Whether antenna height is factory-known for this device type. When True, antenna_height_documented_score = 100 by definition.",
+      "input_field_names": "device_type"
+    },
+    {
+      "derived_id": "L2D_CP_005",
+      "derived_name": "antenna_height_agreement",
+      "kind": "scoring",
+      "formula_expression": "|antenna_height_m (form) - antenna_delta_h (device)| within tolerance, when both populated",
+      "meaning": "Form-height vs device-reported-height cross-check.",
+      "input_field_names": "antenna_height_m;antenna_type"
+    },
+    {
+      "derived_id": "L2D_CP_006",
+      "derived_name": "antenna_type_match",
+      "kind": "scoring",
+      "formula_expression": "antenna_model (form) == antenna_type (device), normalised",
+      "meaning": "Form vs device antenna type consistency.",
+      "input_field_names": "antenna_model;antenna_type"
+    },
+    {
+      "derived_id": "L2D_CP_007",
+      "derived_name": "device_id_match",
+      "kind": "scoring",
+      "formula_expression": "device_id (form) == device_id (device), normalised",
+      "meaning": "Form vs device ID match. Provenance check, not accuracy.",
+      "input_field_names": "device_id;device_id"
+    },
+    {
+      "derived_id": "L2D_CP_008",
+      "derived_name": "tilt_verifiable",
+      "kind": "scoring",
+      "formula_expression": "device_type supports tilt logging AND tilt_logged_deg IS NOT NULL",
+      "meaning": "Whether tilt can be verified from device log (vs operator-declarative boolean).",
+      "input_field_names": "device_type;tilt_logged_deg"
+    },
+    {
+      "derived_id": "L2D_CP_009",
+      "derived_name": "mountpoint_match",
+      "kind": "scoring",
+      "formula_expression": "ntrip_mountpoint == expected_mountpoint",
+      "meaning": "Whether actual NTRIP mountpoint matches project-declared expected mountpoint.",
+      "input_field_names": "ntrip_mountpoint;expected_mountpoint"
+    },
+    {
+      "derived_id": "L2D_CP_010",
+      "derived_name": "capture_to_flight_delay_hours",
+      "kind": "scoring",
+      "formula_expression": "(capture_utc - flight_end_utc) / 3600  -- positive if capture after flight",
+      "meaning": "Hours between drone flight end and check-point capture. Positive = after flight (preferred).",
+      "input_field_names": "capture_utc;flight_start_utc;flight_end_utc"
+    },
+    {
+      "derived_id": "L2D_CP_011",
+      "derived_name": "captured_before_flight",
+      "kind": "scoring",
+      "formula_expression": "capture_utc < flight_start_utc",
+      "meaning": "True if capture occurred before drone flight start.",
+      "input_field_names": "capture_utc;flight_start_utc"
+    },
+    {
+      "derived_id": "L2D_CP_012",
+      "derived_name": "captured_during_flight",
+      "kind": "scoring",
+      "formula_expression": "flight_start_utc <= capture_utc <= flight_end_utc",
+      "meaning": "True if capture occurred during drone flight window.",
+      "input_field_names": "capture_utc;flight_start_utc;flight_end_utc"
+    },
+    {
+      "derived_id": "L2D_CP_013",
+      "derived_name": "kp_index",
+      "kind": "scoring",
+      "formula_expression": "NOAA SWPC Kp index at capture_utc",
+      "meaning": "External geomagnetic activity index. KNOWN LIMITATION: Kp under-detects equatorial scintillation (relevant for India). Long-term roadmap: S4/ROTI from regional reference.",
+      "input_field_names": "capture_utc"
+    },
+    {
+      "derived_id": "L2D_CP_014",
+      "derived_name": "dual_freq_available",
+      "kind": "scoring",
+      "formula_expression": "device firmware/model exposes L1+L2 carrier phase",
+      "meaning": "Whether the device captured dual-frequency data \u2014 mitigates ionospheric impact.",
+      "input_field_names": "firmware_version;antenna_type"
+    },
+    {
+      "derived_id": "L2D_CP_015",
+      "derived_name": "session_integrity_ok",
+      "kind": "composite_scoring",
+      "formula_expression": "device_type-aware: CB_X / DGPS / AEROPOINT: completed_normally AND signature valid (if available); OTHER: signature N/A, integrity based on download confirmation",
+      "meaning": "Whether the capture session terminated cleanly with download confirmed and signature (where applicable) intact.",
+      "input_field_names": "session_completed_normally;raw_log_download_confirmed;raw_log_signature_valid;device_type"
+    },
+    {
+      "derived_id": "L2D_CP_016",
+      "derived_name": "effective_check_point_count",
+      "kind": "scoring",
+      "formula_expression": "count of CHECK_POINT-role points where per_point_score > 0",
+      "meaning": "Number of CP points that survived per-point gates. Drives the conditional severity escalation of CP_FLOAT_ACCEPTED_AS_FIXED.",
+      "input_field_names": "device_role"
+    }
+  ],
+  "indicators": [
+    {
+      "indicator_id": "L3I_CP_001",
+      "indicator_name": "cp_position_sigma_score",
+      "display_name": "Per-point Receiver Sigma",
+      "building_block_id": "BB_CP_COMPLETE",
+      "weight_in_block": 0.45,
+      "covers_problems": "#30",
+      "input_derived_fields": "sigma_relative_to_target;sigma_available;sigma_expected_for_device",
+      "has_internal_gate": "FALSE",
+      "gate_condition": null,
+      "gate_action": null,
+      "justification": "SHEET (gap G; primary universal anchor)",
+      "threshold_summary": "PRIMARY INDICATOR. \u03c3 available: \u03c3_h \u2264 accuracy_target \u2192 100; 1-2\u00d7 target \u2192 70 + FLAG: CP_SIGMA_MARGINAL; 2-5\u00d7 \u2192 30 + FLAG: CP_SIGMA_HIGH; >5\u00d7 \u2192 0 + FLAG: CP_SIGMA_REJECT. \u03c3 absent AND expected \u2192 50 + FLAG: CP_SIGMA_NOT_EXPORTED (user can re-export). \u03c3 absent AND not expected (device limit) \u2192 N/A, weight redistributes to other category-A indicators.",
+      "data_availability_by_device_type": "CB_X: \u2713 / Trimble: \u2713 usually / Emlid: \u2713 usually / OTHER: variable (graceful degradation)",
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_CP_002",
+      "indicator_name": "cp_fix_type_score",
+      "display_name": "Per-point Fix Type at Capture",
+      "building_block_id": "BB_CP_COMPLETE",
+      "weight_in_block": 0.3,
+      "covers_problems": "#1",
+      "input_derived_fields": "fix_type_at_capture",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "fix_type_at_capture IN {FLOAT, AUTONOMOUS}",
+      "gate_action": "Sets per-point completeness sub-score = 0. FLAGS: CP_FLOAT_ACCEPTED_AS_FIXED or CP_AUTONOMOUS_ACCEPTED. Severity escalates to CATASTROPHIC when effective_check_point_count < 5.",
+      "justification": "SHEET",
+      "threshold_summary": "FIXED \u2192 100; FLOAT \u2192 0 + CP_FLOAT_ACCEPTED_AS_FIXED (CRITICAL, escalates to CAT if N<5); AUTONOMOUS \u2192 0 + CP_AUTONOMOUS_ACCEPTED.",
+      "data_availability_by_device_type": "CB_X: \u2713 / Trimble: \u2713 (solution-status flag) / Emlid: \u2713 / OTHER: usually \u2713",
+      "gate_scope": "per_point_only",
+      "per_point_gate_action": "When fix_type at capture is FLOAT or AUTONOMOUS (not FIXED RTK), this point's score is zeroed. Other points continue to score. Per-point aggregation penalizes this point but does not kill the chain.",
+      "v2_1_q_lock_note": "Q-CP-2: promoted to per-point gate. FLOAT/AUTONOMOUS fix on a single point zeros that point; aggregation dilutes across fleet."
+    },
+    {
+      "indicator_id": "L3I_CP_003",
+      "indicator_name": "cp_correction_age_score",
+      "display_name": "Per-point Correction Age",
+      "building_block_id": "BB_CP_COMPLETE",
+      "weight_in_block": 0.15,
+      "covers_problems": "#3",
+      "input_derived_fields": "correction_age_at_capture_sec",
+      "has_internal_gate": "FALSE",
+      "gate_condition": null,
+      "gate_action": null,
+      "justification": "SHEET",
+      "threshold_summary": "\u22642s \u2192 100; 2-5s \u2192 88; 5-15s \u2192 60 + CP_STALE_CORRECTION; 15-30s \u2192 30 + CP_STALE_CORRECTION; >30s \u2192 0 + CP_CORRECTION_LOST. When absent (not in export) \u2192 N/A, weight redistributes.",
+      "data_availability_by_device_type": "CB_X: \u2713 / Trimble: \u26a0 partial (often absent in JXL export) / Emlid: \u26a0 partial / OTHER: typically absent",
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_CP_004",
+      "indicator_name": "cp_log_integrity_score",
+      "display_name": "Per-point Log Download & Signature",
+      "building_block_id": "BB_CP_COMPLETE",
+      "weight_in_block": 0.1,
+      "covers_problems": "#23, #24",
+      "input_derived_fields": "session_integrity_ok;raw_log_download_confirmed;raw_log_signature_valid;device_type",
+      "has_internal_gate": "FALSE",
+      "gate_condition": null,
+      "gate_action": null,
+      "justification": "SHEET",
+      "threshold_summary": "downloaded AND signature valid (CB_X / Trimble where available) \u2192 100; downloaded AND signature N/A (Emlid / OTHER) \u2192 80; download unconfirmed \u2192 50 + CP_LOG_DOWNLOAD_UNCONFIRMED; signature invalid \u2192 30 + CP_LOG_TAMPERED.",
+      "data_availability_by_device_type": "CB_X: \u2713 signed / Trimble: \u2713 partial signed / Emlid: \u26a0 unsigned / OTHER: typically unsigned",
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_CP_005",
+      "indicator_name": "cp_antenna_height_documented_score",
+      "display_name": "Per-point Antenna Height Documentation",
+      "building_block_id": "BB_CP_SETUP",
+      "weight_in_block": 0.4,
+      "covers_problems": "#10",
+      "input_derived_fields": "antenna_height_auto_known;antenna_measurement_type;measured_to_reference;height_measured_count;antenna_height_agreement",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "antenna_height_m absent AND antenna_height_auto_known=False",
+      "gate_action": "Sets per-point setup sub-score = 0. FLAG: CP_POINT_ANTENNA_HEIGHT_MISSING.",
+      "justification": "SHEET (mirrors GCP #6)",
+      "threshold_summary": "antenna_height_auto_known=True (CB_X / AEROPOINT) \u2192 100 (factory-known). device_type=DGPS / OTHER: VERTICAL AND ARP AND count\u22653 AND device-report agreement \u2192 100; single VERTICAL \u2192 88; SLANT \u2192 72; conflict with device-reported \u2192 55 (review); no height entered \u2192 0 + gate.",
+      "data_availability_by_device_type": "CB_X / AEROPOINT: \u2713 factory / DGPS: \u2713 operator / OTHER: \u2713 operator",
+      "gate_scope": "per_point_only"
+    },
+    {
+      "indicator_id": "L3I_CP_006",
+      "indicator_name": "cp_pole_stability_score",
+      "display_name": "Per-point Pole/Rod Stability",
+      "building_block_id": "BB_CP_SETUP",
+      "weight_in_block": 0.2,
+      "covers_problems": "#25",
+      "input_derived_fields": "tilt_verifiable;tilt_logged_deg;tilt_compensation_used",
+      "has_internal_gate": "FALSE",
+      "gate_condition": null,
+      "gate_action": null,
+      "justification": "SHEET (split per device_type)",
+      "threshold_summary": "Tilt-comp-capable device (CB_X / R12+ / RS3+) with logged tilt: tilt \u22642\u00b0 \u2192 100; 2-4\u00b0 \u2192 70; >4\u00b0 \u2192 30 + CP_HIGH_TILT. Older/hand-held: tilt_compensation_used boolean is ADVISORY ONLY (operator-declarative cannot be verified) \u2192 70 (unconfirmed); if explicitly False \u2192 50.",
+      "data_availability_by_device_type": "CB_X (tilt-comp): \u2713 verifiable / Trimble R12+: \u2713 verifiable / Emlid RS3+: \u2713 verifiable / Older devices: declarative advisory only",
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_CP_007",
+      "indicator_name": "cp_baseline_length_score",
+      "display_name": "Per-point Baseline to Base/CORS",
+      "building_block_id": "BB_CP_SETUP",
+      "weight_in_block": 0.15,
+      "covers_problems": "#9",
+      "input_derived_fields": "baseline_length_km",
+      "has_internal_gate": "FALSE",
+      "gate_condition": null,
+      "gate_action": null,
+      "justification": "SHEET (geography-relevant)",
+      "threshold_summary": "\u22645km \u2192 100; 5-10km \u2192 88; 10-20km \u2192 70 + CP_LONG_BASELINE; 20-40km \u2192 40 + CP_EXCESSIVE_BASELINE; >40km \u2192 20 + CP_EXCESSIVE_BASELINE. Particularly relevant in regions with patchy CORS coverage (e.g. India).",
+      "data_availability_by_device_type": "CB_X: \u2713 / Trimble: \u2713 / Emlid: \u2713 / OTHER: variable",
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_CP_008",
+      "indicator_name": "cp_ntrip_mountpoint_score",
+      "display_name": "Per-point NTRIP Mountpoint Match",
+      "building_block_id": "BB_CP_SETUP",
+      "weight_in_block": 0.1,
+      "covers_problems": "#27",
+      "input_derived_fields": "mountpoint_match;ntrip_mountpoint;expected_mountpoint",
+      "has_internal_gate": "FALSE",
+      "gate_condition": null,
+      "gate_action": null,
+      "justification": "SHEET",
+      "threshold_summary": "mountpoint_match=True \u2192 100; mountpoint_match=False \u2192 40 + CP_UNEXPECTED_MOUNTPOINT; expected_mountpoint not declared \u2192 70 (unconfirmed).",
+      "data_availability_by_device_type": "CB_X: \u2713 / Trimble: \u2713 / Emlid: \u2713 / OTHER: typically \u2713",
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_CP_009",
+      "indicator_name": "cp_antenna_type_match_score",
+      "display_name": "Per-point Antenna Type Consistency",
+      "building_block_id": "BB_CP_SETUP",
+      "weight_in_block": 0.1,
+      "covers_problems": "#11",
+      "input_derived_fields": "antenna_type_match",
+      "has_internal_gate": "FALSE",
+      "gate_condition": null,
+      "gate_action": null,
+      "justification": "RTK consistency check",
+      "threshold_summary": "Match \u2192 100; mismatch \u2192 60 + CP_ANTENNA_TYPE_MISMATCH (MEDIUM). Sub-cm to ~3 cm vertical impact for typical short-baseline drone-survey targets.",
+      "data_availability_by_device_type": "CB_X: \u2713 / Trimble: \u2713 / Emlid: \u2713 / OTHER: variable",
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_CP_010",
+      "indicator_name": "cp_device_id_match_score",
+      "display_name": "Per-point Device ID Provenance",
+      "building_block_id": "BB_CP_SETUP",
+      "weight_in_block": 0.05,
+      "covers_problems": "#12",
+      "input_derived_fields": "device_id_match",
+      "has_internal_gate": "FALSE",
+      "gate_condition": null,
+      "gate_action": null,
+      "justification": "SHEET (provenance, not accuracy)",
+      "threshold_summary": "Match \u2192 100; mismatch \u2192 60 + CP_DEVICE_ID_MISMATCH (MEDIUM provenance, reviewer-blocking); either side missing \u2192 70 (unconfirmed).",
+      "data_availability_by_device_type": "CB_X: \u2713 / Trimble: \u2713 / Emlid: \u2713 / OTHER: variable",
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_CP_011",
+      "indicator_name": "cp_pdop_at_capture_score",
+      "display_name": "Per-point PDOP at Capture Epoch",
+      "building_block_id": "BB_CP_ENV",
+      "weight_in_block": 0.4,
+      "covers_problems": "#28",
+      "input_derived_fields": "pdop_at_capture",
+      "has_internal_gate": "FALSE",
+      "gate_condition": null,
+      "gate_action": null,
+      "justification": "SHEET",
+      "threshold_summary": "\u22642 \u2192 100; 2-4 \u2192 80; 4-6 \u2192 55; >6 \u2192 30 + CP_HIGH_PDOP. Distinct from multipath \u2014 captures sky geometry at the capture moment.",
+      "data_availability_by_device_type": "CB_X: \u2713 / Trimble: \u2713 / Emlid: \u2713 / OTHER: variable",
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_CP_012",
+      "indicator_name": "cp_fix_hold_score",
+      "display_name": "Per-point Fix Hold Duration",
+      "building_block_id": "BB_CP_ENV",
+      "weight_in_block": 0.25,
+      "covers_problems": "#2",
+      "input_derived_fields": "fix_hold_duration_sec",
+      "has_internal_gate": "FALSE",
+      "gate_condition": null,
+      "gate_action": null,
+      "justification": "SHEET",
+      "threshold_summary": "\u22655s held FIXED \u2192 100; 1-4s \u2192 60 + CP_SHORT_FIX_HOLD; <1s \u2192 30 + CP_NO_FIX_HOLD. When absent \u2192 N/A, weight redistributes.",
+      "data_availability_by_device_type": "CB_X: \u2713 / Trimble: \u26a0 partial / Emlid: \u26a0 partial / OTHER: typically N/A",
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_CP_013",
+      "indicator_name": "cp_obstruction_score",
+      "display_name": "Per-point Sky Obstruction",
+      "building_block_id": "BB_CP_ENV",
+      "weight_in_block": 0.2,
+      "covers_problems": "#21",
+      "input_derived_fields": "sat_count_at_capture;cn0_mean_at_capture",
+      "has_internal_gate": "FALSE",
+      "gate_condition": null,
+      "gate_action": null,
+      "justification": "SHEET",
+      "threshold_summary": "sats \u226510 AND CN0 \u226540 dBHz \u2192 100; sats 7-9 OR CN0 30-40 \u2192 70; sats <7 OR CN0 <30 \u2192 35 + CP_HIGH_MULTIPATH. Less able to detect multipath than PPK (no extended observation to compute variance).",
+      "data_availability_by_device_type": "CB_X: \u2713 / Trimble: \u2713 / Emlid: \u2713 / OTHER: variable",
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_CP_014",
+      "indicator_name": "cp_ionospheric_risk_score",
+      "display_name": "Per-point Ionospheric Risk",
+      "building_block_id": "BB_CP_ENV",
+      "weight_in_block": 0.15,
+      "covers_problems": "#22",
+      "input_derived_fields": "kp_index;dual_freq_available",
+      "has_internal_gate": "FALSE",
+      "gate_condition": null,
+      "gate_action": null,
+      "justification": "SHEET (with documented Kp limitation)",
+      "threshold_summary": "Kp \u22644 OR dual_freq \u2192 100; Kp 5-6 single-freq \u2192 60; Kp \u22657 single-freq \u2192 40 + CP_IONO_RISK. KNOWN LIMITATION: Kp under-detects equatorial scintillation (relevant for India); long-term roadmap to S4/ROTI source.",
+      "data_availability_by_device_type": "External NOAA SWPC dependency; same for all device types",
+      "gate_scope": "none"
+    }
+  ],
+  "building_blocks": [
+    {
+      "block_id": "BB_CP_COMPLETE",
+      "block_name": "cp_capture_completeness_score",
+      "display_name": "Capture Completeness & Integrity",
+      "weight_in_check_point_score": 0.45,
+      "question": "Are the per-point captures present, RTK-fix-quality acceptable, and recorded reliably?",
+      "failure_owner": "Per-point capture / device",
+      "operator_action": "Re-occupy affected points; verify FIXED fix before storing",
+      "aggregator": "mean \u2212 k \u00d7 (100 \u2212 min) across CHECK_POINT-role per_point_completeness, k=0.25",
+      "indicators_within": "cp_position_sigma_score(0.45), cp_fix_type_score(0.30), cp_correction_age_score(0.15), cp_log_integrity_score(0.10)",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "every CHECK_POINT-role point has cp_fix_type_score=0 (all FLOAT or AUTONOMOUS) OR cp_position_sigma_score=0",
+      "gate_action": "Triggers CP_CRITICAL_FAILURE at check_point_score level."
+    },
+    {
+      "block_id": "BB_CP_SETUP",
+      "block_name": "cp_setup_confidence_score",
+      "display_name": "Per-point Setup & Documentation Confidence",
+      "weight_in_check_point_score": 0.35,
+      "question": "Is per-point operator metadata trustworthy and baseline/mountpoint correctly configured?",
+      "failure_owner": "Operator (per-point setup)",
+      "operator_action": "Re-measure antenna height; verify mountpoint; bipod or tilt-comp rover",
+      "aggregator": "mean \u2212 k \u00d7 (100 \u2212 min) across CHECK_POINT-role per_point_setup_confidence, k=0.25",
+      "indicators_within": "cp_antenna_height_documented_score(0.40), cp_pole_stability_score(0.20), cp_baseline_length_score(0.15), cp_ntrip_mountpoint_score(0.10), cp_antenna_type_match_score(0.10), cp_device_id_match_score(0.05)",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "per-point antenna_height_m absent AND antenna_height_auto_known=False",
+      "gate_action": "That point per_point_setup_confidence = 0. FLAG: CP_POINT_ANTENNA_HEIGHT_MISSING."
+    },
+    {
+      "block_id": "BB_CP_ENV",
+      "block_name": "cp_observation_environment_score",
+      "display_name": "Per-point Observation Environment",
+      "weight_in_check_point_score": 0.2,
+      "question": "Was the sky and environment good at each capture moment?",
+      "failure_owner": "Site / sky conditions",
+      "operator_action": "Relocate next time; accept noise; capture at lower-iono time",
+      "aggregator": "mean \u2212 k \u00d7 (100 \u2212 min) across CHECK_POINT-role per_point_environment, k=0.25",
+      "indicators_within": "cp_pdop_at_capture_score(0.40), cp_fix_hold_score(0.25), cp_obstruction_score(0.20), cp_ionospheric_risk_score(0.15)",
+      "has_internal_gate": "FALSE",
+      "gate_condition": null,
+      "gate_action": null
+    }
+  ],
+  "flags": [
+    {
+      "flag_id": "FLG_CP_001",
+      "flag_name": "CP_CRITICAL_FAILURE",
+      "raised_by_type": "score",
+      "condition": "every CP point has cp_fix_type_score=0 OR cp_position_sigma_score=0",
+      "severity": "CRITICAL",
+      "covers_problems": "system view",
+      "meaning": "No usable check-point captures across the survey \u2014 check_point_score = 0. Parallels DRONE_CRITICAL_FAILURE / BASE_CRITICAL_FAILURE / GCP_CRITICAL_FAILURE structurally; defined independently.",
+      "raised_at_stage": "global_gate"
+    },
+    {
+      "flag_id": "FLG_CP_002",
+      "flag_name": "NO_DESIGNATED_CHECK_POINTS",
+      "raised_by_type": "score",
+      "condition": "no points with device_role=CHECK_POINT",
+      "severity": "CRITICAL",
+      "covers_problems": "system view",
+      "meaning": "No designated check points in this survey. check_point_score = null. Pre-processing handles survey-design implication.",
+      "raised_at_stage": "null_handler"
+    },
+    {
+      "flag_id": "FLG_CP_003",
+      "flag_name": "CP_POINT_ANTENNA_HEIGHT_MISSING",
+      "raised_by_type": "indicator_gate",
+      "condition": "antenna_height_m absent AND antenna_height_auto_known=False",
+      "severity": "CATASTROPHIC",
+      "covers_problems": "#10",
+      "meaning": "Per-point antenna height not entered for a non-factory-known device \u2014 per_point_setup_confidence = 0.",
+      "raised_at_stage": "internal_gate"
+    },
+    {
+      "flag_id": "FLG_CP_004",
+      "flag_name": "CP_FLOAT_ACCEPTED_AS_FIXED",
+      "raised_by_type": "indicator_gate",
+      "condition": "fix_type_at_capture = FLOAT",
+      "severity": "CRITICAL",
+      "covers_problems": "#1",
+      "meaning": "Rover was in FLOAT (decimetre-level) at capture moment \u2014 per_point_completeness = 0. Severity escalates to CATASTROPHIC when effective_check_point_count < 5.",
+      "raised_at_stage": "internal_gate"
+    },
+    {
+      "flag_id": "FLG_CP_005",
+      "flag_name": "CP_AUTONOMOUS_ACCEPTED",
+      "raised_by_type": "indicator_gate",
+      "condition": "fix_type_at_capture = AUTONOMOUS",
+      "severity": "CRITICAL",
+      "covers_problems": "#1",
+      "meaning": "Rover was in AUTONOMOUS (metre-level) at capture \u2014 per_point_completeness = 0.",
+      "raised_at_stage": "internal_gate"
+    },
+    {
+      "flag_id": "FLG_CP_006",
+      "flag_name": "CP_SIGMA_MARGINAL",
+      "raised_by_type": "indicator",
+      "condition": "sigma_relative_to_target 1-2\u00d7",
+      "severity": "HIGH",
+      "covers_problems": "#30",
+      "meaning": "Receiver-estimated sigma at 1-2\u00d7 survey accuracy target \u2014 marginal.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_007",
+      "flag_name": "CP_SIGMA_HIGH",
+      "raised_by_type": "indicator",
+      "condition": "sigma_relative_to_target 2-5\u00d7",
+      "severity": "HIGH",
+      "covers_problems": "#30",
+      "meaning": "Receiver-estimated sigma at 2-5\u00d7 accuracy target \u2014 degraded.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_008",
+      "flag_name": "CP_SIGMA_REJECT",
+      "raised_by_type": "indicator",
+      "condition": "sigma_relative_to_target > 5\u00d7",
+      "severity": "CRITICAL",
+      "covers_problems": "#30",
+      "meaning": "Receiver-estimated sigma at >5\u00d7 accuracy target \u2014 point not usable.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_009",
+      "flag_name": "CP_SIGMA_NOT_EXPORTED",
+      "raised_by_type": "indicator",
+      "condition": "sigma_expected_for_device=True AND sigma_available=False",
+      "severity": "HIGH",
+      "covers_problems": "#30",
+      "meaning": "Sigma should be in export for this device type but is missing \u2014 user can re-export with precision columns enabled.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_010",
+      "flag_name": "CP_STALE_CORRECTION",
+      "raised_by_type": "indicator",
+      "condition": "correction_age_at_capture_sec 5-30s",
+      "severity": "HIGH",
+      "covers_problems": "#3",
+      "meaning": "RTK correction stream was stale at capture \u2014 accuracy degraded.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_011",
+      "flag_name": "CP_CORRECTION_LOST",
+      "raised_by_type": "indicator",
+      "condition": "correction_age_at_capture_sec > 30s",
+      "severity": "CRITICAL",
+      "covers_problems": "#3",
+      "meaning": "RTK correction stream effectively lost at capture moment.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_012",
+      "flag_name": "CP_LONG_BASELINE",
+      "raised_by_type": "indicator",
+      "condition": "baseline_length_km 10-20",
+      "severity": "HIGH",
+      "covers_problems": "#9",
+      "meaning": "Baseline to base/CORS is long enough to introduce distance-dependent error.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_013",
+      "flag_name": "CP_EXCESSIVE_BASELINE",
+      "raised_by_type": "indicator",
+      "condition": "baseline_length_km > 20",
+      "severity": "HIGH",
+      "covers_problems": "#9",
+      "meaning": "Baseline excessive \u2014 accuracy claim should be downgraded.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_014",
+      "flag_name": "CP_HIGH_TILT",
+      "raised_by_type": "indicator",
+      "condition": "tilt_logged_deg > 4 on tilt-comp device",
+      "severity": "HIGH",
+      "covers_problems": "#25",
+      "meaning": "Verified pole tilt exceeds threshold \u2014 horizontal accuracy degraded by pole-length \u00d7 sin(tilt).",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_015",
+      "flag_name": "CP_NO_REPEATABILITY_CHECK",
+      "raised_by_type": "advisory_flag",
+      "condition": "every single-occupation point (always fires in v1)",
+      "severity": "ADVISORY",
+      "covers_problems": "#8",
+      "meaning": "Single occupation cannot detect false fix. Advisory only \u2014 zero scoring weight. Roadmap: dual-occupation workflow enables repeatability_check_score.",
+      "raised_at_stage": "composite"
+    },
+    {
+      "flag_id": "FLG_CP_016",
+      "flag_name": "CP_DEVICE_ID_MISMATCH",
+      "raised_by_type": "indicator (reviewer-blocking)",
+      "condition": "form device_id != device-reported device_id",
+      "severity": "MEDIUM (provenance)",
+      "covers_problems": "#12",
+      "meaning": "Per-point form/device ID disagreement \u2014 provenance concern, reviewer-blocking.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_017",
+      "flag_name": "CP_HIGH_MULTIPATH",
+      "raised_by_type": "indicator",
+      "condition": "obstruction_score low (sats <7 OR CN0 <30)",
+      "severity": "HIGH",
+      "covers_problems": "#21",
+      "meaning": "Obstruction-prone capture environment.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_018",
+      "flag_name": "CP_IONO_RISK",
+      "raised_by_type": "indicator",
+      "condition": "kp_index \u2265 7 AND single-frequency",
+      "severity": "HIGH",
+      "covers_problems": "#22",
+      "meaning": "Ionospheric disturbance likely degraded accuracy. Documented limit: Kp under-detects equatorial scintillation.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_019",
+      "flag_name": "CP_HIGH_PDOP",
+      "raised_by_type": "indicator",
+      "condition": "pdop_at_capture > 6",
+      "severity": "MEDIUM",
+      "covers_problems": "#28",
+      "meaning": "Poor satellite geometry at the capture epoch.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_020",
+      "flag_name": "CP_SHORT_FIX_HOLD",
+      "raised_by_type": "indicator",
+      "condition": "fix_hold_duration_sec 1-4",
+      "severity": "HIGH",
+      "covers_problems": "#2",
+      "meaning": "Fix held briefly before capture \u2014 accuracy may reflect transient state.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_021",
+      "flag_name": "CP_NO_FIX_HOLD",
+      "raised_by_type": "indicator",
+      "condition": "fix_hold_duration_sec < 1",
+      "severity": "HIGH",
+      "covers_problems": "#2",
+      "meaning": "Single-epoch capture without held fix \u2014 accuracy may reflect transient state.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_022",
+      "flag_name": "CP_UNEXPECTED_MOUNTPOINT",
+      "raised_by_type": "indicator",
+      "condition": "ntrip_mountpoint != expected_mountpoint",
+      "severity": "HIGH",
+      "covers_problems": "#27",
+      "meaning": "NTRIP mountpoint differs from project-declared expected \u2014 corrections may be in different reference frame.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_023",
+      "flag_name": "CP_DELAYED_CAPTURE",
+      "raised_by_type": "indicator",
+      "condition": "capture_to_flight_delay_hours 24-168",
+      "severity": "HIGH",
+      "covers_problems": "#13",
+      "meaning": "Check-point captured >24 hours after drone flight \u2014 mark may have been disturbed.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_024",
+      "flag_name": "CP_STALE_CAPTURE",
+      "raised_by_type": "indicator",
+      "condition": "capture_to_flight_delay_hours > 168",
+      "severity": "HIGH",
+      "covers_problems": "#13",
+      "meaning": "Check-point captured >7 days after drone flight \u2014 likelihood of mark disturbance significant.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_025",
+      "flag_name": "CP_CAPTURED_BEFORE_FLIGHT",
+      "raised_by_type": "indicator",
+      "condition": "capture_utc < flight_start_utc",
+      "severity": "HIGH",
+      "covers_problems": "#19",
+      "meaning": "Check-point captured before drone flight \u2014 site conditions may have changed.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_026",
+      "flag_name": "CP_CAPTURED_DURING_FLIGHT",
+      "raised_by_type": "indicator",
+      "condition": "flight_start_utc <= capture_utc <= flight_end_utc",
+      "severity": "LOW (workflow)",
+      "covers_problems": "#20",
+      "meaning": "Check-point captured during drone flight window \u2014 workflow advisory only, not an accuracy concern.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_027",
+      "flag_name": "CP_LOG_DOWNLOAD_UNCONFIRMED",
+      "raised_by_type": "indicator",
+      "condition": "raw_log_download_confirmed = False",
+      "severity": "HIGH",
+      "covers_problems": "#23",
+      "meaning": "Session log not confirmed downloaded.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_028",
+      "flag_name": "CP_LOG_TAMPERED",
+      "raised_by_type": "indicator",
+      "condition": "raw_log_signature_valid = False",
+      "severity": "HIGH",
+      "covers_problems": "#24",
+      "meaning": "Session log signature failed validation \u2014 possible manual edit.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_029",
+      "flag_name": "CP_NO_MARK_PHOTO",
+      "raised_by_type": "advisory_flag",
+      "condition": "mark_photo_captured = False",
+      "severity": "MEDIUM (advisory)",
+      "covers_problems": "#26, #14",
+      "meaning": "No photo of the mark and surroundings \u2014 cannot retroactively investigate questionable points.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_CP_030",
+      "flag_name": "CP_ANTENNA_TYPE_MISMATCH",
+      "raised_by_type": "indicator",
+      "condition": "antenna_type_match = False",
+      "severity": "MEDIUM",
+      "covers_problems": "#11",
+      "meaning": "Form vs device antenna type mismatch \u2014 sub-cm to cm vertical impact.",
+      "raised_at_stage": "threshold"
+    }
+  ],
+  "problem_coverage": [
+    {
+      "problem_no": "1",
+      "problem": "Float Solution Accepted as Fixed",
+      "severity": "CRITICAL (escalates to CATASTROPHIC when N<5)",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "cp_fix_type_score + hard gate + conditional severity escalation"
+    },
+    {
+      "problem_no": "2",
+      "problem": "Single-Epoch Capture",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "cp_fix_hold_score (environment category)"
+    },
+    {
+      "problem_no": "3",
+      "problem": "Stale or Lost Correction",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "cp_correction_age_score (degrades gracefully when data absent)"
+    },
+    {
+      "problem_no": "4",
+      "problem": "Wrong Base Coordinate",
+      "severity": "CATASTROPHIC",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED_BY_BASE_STATION",
+      "covered_by": "base_station_score (BENCHMARK_UNVERIFIED, AUTONOMOUS_SEED). Documented in check_point_score known_limitations; no detection here."
+    },
+    {
+      "problem_no": "5",
+      "problem": "Reference Frame / Datum / CRS Mismatch",
+      "severity": "CATASTROPHIC",
+      "frequency": "COMMON",
+      "disposition": "OWNED_BY_PRE_PROCESSING",
+      "covered_by": "pre_processing_score. Documented; no detection here. Silent-invisible failure class."
+    },
+    {
+      "problem_no": "6",
+      "problem": "Geoid / Vertical Datum Mismatch",
+      "severity": "CATASTROPHIC",
+      "frequency": "COMMON",
+      "disposition": "OWNED_BY_PRE_PROCESSING",
+      "covered_by": "pre_processing_score. Documented; no detection here. Silent-invisible failure class."
+    },
+    {
+      "problem_no": "7",
+      "problem": "Site Calibration / Localization Applied",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL (COMMON for construction)",
+      "disposition": "OWNED_BY_PRE_PROCESSING",
+      "covered_by": "pre_processing_score. Documented; no detection here."
+    },
+    {
+      "problem_no": "8",
+      "problem": "False Fix",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (advisory only)",
+      "covered_by": "CP_NO_REPEATABILITY_CHECK advisory flag (zero weight). Documented detection gap. Roadmap: repeatability_check_score with dual-occupation workflow."
+    },
+    {
+      "problem_no": "9",
+      "problem": "Excessive Baseline Length",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL (COMMON in patchy-CORS regions)",
+      "disposition": "OWNED",
+      "covered_by": "cp_baseline_length_score"
+    },
+    {
+      "problem_no": "10",
+      "problem": "Check-Point Antenna Height Blunder",
+      "severity": "CATASTROPHIC",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "cp_antenna_height_documented_score + hard gate"
+    },
+    {
+      "problem_no": "11",
+      "problem": "Antenna Type / Model Mismatch",
+      "severity": "MEDIUM",
+      "frequency": "RARE",
+      "disposition": "OWNED",
+      "covered_by": "cp_antenna_type_match_score"
+    },
+    {
+      "problem_no": "12",
+      "problem": "Device ID Mismatch (Provenance)",
+      "severity": "MEDIUM",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "cp_device_id_match_score (reviewer-blocking)"
+    },
+    {
+      "problem_no": "13",
+      "problem": "Mark Disturbed Between Flight and Capture",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "CP_DELAYED_CAPTURE + CP_STALE_CAPTURE timing flags"
+    },
+    {
+      "problem_no": "14",
+      "problem": "Wrong Physical Point Captured",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED (advisory only)",
+      "covered_by": "CP_NO_MARK_PHOTO advisory flag is a weak proxy \u2014 mark photo presence enables retrospective verification but does not detect wrong-point capture at scoring time. Common subtle case (10-30 cm off the intended mark) not scoreable from any available data."
+    },
+    {
+      "problem_no": "15",
+      "problem": "Check Points Not Spatially Independent from GCPs",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "OWNED_BY_PRE_PROCESSING",
+      "covered_by": "pre_processing_score. Documented; no detection here."
+    },
+    {
+      "problem_no": "16",
+      "problem": "No Check Points Designated",
+      "severity": "CATASTROPHIC",
+      "frequency": "VERY COMMON",
+      "disposition": "OWNED_BY_PRE_PROCESSING",
+      "covered_by": "pre_processing_score + Stage-1 null state (NO_DESIGNATED_CHECK_POINTS)"
+    },
+    {
+      "problem_no": "17",
+      "problem": "Too Few Check Points for Statistical Validity",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "OWNED_BY_PRE_PROCESSING",
+      "covered_by": "pre_processing_score"
+    },
+    {
+      "problem_no": "18",
+      "problem": "Check Points Clustered Geographically",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "OWNED_BY_PRE_PROCESSING",
+      "covered_by": "pre_processing_score"
+    },
+    {
+      "problem_no": "19",
+      "problem": "Check-Point Captured Before Drone Flight",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "CP_CAPTURED_BEFORE_FLIGHT timing flag"
+    },
+    {
+      "problem_no": "20",
+      "problem": "Capture During Flight Window",
+      "severity": "LOW (workflow)",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "CP_CAPTURED_DURING_FLIGHT workflow advisory only"
+    },
+    {
+      "problem_no": "21",
+      "problem": "RTK Capture Near Obstructions",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "cp_obstruction_score (weaker signal than PPK)"
+    },
+    {
+      "problem_no": "22",
+      "problem": "Ionospheric Disturbance",
+      "severity": "MEDIUM",
+      "frequency": "OCCASIONAL/RARE",
+      "disposition": "OWNED",
+      "covered_by": "cp_ionospheric_risk_score (with documented Kp limitation for India)"
+    },
+    {
+      "problem_no": "23",
+      "problem": "Check-Point Log Not Downloaded",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "cp_log_integrity_score"
+    },
+    {
+      "problem_no": "24",
+      "problem": "Check-Point Log Tampered",
+      "severity": "HIGH",
+      "frequency": "RARE",
+      "disposition": "OWNED",
+      "covered_by": "cp_log_integrity_score (signature validation; device-type-aware)"
+    },
+    {
+      "problem_no": "25",
+      "problem": "Pole/Rod Tilt",
+      "severity": "HIGH",
+      "frequency": "COMMON (hand-held) / RARE (tilt-comp)",
+      "disposition": "OWNED",
+      "covered_by": "cp_pole_stability_score (verifiable on tilt-comp; advisory on hand-held)"
+    },
+    {
+      "problem_no": "26",
+      "problem": "Mark Photo Not Captured",
+      "severity": "MEDIUM",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "CP_NO_MARK_PHOTO advisory flag"
+    },
+    {
+      "problem_no": "27",
+      "problem": "Wrong NTRIP Mountpoint",
+      "severity": "HIGH",
+      "frequency": "RARE",
+      "disposition": "OWNED",
+      "covered_by": "cp_ntrip_mountpoint_score"
+    },
+    {
+      "problem_no": "28",
+      "problem": "Poor DOP/Geometry at Fixed Epoch",
+      "severity": "MEDIUM",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "cp_pdop_at_capture_score"
+    },
+    {
+      "problem_no": "29",
+      "problem": "CP Used as Control in Bundle Adjustment",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED_BY_PROCESSING",
+      "covered_by": "Future processing_score. Pre-committed catalog row; documented as known failure class."
+    },
+    {
+      "problem_no": "30",
+      "problem": "Receiver-Estimated Sigma Ignored",
+      "severity": "HIGH",
+      "frequency": "UNIVERSAL",
+      "disposition": "OWNED",
+      "covered_by": "cp_position_sigma_score \u2014 PRIMARY anchor indicator with graceful degradation"
+    }
+  ],
+  "check_point_score": {
+    "score_id": "check_point_score",
+    "display_name": "Check Point Confidence Score",
+    "workflow": "RTK (only)",
+    "phase": "single (computed once at Stage 1; never revised)",
+    "purpose": "Hardware-derived RTK capture-confidence score. Measures per-point signal quality, setup documentation, and observation environment.",
+    "formula_expression": "0.45 * cp_capture_completeness_score + 0.35 * cp_setup_confidence_score + 0.20 * cp_observation_environment_score",
+    "per_point_formula": "0.45 * per_point_completeness + 0.35 * per_point_setup_confidence + 0.20 * per_point_environment",
+    "aggregator": "mean \u2212 0.25 \u00d7 (100 \u2212 min) within each role-block, applied across all CHECK_POINT-role points (Q-CP-3 LOCKED)",
+    "global_gate_condition": "(every CHECK_POINT-role point has cp_fix_type_score == 0) OR (every CHECK_POINT-role point has cp_position_sigma_score == 0)",
+    "global_gate_action": "When all designated CHECK_POINT-role points have failed fix type (FLOAT/AUTONOMOUS accepted) or all points have catastrophic position sigma, check_point_score = 0. Raises FLAG: CP_CRITICAL_FAILURE. Q-CP-2: individual point failures (fix_type per-point gate) do NOT kill the chain; aggregation penalizes via dilution.",
+    "severity_of_finding_vocabulary": "Indicator-band level severity. Four values: NONE (band passed) \u2192 MINOR (hygiene signal, audit-only) \u2192 MATERIAL (warrants review) \u2192 CRITICAL (warrants resurvey).",
+    "verification_status_field": "Separate categorical. VALUES: RTK_VERIFIED_HIGH (fixed RTK on all points); RTK_VERIFIED_MARGINAL (some FLOAT/AUTONOMOUS or material findings); RTK_VERIFIED_FAIL (critical finding present); RTK_GLOBAL_GATE_FIRED (all points failed). NEVER score-gating. Verification basis reported separately.",
+    "tier_interpretation": "Gold 90-100 / Silver 75-89 / Bronze 60-74 / Marginal 40-59 / Poor <40. When global gate fires, check_point_score = 0 (Poor). Q-CP-1/2/3/4/5 lock decisions (v2.1):Q-CP-1: complex gate retained. Q-CP-2: fix_type per-point gate. Q-CP-3: aggregation formula locked. Q-CP-4: no device-type special handling. Q-CP-5: no new patterns.",
+    "null_handling": "check_point_score = null when no points designated with device_role=CHECK_POINT. Pre-processing subsystem determines survey-design adequacy (point count, spatial distribution, role allocation). Check_point measures only signal quality and documentation on the points provided.",
+    "scope_note": "Hardware-derived capture-confidence score for RTK check-point captures. Runtime independent of base_station_score, gcp_score, drone_score. Requires only: per-point RTK device export + operation log + user-input form + NOAA Kp API + flight upload timestamp. Survey-design adequacy (point count, clustering, geographic distribution, role allocation, reference frame, base/CORS selection) is owned by pre_processing_score or future check_point_survey_design subsystem.",
+    "source_file_set": "Per-point RTK device export (SRC_RTK_EXPORT), per-point operation log (SRC_RTK_LOG), per-point user input form (SRC_RTK_USER_INPUT). Flight timing from upload context. NOAA SWPC Kp ionospheric index from external API.",
+    "device_types": "CB_X, AEROPOINT, DGPS, OTHER (no special handling; all treated uniformly per Q-CP-4)"
+  }
+}

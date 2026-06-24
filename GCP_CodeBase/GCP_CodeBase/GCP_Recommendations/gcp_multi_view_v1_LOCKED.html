@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GCP Confidence — Multi-View Reference (v1 LOCKED)</title>
+<style>
+:root {
+  --font-sans: var(--ds-font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  --font-mono: var(--ds-font-mono, "SF Mono", ui-monospace, Menlo, monospace);
+  --color-bg-primary:    var(--color-background-primary,    #ffffff);
+  --color-bg-secondary:  var(--color-background-secondary,  #f5f5f4);
+  --color-bg-tertiary:   var(--color-background-tertiary,   #fafaf9);
+  --color-text-primary:   var(--color-text-primary,   #1a1a18);
+  --color-text-secondary: var(--color-text-secondary, #525252);
+  --color-text-tertiary:  var(--color-text-tertiary,  #8a8a86);
+  --color-text-inverse:   var(--color-text-inverse,   #ffffff);
+  --color-border-secondary: var(--color-border-secondary, #e7e5e4);
+  --color-border-tertiary:  var(--color-border-tertiary,  #efedeb);
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --color-good:     #1D9E75;
+  --color-good-bg:  #EAF3DE;
+  --color-good-fg:  #27500A;
+  --color-review:    #EF9F27;
+  --color-review-bg: #FAEEDA;
+  --color-review-fg: #633806;
+  --color-resurvey:    #E24B4A;
+  --color-resurvey-bg: #FCEBEB;
+  --color-resurvey-fg: #791F1F;
+  --color-minor:     #6E7B85;
+  --color-minor-bg:  #EEF1F3;
+  --color-minor-fg:  #3A434B;
+  --color-accent:    #4A8BBF;
+  --color-accent-bg: #E8F1F8;
+  --color-accent-fg: #1B4A6F;
+  --color-na:        #9B9B9B;
+  --color-na-bg:     #F0F0F0;
+  --color-na-fg:     #555555;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); background: var(--color-bg-tertiary); color: var(--color-text-primary); }
+
+.page { max-width: 1200px; margin: 0 auto; padding: 24px 20px 80px; }
+.top-eyebrow { font-size: 11px; color: var(--color-text-tertiary); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+.top-title { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+.top-sub { font-size: 13px; color: var(--color-text-secondary); }
+
+.scenario-section { margin: 22px 0 16px; padding: 16px; background: var(--color-bg-primary); border-radius: var(--border-radius-lg); border: 0.5px solid var(--color-border-secondary); }
+.scenario-label { font-size: 11px; color: var(--color-text-tertiary); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 10px; }
+.scenario-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.scenario-btn { font-size: 13px; padding: 8px 14px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: var(--color-bg-tertiary); color: var(--color-text-secondary); cursor: pointer; transition: all 0.15s; text-align: left; flex: 1; min-width: 200px; }
+.scenario-btn:hover { background: var(--color-bg-secondary); }
+.scenario-btn.active { background: var(--color-text-primary); border-color: var(--color-text-primary); color: var(--color-text-inverse); }
+.scenario-btn .s-name { font-weight: 500; display: block; margin-bottom: 2px; }
+.scenario-btn .s-desc { font-size: 11px; opacity: 0.75; }
+.scenario-section.hidden { display: none; }
+
+.view-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 0.5px solid var(--color-border-secondary); flex-wrap: wrap; }
+.view-tab { font-size: 14px; padding: 12px 18px; border: none; background: transparent; color: var(--color-text-tertiary); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; font-weight: 500; }
+.view-tab:hover { color: var(--color-text-secondary); }
+.view-tab.active { color: var(--color-text-primary); border-bottom-color: var(--color-accent); }
+.view-tab.lib-tab { color: var(--color-text-secondary); font-style: italic; }
+.view-tab.lib-tab.active { color: var(--color-text-primary); font-style: normal; }
+
+.view-panel { display: none; }
+.view-panel.active { display: block; }
+
+.card { background: var(--color-bg-primary); border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-lg); padding: 20px; margin-bottom: 14px; }
+.card-title { font-size: 12px; color: var(--color-text-tertiary); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 12px; font-weight: 500; }
+
+.headline { display: flex; gap: 24px; align-items: center; padding: 28px; }
+.headline-score { font-size: 56px; font-weight: 700; line-height: 1; }
+.headline-score.good { color: var(--color-good); }
+.headline-score.review { color: var(--color-review); }
+.headline-score.resurvey { color: var(--color-resurvey); }
+.headline-score.na { color: var(--color-na); font-size: 32px; font-weight: 500; }
+.headline-meta { flex: 1; }
+.headline-rec { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+.headline-rec.good { color: var(--color-good-fg); }
+.headline-rec.review { color: var(--color-review-fg); }
+.headline-rec.resurvey { color: var(--color-resurvey-fg); }
+.headline-rec.na { color: var(--color-na-fg); }
+.headline-rationale { font-size: 13px; color: var(--color-text-secondary); line-height: 1.55; }
+
+.action-item { padding: 16px; background: var(--color-bg-tertiary); border-radius: var(--border-radius-md); border-left: 3px solid var(--color-border-secondary); margin-bottom: 10px; }
+.action-item.critical { border-left-color: var(--color-resurvey); }
+.action-item.material { border-left-color: var(--color-review); }
+.action-item-tag { font-size: 10.5px; font-weight: 500; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+.action-item-tag.critical { background: var(--color-resurvey-bg); color: var(--color-resurvey-fg); }
+.action-item-tag.material { background: var(--color-review-bg); color: var(--color-review-fg); }
+.action-item-point { font-size: 10.5px; font-weight: 500; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-left: 6px; background: var(--color-accent-bg); color: var(--color-accent-fg); font-family: var(--font-mono); }
+.action-item-why { font-size: 13.5px; color: var(--color-text-primary); margin-bottom: 8px; line-height: 1.5; margin-top: 6px; }
+.action-item-why strong { font-weight: 600; }
+.action-list { list-style: none; padding-left: 0; }
+.action-list li { font-size: 13px; color: var(--color-text-secondary); padding: 4px 0 4px 18px; position: relative; line-height: 1.5; }
+.action-list li::before { content: "→"; position: absolute; left: 0; color: var(--color-accent); font-weight: 600; }
+
+.verified-item { padding: 16px; background: var(--color-bg-tertiary); border-radius: var(--border-radius-md); border-left: 3px solid var(--color-good); margin-bottom: 10px; }
+.verified-item-tag { font-size: 10.5px; font-weight: 500; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; background: var(--color-good-bg); color: var(--color-good-fg); }
+.verified-item-statement { font-size: 13.5px; color: var(--color-text-primary); line-height: 1.5; }
+.verified-item-statement strong { font-weight: 600; }
+
+.expandable { margin-bottom: 14px; }
+.expandable-toggle { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: var(--color-bg-primary); border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-lg); cursor: pointer; user-select: none; }
+.expandable-toggle:hover { background: var(--color-bg-tertiary); }
+.expandable-toggle.open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: var(--color-border-tertiary); }
+.expandable-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+.expandable-count { font-size: 11px; color: var(--color-text-tertiary); margin-left: 8px; }
+.expandable-arrow { font-size: 11px; color: var(--color-text-tertiary); transition: transform 0.2s; }
+.expandable-toggle.open .expandable-arrow { transform: rotate(180deg); }
+.expandable-content { display: none; background: var(--color-bg-primary); border: 0.5px solid var(--color-border-secondary); border-top: none; border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg); padding: 16px 20px 20px; }
+.expandable-content.open { display: block; }
+
+.checklist { list-style: none; padding: 0; }
+.checklist-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 13px; }
+.checklist-row:last-child { border-bottom: none; }
+.checklist-icon { font-size: 14px; flex-shrink: 0; width: 16px; text-align: center; }
+.checklist-icon.good { color: var(--color-good); }
+.checklist-icon.review { color: var(--color-review); }
+.checklist-icon.resurvey { color: var(--color-resurvey); }
+.checklist-icon.minor { color: var(--color-minor); }
+.checklist-name { flex: 1; color: var(--color-text-primary); font-weight: 500; }
+.checklist-status { color: var(--color-text-secondary); font-size: 12px; }
+.checklist-status.minor { color: var(--color-minor-fg); font-style: italic; }
+.checklist-statement { color: var(--color-text-tertiary); font-size: 12px; margin-left: 28px; padding-bottom: 6px; line-height: 1.5; }
+
+.block-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.block-row:last-child { border-bottom: none; }
+.block-name { flex: 1; font-size: 13px; font-weight: 500; }
+.block-bar-track { flex: 2; height: 8px; background: var(--color-bg-secondary); border-radius: 4px; overflow: hidden; }
+.block-bar-fill { height: 100%; transition: width 0.3s; }
+.block-bar-fill.good { background: var(--color-good); }
+.block-bar-fill.review { background: var(--color-review); }
+.block-bar-fill.resurvey { background: var(--color-resurvey); }
+.block-score { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 90px; text-align: right; color: var(--color-text-secondary); }
+.block-weight { font-size: 11px; color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
+
+.point-row { padding: 14px; background: var(--color-bg-tertiary); border-radius: var(--border-radius-md); margin-bottom: 10px; border-left: 3px solid var(--color-border-secondary); }
+.point-row.good { border-left-color: var(--color-good); }
+.point-row.review { border-left-color: var(--color-review); }
+.point-row.resurvey { border-left-color: var(--color-resurvey); }
+.point-row-top { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.point-id { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--color-text-primary); }
+.point-device-type { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--color-accent-bg); color: var(--color-accent-fg); }
+.point-score-pill { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; font-variant-numeric: tabular-nums; margin-left: auto; }
+.point-score-pill.good { background: var(--color-good-bg); color: var(--color-good-fg); }
+.point-score-pill.review { background: var(--color-review-bg); color: var(--color-review-fg); }
+.point-score-pill.resurvey { background: var(--color-resurvey-bg); color: var(--color-resurvey-fg); }
+.point-findings { font-size: 12px; color: var(--color-text-secondary); }
+.point-findings ul { list-style: none; padding-left: 0; }
+.point-findings li { padding: 2px 0 2px 14px; position: relative; }
+.point-findings li::before { content: "·"; position: absolute; left: 0; }
+
+.ind-row { padding: 14px 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.ind-row:last-child { border-bottom: none; }
+.ind-row-top { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+.ind-id { font-family: var(--font-mono); font-size: 10.5px; color: var(--color-text-tertiary); }
+.ind-name { font-size: 13.5px; font-weight: 500; flex: 1; }
+.ind-score-pill { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+.ind-score-pill.good { background: var(--color-good-bg); color: var(--color-good-fg); }
+.ind-score-pill.review { background: var(--color-review-bg); color: var(--color-review-fg); }
+.ind-score-pill.resurvey { background: var(--color-resurvey-bg); color: var(--color-resurvey-fg); }
+.ind-score-pill.minor { background: var(--color-minor-bg); color: var(--color-minor-fg); }
+.ind-meta-row { display: flex; gap: 16px; font-size: 11.5px; color: var(--color-text-tertiary); margin-top: 4px; flex-wrap: wrap; }
+.ind-meta-row b { color: var(--color-text-secondary); font-weight: 500; }
+.ind-finding { font-size: 12.5px; color: var(--color-text-secondary); margin-top: 6px; line-height: 1.5; padding-left: 12px; border-left: 2px solid var(--color-border-secondary); }
+
+.block-group-hdr { font-size: 12px; color: var(--color-text-tertiary); letter-spacing: 0.05em; text-transform: uppercase; padding: 16px 0 6px; font-weight: 500; }
+
+.methodology-block { padding: 16px; background: var(--color-bg-tertiary); border-radius: var(--border-radius-md); margin-bottom: 12px; font-size: 13px; line-height: 1.6; color: var(--color-text-secondary); }
+.methodology-block strong { color: var(--color-text-primary); font-weight: 600; }
+.threshold-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+.threshold-table th { text-align: left; padding: 8px 10px; background: var(--color-bg-secondary); font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); letter-spacing: 0.04em; text-transform: uppercase; border-bottom: 0.5px solid var(--color-border-secondary); }
+.threshold-table td { padding: 8px 10px; border-bottom: 0.5px solid var(--color-border-tertiary); color: var(--color-text-secondary); vertical-align: top; }
+.threshold-table td.kw { font-family: var(--font-mono); font-size: 11px; }
+
+.verif-status { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--color-text-secondary); padding: 10px 14px; background: var(--color-accent-bg); border-radius: var(--border-radius-md); margin-bottom: 14px; }
+.verif-status b { color: var(--color-accent-fg); }
+
+.audit-note { padding: 14px 18px; background: var(--color-bg-secondary); border-left: 3px solid var(--color-accent); border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0; margin-top: 16px; font-size: 12.5px; color: var(--color-text-secondary); line-height: 1.55; }
+.audit-note b { color: var(--color-text-primary); }
+
+.footer-info { margin-top: 32px; padding: 16px; font-size: 11.5px; color: var(--color-text-tertiary); text-align: center; line-height: 1.6; }
+.footer-info b { color: var(--color-text-secondary); }
+
+.lib-block-group { margin-bottom: 24px; }
+.lib-block-header { display: flex; align-items: baseline; gap: 14px; padding: 16px 20px; background: var(--color-text-primary); color: var(--color-text-inverse); border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0; }
+.lib-block-name { font-size: 15px; font-weight: 600; flex: 1; }
+.lib-block-weight { font-family: var(--font-mono); font-size: 11px; opacity: 0.7; }
+.lib-block-desc { font-size: 12px; color: var(--color-text-secondary); padding: 12px 20px; background: var(--color-bg-secondary); border: 0.5px solid var(--color-border-secondary); border-top: none; border-bottom: none; line-height: 1.55; }
+.lib-indicator-wrap { border: 0.5px solid var(--color-border-secondary); border-top: none; background: var(--color-bg-primary); }
+.lib-indicator-wrap:last-child { border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg); }
+.lib-indicator-header { display: flex; align-items: baseline; gap: 12px; padding: 14px 20px; cursor: pointer; user-select: none; border-bottom: 0.5px solid var(--color-border-tertiary); flex-wrap: wrap; }
+.lib-indicator-header:hover { background: var(--color-bg-tertiary); }
+.lib-indicator-header.collapsed { border-bottom: none; }
+.lib-ind-arrow { font-size: 10px; color: var(--color-text-tertiary); transition: transform 0.2s; }
+.lib-indicator-header.collapsed .lib-ind-arrow { transform: rotate(-90deg); }
+.lib-ind-id { font-family: var(--font-mono); font-size: 10.5px; color: var(--color-text-tertiary); }
+.lib-ind-name { font-size: 14px; font-weight: 600; }
+.lib-ind-tag { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 3px; background: var(--color-accent-bg); color: var(--color-accent-fg); }
+.lib-ind-tag.cp { background: var(--color-resurvey-bg); color: var(--color-resurvey-fg); }
+.lib-ind-tag.pp { background: var(--color-review-bg); color: var(--color-review-fg); }
+.lib-ind-meta { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-tertiary); margin-left: auto; }
+.lib-indicator-body { padding: 16px 20px 20px; }
+.lib-indicator-body.hidden { display: none; }
+
+.lib-band { margin-bottom: 18px; padding-bottom: 18px; border-bottom: 0.5px dashed var(--color-border-tertiary); }
+.lib-band:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+.lib-band-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.lib-band-range { font-family: var(--font-mono); font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+.lib-band-range.good { background: var(--color-good-bg); color: var(--color-good-fg); }
+.lib-band-range.review { background: var(--color-review-bg); color: var(--color-review-fg); }
+.lib-band-range.resurvey { background: var(--color-resurvey-bg); color: var(--color-resurvey-fg); }
+.lib-band-range.minor { background: var(--color-minor-bg); color: var(--color-minor-fg); }
+.lib-band-level { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+.lib-band-level.good { color: var(--color-good-fg); }
+.lib-band-level.review { color: var(--color-review-fg); }
+.lib-band-level.resurvey { color: var(--color-resurvey-fg); }
+.lib-band-level.minor { color: var(--color-minor-fg); }
+.lib-band-label { font-size: 12.5px; color: var(--color-text-secondary); font-style: italic; }
+
+.lib-card-preview-label { font-size: 10px; color: var(--color-text-tertiary); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; font-weight: 500; }
+.lib-card-preview { margin-bottom: 8px; }
+
+.lib-struct-grid { display: grid; grid-template-columns: 180px 1fr; gap: 8px 16px; font-size: 12.5px; line-height: 1.55; }
+.lib-struct-key { color: var(--color-text-tertiary); font-weight: 500; }
+.lib-struct-val { color: var(--color-text-primary); }
+.lib-struct-val.muted { color: var(--color-text-tertiary); font-style: italic; }
+.lib-struct-val ul { list-style: none; padding-left: 0; }
+.lib-struct-val ul li { padding: 2px 0 2px 16px; position: relative; }
+.lib-struct-val ul li::before { content: "→"; position: absolute; left: 0; color: var(--color-accent); }
+
+.lib-qa-preview { background: var(--color-bg-tertiary); border-radius: var(--border-radius-md); padding: 10px 14px; margin-top: 10px; }
+.lib-qa-preview-label { font-size: 10px; color: var(--color-text-tertiary); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; font-weight: 500; }
+
+.lib-controls { margin-bottom: 16px; padding: 12px 16px; background: var(--color-bg-primary); border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.lib-controls-label { font-size: 11px; color: var(--color-text-tertiary); letter-spacing: 0.05em; text-transform: uppercase; font-weight: 500; }
+.lib-control-btn { font-size: 12px; padding: 6px 12px; border-radius: var(--border-radius-sm); border: 0.5px solid var(--color-border-secondary); background: var(--color-bg-tertiary); color: var(--color-text-secondary); cursor: pointer; }
+.lib-control-btn:hover { background: var(--color-bg-secondary); }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="top-eyebrow">CrystalBall Infinity · CBMI v2.1</div>
+  <h1 class="top-title">GCP Confidence — Multi-View Reference (v1 LOCKED)</h1>
+  <p class="top-sub">Per-point chain. Five tabs: 3 scenario views + 2 library views. Q-GCP-1/2/3 locks applied. Four scenarios including NO_DESIGNATED_GCPS null case.</p>
+
+  <div class="scenario-section" id="scenario-section">
+    <div class="scenario-label">Choose Scenario (applies to Customer/Internal/Auditor views)</div>
+    <div class="scenario-row" id="scenario-row"></div>
+  </div>
+
+  <div class="view-tabs">
+    <button class="view-tab active" data-view="customer">Customer View</button>
+    <button class="view-tab" data-view="internal">Internal QA View</button>
+    <button class="view-tab" data-view="auditor">Auditor View</button>
+    <button class="view-tab lib-tab" data-view="lib-cards">Library — Cards</button>
+    <button class="view-tab lib-tab" data-view="lib-structured">Library — Structured</button>
+  </div>
+
+  <div class="view-panel active" id="view-customer"><div id="customer-content"></div></div>
+  <div class="view-panel" id="view-internal"><div id="internal-content"></div></div>
+  <div class="view-panel" id="view-auditor"><div id="auditor-content"></div></div>
+  <div class="view-panel" id="view-lib-cards"><div id="lib-cards-content"></div></div>
+  <div class="view-panel" id="view-lib-structured"><div id="lib-structured-content"></div></div>
+
+  <div class="footer-info">
+    <b>GCP is a per-point chain.</b> Customer view aggregates top-3 findings across all GCPs with per-point attribution (Q-GCP-3).<br>
+    <b>One chain-level hard gate:</b> all-points-coverage-failed (Q-GCP-1). Per-point gates degrade points, not chain.<br>
+    <b>NO_DESIGNATED_GCPS:</b> chain returns null (not applicable, not failed) per Q-GCP-2.
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// CHAIN STRUCTURE — GCP v2.1 LOCKED
+// ============================================================
+const BLOCKS = [
+  { id: "BB_GCP_COMPLETE", name: "Capture Completeness & Integrity", weight: 0.45,
+    description: "Whether per-point captures are present, complete, and usable." },
+  { id: "BB_GCP_SETUP", name: "Per-point Setup & Documentation Confidence", weight: 0.35,
+    description: "Whether per-point operator metadata (antenna height, device ID, antenna type) is trustworthy." },
+  { id: "BB_GCP_ENV", name: "Per-point Observation Environment", weight: 0.20,
+    description: "Whether sky/site environment was good at each point (multipath, acquisition, ionospheric)." },
+];
+
+const GLOBAL_GATE_CONDITION = "every_designated_gcp.occupation_coverage_score == 0 (no usable GCP captures anywhere)";
+
+// ============================================================
+// INDICATOR LIBRARY (loaded inline; would normally be from JSON file)
+// ============================================================
+const INDICATOR_LIBRARY = {
+  "L3I_GCP_001": {
+    id: "L3I_GCP_001", num: "#01", block: "BB_GCP_COMPLETE", weight: 0.35,
+    name: "Coverage", fullName: "occupation_coverage_score",
+    is_critical_path: true, gate_scope: "chain_level_when_all_points",
+    verified_statement: "GCP {point_id} was occupied for the full required duration with adequate buffer time.",
+    bands: [
+      { score_range: [88, 100], level: "good", label: "Coverage 100% + pre-occupation buffer ≥120s + post-occupation buffer ≥60s", impact: null, actions: null },
+      { score_range: [72, 87], level: "good", label: "Coverage 100%, pre-occupation buffer 60-120s", impact: null, actions: null },
+      { score_range: [40, 71], level: "review", label: "Coverage 100% but pre-occupation buffer <60s",
+        impact: "GCP {point_id} convergence may be incomplete at occupation start. Early epochs can carry residual error.",
+        actions: ["Allow 2 min for the device to converge before walking away from the point next time","Review processed sigma on early epochs at this point","If accuracy is critical, consider trimming noisy early data"] },
+      { score_range: [0, 0], level: "resurvey", label: "GCP {point_id} has no usable occupation data (per-point coverage failed)",
+        impact: "GCP {point_id} cannot contribute to control. If multiple points fail, chain-level hard gate fires.",
+        actions: ["Re-occupy this specific point","Allow full occupation duration with proper buffer","Verify recording started before occupation and stopped after"] }
+    ],
+    derivation: "Per-point coverage gate (score=0) degrades that point's contribution but does NOT fire chain-level hard gate. Chain-level hard gate fires only when EVERY designated GCP has score=0 (Q-GCP-1 lock).",
+    flag: "GCP_POINT_FLIGHT_GAP"
+  },
+  "L3I_GCP_002": {
+    id: "L3I_GCP_002", num: "#02", block: "BB_GCP_COMPLETE", weight: 0.30,
+    name: "Integrity", fullName: "occupation_integrity_score",
+    is_critical_path: false, gate_scope: "none",
+    verified_statement: "GCP {point_id} occupation completed normally with no interruptions and battery state healthy.",
+    bands: [
+      { score_range: [85, 100], level: "good", label: "Clean session, no shutdowns, battery ≥20%", impact: null, actions: null },
+      { score_range: [40, 84], level: "review", label: "Operation log absent — occupation integrity unconfirmed",
+        impact: "Cannot verify GCP {point_id} occupation completed cleanly. Data may still be usable but audit trail is incomplete.",
+        actions: ["Verify recorded file size matches expected occupation duration","Inspect last epoch timestamp against planned end","Ensure operation log uploads with device files next time"] },
+      { score_range: [0, 39], level: "resurvey", label: "Device shutdown during occupation at point {point_id}",
+        impact: "Device shut down unexpectedly during occupation at GCP {point_id}. Recording may be truncated or corrupted.",
+        actions: ["Inspect device file around shutdown timestamp","If shutdown occurred outside occupation window, data may still process","If shutdown occurred during occupation, re-occupy this point"] }
+    ],
+    derivation: "Score 60 (operation log absent) conservative middle band. Device-type conditional (CB_X/AEROPOINT don't expect oplog).",
+    flag: "GCP_POINT_DEVICE_FAILURE"
+  },
+  "L3I_GCP_003": {
+    id: "L3I_GCP_003", num: "#03", block: "BB_GCP_COMPLETE", weight: 0.20,
+    name: "Format", fullName: "occupation_format_score",
+    is_critical_path: false, gate_scope: "none",
+    verified_statement: "GCP {point_id} data is in supported format with complete header and dual-frequency observations.",
+    bands: [
+      { score_range: [85, 100], level: "good", label: "Supported version, complete header, dual-frequency", impact: null, actions: null },
+      { score_range: [40, 84], level: "review", label: "Single-frequency or incomplete header at point {point_id}",
+        impact: "Single-frequency observations at GCP {point_id} mean ionospheric error cannot be modeled. Accuracy degrades during active solar weather.",
+        actions: ["Verify device was configured for dual-frequency at this point","Patch missing header fields if known","Expect reduced accuracy at this point under high Kp index"] },
+      { score_range: [0, 39], level: "review", label: "File version not supported by PPK software (point {point_id})",
+        impact: "Device file from GCP {point_id} cannot be ingested directly. Data is fine — format conversion required.",
+        actions: ["Convert file to a supported version using vendor or standard converter","Verify converted file passes format validation","Resubmit for processing"] }
+    ],
+    derivation: "Following base_station v2.1 Q2 lock pattern: version-unsupported is review (material), not resurvey. Data is fine; format conversion is fixable without recollection.",
+    flag: "GCP_POINT_RINEX_VERSION_UNSUPPORTED"
+  },
+  "L3I_GCP_004": {
+    id: "L3I_GCP_004", num: "#04", block: "BB_GCP_COMPLETE", weight: 0.15,
+    name: "Continuity", fullName: "occupation_continuity_score",
+    is_critical_path: false, gate_scope: "none",
+    verified_statement: "Continuous observations at GCP {point_id} with minimal cycle slips.",
+    bands: [
+      { score_range: [75, 100], level: "good", label: "No gaps or minor gaps only (<60s), minimal cycle slips", impact: null, actions: null },
+      { score_range: [40, 74], level: "review", label: "Gap >60s detected at point {point_id} — PPK must re-converge",
+        impact: "GCP {point_id} lost satellite tracking for >60s. PPK must re-converge after the gap, reducing accuracy in that window.",
+        actions: ["Check whether occupation was interrupted (operator walked away?)","Investigate cause — signal blockage, brief power loss, person standing on point?","Position next occupation in clearer location"] },
+      { score_range: [0, 39], level: "review", label: "Multiple disturbances or extensive gaps at point {point_id}",
+        impact: "Significant disturbance pattern at GCP {point_id}. Position oscillations likely in processed output.",
+        actions: ["Inspect raw file for repeated signal loss events","Consider re-occupying this point in a less disturbed environment","Flag for review during processing residual analysis"] }
+    ],
+    derivation: "60s gap threshold from industry PPK best practice. Feeds disturbance composite.",
+    flag: "GCP_POINT_DISTURBANCE"
+  },
+  "L3I_GCP_005": {
+    id: "L3I_GCP_005", num: "#05", block: "BB_GCP_SETUP", weight: 0.55,
+    name: "Antenna height", fullName: "gcp_antenna_height_documented_score",
+    is_critical_path: false, gate_scope: "per_point_only",
+    verified_statement: "Antenna height at GCP {point_id} documented to ARP, matching device file delta-H.",
+    bands: [
+      { score_range: [100, 100], level: "good", label: "Factory-known antenna height (CB_X / AEROPOINT — auto-100)", impact: null, actions: null },
+      { score_range: [85, 99], level: "good", label: "DGPS device — vertical measurement to ARP, ≥3 measurements, matches RINEX", impact: null, actions: null },
+      { score_range: [40, 84], level: "review", label: "Slant measurement, single measurement, or RINEX delta-H disagreement at point {point_id}",
+        impact: "Antenna height measurement at GCP {point_id} carries higher uncertainty. Wrong height shifts elevation reference for that point.",
+        actions: ["Verify slant-to-vertical conversion was applied at point {point_id}","Reconcile entered value against RINEX delta-H for this point","Re-measure vertical-to-ARP if uncertain"] },
+      { score_range: [0, 0], level: "resurvey", label: "Antenna height missing at GCP {point_id} (PER-POINT GATE)",
+        impact: "GCP {point_id} elevation reference is unknown. This point cannot contribute to elevation control. NOT a chain-level hard gate — other points still score.",
+        actions: ["Enter antenna height for point {point_id} now if recoverable from field notes","If not recoverable, re-occupy this specific point with measured height","Measure 3 times vertical-to-ARP, average for best confidence"] }
+    ],
+    derivation: "PER-POINT GATE only (Q-GCP-1 lock). Missing antenna height on one GCP degrades that point's contribution but does NOT fire chain-level hard gate. CB_X/AEROPOINT auto-score 100 (factory-known).",
+    flag: "GCP_POINT_ANTENNA_HEIGHT_MISSING"
+  },
+  "L3I_GCP_006": {
+    id: "L3I_GCP_006", num: "#06", block: "BB_GCP_SETUP", weight: 0.30,
+    name: "Device ID match", fullName: "gcp_device_id_match_score",
+    is_critical_path: false, gate_scope: "none",
+    verified_statement: "Device ID at GCP {point_id} matches between operator form and RINEX header.",
+    bands: [
+      { score_range: [85, 100], level: "good", label: "Form device ID matches RINEX header", impact: null, actions: null },
+      { score_range: [55, 84], level: "review", label: "Device ID unconfirmed at point {point_id} (one side missing)",
+        impact: "Cannot verify which physical device captured GCP {point_id} data. Audit trail incomplete.",
+        actions: ["Check field notes for device serial used at this point","Update either form or header with correct device ID","Document for QA"] },
+      { score_range: [0, 54], level: "review", label: "Device ID mismatch at point {point_id} (form vs file)",
+        impact: "Form-declared device differs from device that wrote the file at GCP {point_id}. Wrong device profile may produce systematic positioning bias.",
+        actions: ["Verify physical device used at this point — check field photos if available","Update whichever source is incorrect","Re-process with correct device profile"] }
+    ],
+    derivation: "Reviewer-blocking flag — significant audit trail concern. Mismatch indicates form was filled incorrectly or wrong file was uploaded for this point.",
+    flag: "GCP_POINT_DEVICE_ID_MISMATCH"
+  },
+  "L3I_GCP_007": {
+    id: "L3I_GCP_007", num: "#07", block: "BB_GCP_SETUP", weight: 0.15,
+    name: "Antenna type match", fullName: "gcp_antenna_type_match_score",
+    is_critical_path: false, gate_scope: "none",
+    verified_statement: "Antenna type at GCP {point_id} matches between form and RINEX header.",
+    bands: [
+      { score_range: [85, 100], level: "good", label: "Form antenna matches RINEX header", impact: null, actions: null },
+      { score_range: [0, 84], level: "review", label: "Antenna type mismatch at point {point_id}",
+        impact: "Wrong antenna profile at GCP {point_id} means wrong ANTEX calibration — systematic position bias from millimeters to centimeters at this point.",
+        actions: ["Verify physical antenna at point {point_id} against form selection","Update whichever source is incorrect","Re-process this point with correct ANTEX profile"] }
+    ],
+    derivation: "Type-string consistency check only — not a true ANTEX phase-center calibration (Stage-2 concern in pre_processing chain).",
+    flag: null
+  },
+  "L3I_GCP_008": {
+    id: "L3I_GCP_008", num: "#08", block: "BB_GCP_ENV", weight: 0.50,
+    name: "Multipath", fullName: "gcp_multipath_score",
+    is_critical_path: false, gate_scope: "none",
+    verified_statement: "Clean signal environment at GCP {point_id} — low C/N0 variance.",
+    bands: [
+      { score_range: [75, 100], level: "good", label: "Low C/N0 variance (<2.5 dB-Hz) — clean signal at point {point_id}", impact: null, actions: null },
+      { score_range: [40, 74], level: "review", label: "Moderate multipath risk at point {point_id}",
+        impact: "GCP {point_id} was near reflective surfaces. PPK can usually handle it but residuals may show position oscillations at this point.",
+        actions: ["Check processed residuals for oscillations at point {point_id}","Position next occupation ≥10m from buildings/vehicles/water","Choose open-sky locations for high-stakes work"] },
+      { score_range: [0, 39], level: "review", label: "High multipath risk at point {point_id} (>4.0 dB-Hz variance)",
+        impact: "GCP {point_id} was clearly in a reflective environment. PPK output for this point likely has elevated residuals.",
+        actions: ["Inspect processed position output for this point","Consider re-occupying at cleaner site if accuracy is critical","Scout point locations for reflective surfaces in future surveys"] }
+    ],
+    derivation: "C/N0 variance as multipath proxy. Threshold values heuristic — calibration against measured PPK residuals is a future deliverable.",
+    flag: "GCP_POINT_HIGH_MULTIPATH"
+  },
+  "L3I_GCP_009": {
+    id: "L3I_GCP_009", num: "#09", block: "BB_GCP_ENV", weight: 0.30,
+    name: "Acquisition", fullName: "gcp_acquisition_score",
+    is_critical_path: false, gate_scope: "none",
+    verified_statement: "Device at GCP {point_id} acquired satellites within normal startup time.",
+    bands: [
+      { score_range: [75, 100], level: "good", label: "<2 min — normal startup at point {point_id}", impact: null, actions: null },
+      { score_range: [0, 74], level: "minor", label: ">2 min — slow startup at point {point_id} (hygiene signal)",
+        impact: "Device was slow to lock onto satellites at GCP {point_id}. Usually cold start. Recurring slowness can indicate device health issues, but rarely affects this point's data quality.",
+        actions: ["Check device location for obstructions at this point","Verify device firmware and battery state","Service unit if slow acquisition is recurring across multiple occupations"] }
+    ],
+    derivation: "Following base_station Q4 lock pattern: acquisition slowness is hygiene signal, not deliverable-quality concern. Downgraded to minor (audit-only).",
+    flag: "GCP_POINT_SLOW_ACQUISITION"
+  },
+  "L3I_GCP_010": {
+    id: "L3I_GCP_010", num: "#10", block: "BB_GCP_ENV", weight: 0.20,
+    name: "Ionospheric risk", fullName: "gcp_ionospheric_risk_score",
+    is_critical_path: false, gate_scope: "none",
+    verified_statement: "Either calm geomagnetic conditions or dual-frequency observations at GCP {point_id}.",
+    bands: [
+      { score_range: [85, 100], level: "good", label: "Low Kp (≤4) OR dual-frequency device — ionospheric error modeled", impact: null, actions: null },
+      { score_range: [50, 84], level: "review", label: "Moderate Kp (5-6) and single-frequency at point {point_id}",
+        impact: "Active solar weather + single-frequency device at GCP {point_id} means ionospheric delay cannot be modeled fully.",
+        actions: ["Check NOAA SWPC Kp index for occupation window","Prefer dual-frequency devices for future surveys","Document for QA — expected accuracy reduced at this point"] },
+      { score_range: [0, 49], level: "review", label: "Severe geomagnetic storm (Kp ≥7) and single-frequency at point {point_id}",
+        impact: "Severe geomagnetic conditions at GCP {point_id} during occupation. Position errors can reach decimeters under these conditions with single-frequency receivers.",
+        actions: ["Re-occupy this point during calmer space weather if accuracy is critical","Replace single-frequency devices with dual-frequency for future surveys","Reschedule surveys when forecast Kp ≥5 and accuracy is critical"] }
+    ],
+    derivation: "Kp ≥5 threshold from NOAA space weather scale (G1+ geomagnetic storm). External NOAA SWPC dependency.",
+    flag: "GCP_POINT_IONO_RISK"
+  }
+};
+const INDICATORS = Object.values(INDICATOR_LIBRARY);
+
+// ============================================================
+// SCENARIOS — per-point structure
+// Each scenario has multiple points with their per-indicator scores
+// ============================================================
+const SCENARIOS = [
+  {
+    id: "clean", name: "Clean Survey (8 GCPs)",
+    desc: "All 8 GCPs occupied cleanly with verified setup",
+    points: [
+      { id: "GCP-001", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:95, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:100, L3I_GCP_009:90, L3I_GCP_010:100 } },
+      { id: "GCP-002", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:95, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:90, L3I_GCP_009:90, L3I_GCP_010:100 } },
+      { id: "GCP-003", device_type: "CB_X", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:100, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:100, L3I_GCP_009:100, L3I_GCP_010:100 } },
+      { id: "GCP-004", device_type: "CB_X", scores: { L3I_GCP_001:88, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:100, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:100, L3I_GCP_009:90, L3I_GCP_010:100 } },
+      { id: "GCP-005", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:95, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:100, L3I_GCP_009:88, L3I_GCP_010:100 } },
+      { id: "GCP-006", device_type: "AEROPOINT", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:100, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:100, L3I_GCP_009:95, L3I_GCP_010:100 } },
+      { id: "GCP-007", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:95, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:95, L3I_GCP_009:88, L3I_GCP_010:100 } },
+      { id: "GCP-008", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:95, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:90, L3I_GCP_009:90, L3I_GCP_010:100 } }
+    ]
+  },
+  {
+    id: "review", name: "Mixed Quality (per-point issues)",
+    desc: "8 GCPs total — GCP-003 antenna height conflict, GCP-005 type mismatch, GCP-007 high multipath",
+    points: [
+      { id: "GCP-001", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:95, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:100, L3I_GCP_009:90, L3I_GCP_010:100 } },
+      { id: "GCP-002", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:95, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:90, L3I_GCP_009:90, L3I_GCP_010:100 } },
+      { id: "GCP-003", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:55, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:100, L3I_GCP_009:90, L3I_GCP_010:100 } },
+      { id: "GCP-004", device_type: "CB_X", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:100, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:100, L3I_GCP_009:90, L3I_GCP_010:100 } },
+      { id: "GCP-005", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:95, L3I_GCP_006:100, L3I_GCP_007:40, L3I_GCP_008:100, L3I_GCP_009:90, L3I_GCP_010:100 } },
+      { id: "GCP-006", device_type: "AEROPOINT", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:100, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:100, L3I_GCP_009:95, L3I_GCP_010:100 } },
+      { id: "GCP-007", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:95, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:35, L3I_GCP_009:88, L3I_GCP_010:100 } },
+      { id: "GCP-008", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:95, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:90, L3I_GCP_009:90, L3I_GCP_010:100 } }
+    ]
+  },
+  {
+    id: "per_point_resurvey", name: "Per-Point Critical (one point unrecoverable)",
+    desc: "8 GCPs — GCP-003 has missing antenna height (per-point gate); chain still scores from other 7 points",
+    points: [
+      { id: "GCP-001", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:95, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:100, L3I_GCP_009:90, L3I_GCP_010:100 } },
+      { id: "GCP-002", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:95, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:90, L3I_GCP_009:90, L3I_GCP_010:100 } },
+      { id: "GCP-003", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:0,  L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:100, L3I_GCP_009:90, L3I_GCP_010:100 } },
+      { id: "GCP-004", device_type: "CB_X", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:100, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:100, L3I_GCP_009:90, L3I_GCP_010:100 } },
+      { id: "GCP-005", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:95, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:100, L3I_GCP_009:90, L3I_GCP_010:100 } },
+      { id: "GCP-006", device_type: "AEROPOINT", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:100, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:100, L3I_GCP_009:95, L3I_GCP_010:100 } },
+      { id: "GCP-007", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:95, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:95, L3I_GCP_009:88, L3I_GCP_010:100 } },
+      { id: "GCP-008", device_type: "DGPS", scores: { L3I_GCP_001:100, L3I_GCP_002:100, L3I_GCP_003:100, L3I_GCP_004:100, L3I_GCP_005:95, L3I_GCP_006:100, L3I_GCP_007:100, L3I_GCP_008:90, L3I_GCP_009:90, L3I_GCP_010:100 } }
+    ]
+  },
+  {
+    id: "no_gcps", name: "NO_DESIGNATED_GCPS (chain not applicable)",
+    desc: "Survey designed without GCPs — chain returns null (Q-GCP-2)",
+    points: [],
+    no_gcps: true
+  }
+];
+
+// ============================================================
+// HELPERS
+// ============================================================
+function getBandForScore(indicator, score) {
+  for (const band of indicator.bands) {
+    const [lo, hi] = band.score_range;
+    if (score >= lo && score <= hi) return band;
+  }
+  return indicator.bands[indicator.bands.length - 1];
+}
+
+function severityForBand(band) {
+  if (band.level === "resurvey") return "critical";
+  if (band.level === "review")   return "material";
+  if (band.level === "minor")    return "minor";
+  return "none";
+}
+
+function severityForScore(indicator, score) {
+  return severityForBand(getBandForScore(indicator, score));
+}
+
+function scoreLevel(score) {
+  if (score === 0) return "resurvey";
+  if (score >= 75) return "good";
+  if (score >= 50) return "review";
+  return "resurvey";
+}
+
+function substitutePointId(text, pointId) {
+  if (!text) return text;
+  return text.replace(/\{point_id\}/g, pointId);
+}
+
+// ============================================================
+// SCORING — per-point chain
+// ============================================================
+function computePointBlockScore(blockId, pointScores) {
+  const inds = INDICATORS.filter(i => i.block === blockId);
+  let totalW = 0, sumW = 0;
+  for (const i of inds) {
+    const s = pointScores[i.id];
+    if (s === undefined) continue;
+    totalW += i.weight;
+    sumW += i.weight * s;
+  }
+  return totalW > 0 ? sumW / totalW : 0;
+}
+
+function computePointScore(point) {
+  // Per-point overall score (weighted by blocks)
+  // If antenna height = 0 (per-point gate), that point's setup block goes to ~0
+  let totalW = 0, sumW = 0;
+  for (const b of BLOCKS) {
+    const bs = computePointBlockScore(b.id, point.scores);
+    totalW += b.weight;
+    sumW += b.weight * bs;
+  }
+  return totalW > 0 ? sumW / totalW : 0;
+}
+
+function checkChainHardGate(points) {
+  // Chain-level hard gate: ALL points have L3I_GCP_001 = 0
+  if (points.length === 0) return { fired: false };
+  const allFailed = points.every(p => p.scores["L3I_GCP_001"] === 0);
+  return { fired: allFailed };
+}
+
+function computeChainScore(scenario) {
+  if (scenario.no_gcps) {
+    return { score: null, status: "NOT_APPLICABLE", hardGate: false };
+  }
+  const gate = checkChainHardGate(scenario.points);
+  if (gate.fired) {
+    return { score: 0, status: "HARD_GATE_FIRED", hardGate: true };
+  }
+  // Average per-point scores
+  const pointScores = scenario.points.map(computePointScore);
+  const avg = pointScores.reduce((a,b) => a+b, 0) / pointScores.length;
+  return { score: avg, status: "NORMAL", hardGate: false };
+}
+
+function overallRecommendation(scenario) {
+  const overall = computeChainScore(scenario);
+  if (overall.status === "NOT_APPLICABLE") return { rec: "na", overall };
+  if (overall.hardGate) return { rec: "resurvey", overall };
+  // Check if any point has critical or material findings
+  let hasCritical = false, hasMaterial = false;
+  for (const p of scenario.points) {
+    for (const i of INDICATORS) {
+      const sev = severityForScore(i, p.scores[i.id]);
+      if (sev === "critical") hasCritical = true;
+      else if (sev === "material") hasMaterial = true;
+    }
+  }
+  if (hasCritical) return { rec: "resurvey", overall };
+  if (hasMaterial) return { rec: "review", overall };
+  return { rec: "good", overall };
+}
+
+// ============================================================
+// RANKING — per-point findings aggregated
+// ============================================================
+function rankFindings(scenario) {
+  const findings = [];
+  for (const p of scenario.points) {
+    for (const i of INDICATORS) {
+      const s = p.scores[i.id];
+      const band = getBandForScore(i, s);
+      if (band.level === "good") continue;
+      if (band.level === "minor") continue;
+      const blockWeight = BLOCKS.find(b => b.id === i.block).weight;
+      const deficit = 100 - s;
+      const isHardGate = (band.score_range[0] === 0 && band.score_range[1] === 0 && (i.is_critical_path || i.gate_scope === "per_point_only"));
+      const isCritical = (band.level === "resurvey");
+      findings.push({
+        indicator: i, score: s, band, point: p,
+        sev: severityForScore(i, s),
+        isHardGate, isCritical,
+        priority: isHardGate ? 1000 : (isCritical ? 500 + blockWeight * deficit : blockWeight * deficit)
+      });
+    }
+  }
+  findings.sort((a, b) => b.priority - a.priority);
+  return findings;
+}
+
+function rankVerified(scenario) {
+  // Find indicators that scored good across all points — for "verified hero"
+  // Strategy: rank by critical-path indicators first, then by block_weight × indicator_weight
+  // Aggregate: an indicator counts as "verified" if ALL points pass it
+  const candidates = [];
+  for (const i of INDICATORS) {
+    const allPass = scenario.points.every(p => {
+      const band = getBandForScore(i, p.scores[i.id]);
+      return band.level === "good";
+    });
+    if (allPass) {
+      const blockWeight = BLOCKS.find(b => b.id === i.block).weight;
+      candidates.push({
+        indicator: i,
+        priority: (i.is_critical_path ? 1000 : 0) + blockWeight * i.weight * 100
+      });
+    }
+  }
+  candidates.sort((a, b) => b.priority - a.priority);
+  return candidates;
+}
+
+// ============================================================
+// CUSTOMER VIEW
+// ============================================================
+function recommendationLabel(rec) {
+  return {
+    good: "Good to go",
+    review: "Review recommended",
+    resurvey: "Resurvey recommended",
+    na: "Not applicable — survey designed without GCPs"
+  }[rec];
+}
+
+function renderHeadline(rec, overall, scenario) {
+  let displayScore = "—";
+  if (overall.status === "NOT_APPLICABLE") {
+    displayScore = "N/A";
+  } else if (overall.hardGate) {
+    displayScore = "0";
+  } else {
+    displayScore = overall.score.toFixed(0);
+  }
+
+  let rationale = "";
+  if (rec === "na") {
+    rationale = "Survey was designed without ground control points. GCP confidence is not measurable for this survey. This is a survey-design choice, not a failure.";
+  } else if (rec === "good") {
+    rationale = `All ${scenario.points.length} ground control points passed quality checks. GCP data is fit for processing.`;
+  } else if (rec === "review") {
+    rationale = "Some ground control points have conditions warranting human review before processing. No chain-level hard gates fired; data appears usable but issues should be checked.";
+  } else if (overall.hardGate) {
+    rationale = "Critical: every designated GCP failed coverage. Chain-level hard gate fired. GCP data cannot be used as-is; recollection required.";
+  } else {
+    rationale = "One or more ground control points have critical conditions requiring re-occupation.";
+  }
+
+  const scoreClass = rec === "na" ? "na" : rec;
+  return `
+    <div class="card">
+      <div class="headline">
+        <div class="headline-score ${scoreClass}">${displayScore}</div>
+        <div class="headline-meta">
+          <div class="headline-rec ${scoreClass}">${recommendationLabel(rec)}</div>
+          <div class="headline-rationale">${rationale}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderActionItem(item) {
+  const sevClass = item.sev === "critical" ? "critical" : "material";
+  const sevLabel = item.sev === "critical" ? "RESURVEY TRIGGER" : "REVIEW";
+  const pointId = item.point.id;
+  const impact = substitutePointId(item.band.impact, pointId) || substitutePointId(item.indicator.verified_statement, pointId);
+  const actions = (item.band.actions || []).map(a => substitutePointId(a, pointId));
+  return `
+    <div class="action-item ${sevClass}">
+      <span class="action-item-tag ${sevClass}">${sevLabel}</span>
+      <span class="action-item-point">${pointId}</span>
+      <div class="action-item-why"><strong>${item.indicator.name}:</strong> ${impact}</div>
+      ${actions.length ? `<ul class="action-list">${actions.map(a => `<li>${a}</li>`).join("")}</ul>` : ""}
+    </div>
+  `;
+}
+
+function renderVerifiedItem(item, scenario) {
+  // Generic verified statement (no per-point since indicator passes across all points)
+  const statement = item.indicator.verified_statement.replace(/at GCP \{point_id\}/g, "across all points").replace(/GCP \{point_id\}/g, "All GCPs").replace(/\{point_id\}/g, "all points");
+  return `
+    <div class="verified-item">
+      <span class="verified-item-tag">VERIFIED</span>
+      <div class="verified-item-statement"><strong>${item.indicator.name}:</strong> ${statement}</div>
+    </div>
+  `;
+}
+
+function renderChecklistRow(item, scenario) {
+  // For "what else was checked" / "what passed"
+  const isMinor = item.isMinor;
+  const icon = isMinor ? "ⓘ" : "✓";
+  const statusText = isMinor ? "Audit only — minor finding" : "Verified across all points";
+  const statusClass = isMinor ? "minor" : "";
+  const iconClass = isMinor ? "minor" : "good";
+  const statement = item.indicator.verified_statement.replace(/at GCP \{point_id\}/g, "across all points").replace(/GCP \{point_id\}/g, "All GCPs").replace(/\{point_id\}/g, "all points");
+  return `
+    <li>
+      <div class="checklist-row">
+        <span class="checklist-icon ${iconClass}">${icon}</span>
+        <span class="checklist-name">${item.indicator.name}</span>
+        <span class="checklist-status ${statusClass}">${statusText}</span>
+      </div>
+      <div class="checklist-statement">${statement}</div>
+    </li>
+  `;
+}
+
+function renderExpandable(id, title, count, contentHtml) {
+  return `
+    <div class="expandable">
+      <div class="expandable-toggle" data-expandable="${id}">
+        <div><span class="expandable-title">${title}</span><span class="expandable-count">${count}</span></div>
+        <span class="expandable-arrow">▼</span>
+      </div>
+      <div class="expandable-content" id="exp-${id}">${contentHtml}</div>
+    </div>
+  `;
+}
+
+function renderCustomerView(scenario) {
+  if (scenario.no_gcps) {
+    const { rec, overall } = overallRecommendation(scenario);
+    let html = renderHeadline(rec, overall, scenario);
+    html += `<div class="card"><div class="card-title">What this means</div><p style="font-size:13px;color:var(--color-text-secondary);line-height:1.6;">This survey did not use ground control points. The GCP confidence chain has no data to evaluate. This is not a failure — many PPK workflows rely on alternative control strategies (CORS networks, base station alone, or other verification methods).</p></div>`;
+    return html;
+  }
+
+  const { rec, overall } = overallRecommendation(scenario);
+  const findings = rankFindings(scenario);
+  const verified = rankVerified(scenario);
+
+  let html = renderHeadline(rec, overall, scenario);
+
+  if (rec === "good") {
+    const top3 = verified.slice(0, 3);
+    const rest = verified.slice(3).map(v => ({ ...v, isMinor: false }));
+    html += `<div class="card"><div class="card-title">Top ${top3.length} Verified Check${top3.length > 1 ? "s" : ""}</div>${top3.map(v => renderVerifiedItem(v, scenario)).join("")}</div>`;
+    if (rest.length > 0) {
+      const checklistHtml = `<ul class="checklist">${rest.map(v => renderChecklistRow(v, scenario)).join("")}</ul>`;
+      html += renderExpandable("else-checked", "What else was checked", `(${rest.length} more verified)`, checklistHtml);
+    }
+  } else {
+    const top3 = findings.slice(0, 3);
+    const restFindings = findings.slice(3);
+    html += `<div class="card"><div class="card-title">Top ${top3.length} Action Item${top3.length > 1 ? "s" : ""}</div>${top3.map(renderActionItem).join("")}</div>`;
+    if (restFindings.length > 0) {
+      const findingsHtml = `<div>${restFindings.map(renderActionItem).join("")}</div>`;
+      html += renderExpandable("other-findings", "Other findings", `(${restFindings.length} additional)`, findingsHtml);
+    }
+    if (verified.length > 0) {
+      const passedHtml = `<ul class="checklist">${verified.map(v => renderChecklistRow({ ...v, isMinor: false }, scenario)).join("")}</ul>`;
+      html += renderExpandable("what-passed", "What passed", `(${verified.length} verified)`, passedHtml);
+    }
+  }
+  return html;
+}
+
+// ============================================================
+// INTERNAL QA VIEW
+// ============================================================
+function renderInternalView(scenario) {
+  if (scenario.no_gcps) {
+    return `
+      <div class="card">
+        <div class="headline">
+          <div class="headline-score na">N/A</div>
+          <div class="headline-meta">
+            <div class="headline-rec na">Not applicable — NO_DESIGNATED_GCPS</div>
+            <div class="headline-rationale">Survey designed without GCPs. Chain returns null per Q-GCP-2 lock. verification_status: GCP_NOT_APPLICABLE.</div>
+          </div>
+        </div>
+        <div class="verif-status"><b>verification_status:</b> GCP_NOT_APPLICABLE</div>
+        <div class="verif-status" style="background:var(--color-bg-secondary);"><b>flag fired:</b> <code style="font-family:var(--font-mono);font-size:11px;">NO_DESIGNATED_GCPS</code> (informational, not a failure)</div>
+      </div>
+    `;
+  }
+
+  const { rec, overall } = overallRecommendation(scenario);
+  const overallDisplay = overall.hardGate ? "0" : overall.score.toFixed(1);
+
+  let verifStatus = overall.hardGate ? "GCP_HARD_GATE_FIRED"
+    : rec === "good" ? "GCP_VERIFIED_HIGH"
+    : rec === "review" ? "GCP_VERIFIED_MARGINAL" : "GCP_VERIFIED_FAIL";
+
+  let html = `
+    <div class="card">
+      <div class="headline">
+        <div class="headline-score ${rec}">${overallDisplay}</div>
+        <div class="headline-meta">
+          <div class="headline-rec ${rec}">${recommendationLabel(rec)}</div>
+          <div class="headline-rationale">Per-point chain. Diagnostic decomposition below.</div>
+        </div>
+      </div>
+      <div class="verif-status"><b>verification_status:</b> ${verifStatus}</div>
+      <div class="verif-status" style="background:var(--color-bg-secondary);"><b>global_gate_condition:</b> <code style="font-family:var(--font-mono);font-size:11px;">${GLOBAL_GATE_CONDITION}</code></div>
+    </div>
+  `;
+
+  // Per-point breakdown
+  html += `<div class="card"><div class="card-title">Per-Point Breakdown (${scenario.points.length} GCPs)</div>`;
+  for (const p of scenario.points) {
+    const pointScore = computePointScore(p);
+    const pointLvl = scoreLevel(pointScore);
+    // Find this point's findings
+    const findings = [];
+    for (const i of INDICATORS) {
+      const sev = severityForScore(i, p.scores[i.id]);
+      if (sev !== "none" && sev !== "minor") {
+        findings.push(`${i.name} — ${sev}`);
+      }
+    }
+    html += `
+      <div class="point-row ${pointLvl}">
+        <div class="point-row-top">
+          <span class="point-id">${p.id}</span>
+          <span class="point-device-type">${p.device_type}</span>
+          <span class="point-score-pill ${pointLvl}">${pointScore.toFixed(1)}</span>
+        </div>
+        ${findings.length > 0 ? `<div class="point-findings"><ul>${findings.map(f => `<li>${f}</li>`).join("")}</ul></div>` : `<div class="point-findings"><i style="color:var(--color-good-fg);">All checks passed</i></div>`}
+      </div>
+    `;
+  }
+  html += `</div>`;
+
+  // Block decomposition (averaged across points)
+  html += `<div class="card"><div class="card-title">Block Decomposition (averaged across ${scenario.points.length} points)</div>`;
+  for (const b of BLOCKS) {
+    const blockScores = scenario.points.map(p => computePointBlockScore(b.id, p.scores));
+    const avgBlock = blockScores.reduce((a,c) => a+c, 0) / blockScores.length;
+    const lvl = scoreLevel(avgBlock);
+    html += `
+      <div class="block-row">
+        <div class="block-name">${b.name} <span class="block-weight">(weight ${b.weight})</span></div>
+        <div class="block-bar-track"><div class="block-bar-fill ${lvl}" style="width:${avgBlock}%;"></div></div>
+        <div class="block-score">${avgBlock.toFixed(1)} × ${b.weight.toFixed(2)} = ${(avgBlock * b.weight).toFixed(2)}</div>
+      </div>
+    `;
+  }
+  html += `
+    <div class="block-row" style="border-top:0.5px solid var(--color-border-secondary); padding-top:14px; margin-top:6px;">
+      <div class="block-name" style="font-weight:600;">Overall gcp_score</div>
+      <div class="block-bar-track"><div class="block-bar-fill ${rec}" style="width:${overall.hardGate ? 0 : overall.score}%;"></div></div>
+      <div class="block-score" style="font-weight:600;">${overallDisplay}</div>
+    </div>
+  </div>`;
+
+  // Full indicator decomposition (showing per-point as needed)
+  html += `<div class="card"><div class="card-title">Indicator Decomposition (10 indicators × ${scenario.points.length} points)</div>`;
+  for (const b of BLOCKS) {
+    html += `<div class="block-group-hdr">${b.name}</div>`;
+    const inds = INDICATORS.filter(i => i.block === b.id);
+    for (const i of inds) {
+      // Show indicator with worst-point score and breakdown
+      const scoresArr = scenario.points.map(p => ({ point: p.id, score: p.scores[i.id] }));
+      const worst = scoresArr.reduce((a,b) => a.score < b.score ? a : b);
+      const band = getBandForScore(i, worst.score);
+      const sev = severityForScore(i, worst.score);
+      html += `
+        <div class="ind-row">
+          <div class="ind-row-top">
+            <span class="ind-id">${i.id}</span>
+            <div class="ind-name">${i.name}</div>
+            <span class="ind-score-pill ${band.level}">worst: ${worst.score} (${worst.point})</span>
+          </div>
+          <div class="ind-meta-row">
+            <span><b>weight in block:</b> ${i.weight}</span>
+            <span><b>worst severity:</b> ${sev}</span>
+            ${i.flag ? `<span><b>raises:</b> <code style="font-family:var(--font-mono);">${i.flag}</code></span>` : ""}
+            ${i.is_critical_path ? `<span><b>critical-path:</b> yes (chain-level when all points)</span>` : i.gate_scope === "per_point_only" ? `<span><b>gate scope:</b> per-point only</span>` : ""}
+          </div>
+          <div class="ind-finding"><b>Worst-point band [${band.score_range.join("–")}]:</b> ${substitutePointId(band.label, worst.point)}</div>
+        </div>
+      `;
+    }
+  }
+  html += `</div>`;
+
+  html += `<div class="audit-note"><b>Why this score:</b> ${overall.hardGate ? "Chain-level hard gate fired — every designated GCP has coverage = 0." : "gcp_score is the average of per-point scores. Each per-point score is a weighted aggregate of block scores. Per-point gates degrade individual points; chain-level hard gate fires only when ALL points fail coverage."}</div>`;
+
+  return html;
+}
+
+// ============================================================
+// AUDITOR VIEW
+// ============================================================
+function renderAuditorView(scenario) {
+  let html = renderInternalView(scenario);
+  html += `
+    <div class="card">
+      <div class="card-title">Threshold Derivation Methodology</div>
+      <div class="methodology-block"><strong>Source of threshold values:</strong> Following base_station v2.1 pattern. Threshold bands proposed during chain design through first-principles reasoning, calibrated against industry conventions (GNSS handbooks, PPK best practices, NGS/NRCan guidance).</div>
+      <div class="methodology-block"><strong>Per-point dimension:</strong> GCP is the first CBMI chain with explicit per-point semantics. Each survey has multiple points; chain score = average of per-point scores. Per-point gates (antenna_height_missing) degrade points without killing chain. Chain-level hard gate fires only when ALL points fail.</div>
+      <div class="methodology-block"><strong>NO_DESIGNATED_GCPS handling (Q-GCP-2):</strong> Survey designed without GCPs is NOT a failure. Chain returns null. Composite scoring downstream should treat null as "not measured" rather than "measured zero" to avoid penalizing GCP-less workflows unfairly.</div>
+      <div class="methodology-block"><strong>Q-GCP-1/2/3 lock decisions:</strong> Q-GCP-1: One chain-level hard gate (all-points-coverage-failed). Antenna height = per-point gate only. Q-GCP-2: NO_DESIGNATED_GCPS → null return. Q-GCP-3: Customer view aggregates top-3 findings across points with per-point attribution.</div>
+      <div class="methodology-block"><strong>Calibration roadmap (v1.1+):</strong> CBEI verification CP RMSE outcomes retained in S3 for every job. Quarterly retrospective analysis will plot per-point indicator scores against measured outcomes.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Per-Indicator Threshold Derivation</div>
+      <table class="threshold-table">
+        <thead><tr><th>Indicator</th><th>Threshold Derivation</th></tr></thead>
+        <tbody>${INDICATORS.map(i => `<tr><td><span class="kw">${i.id}</span><br>${i.name}</td><td>${i.derivation}</td></tr>`).join("")}</tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Block Weights & Aggregation</div>
+      <table class="threshold-table">
+        <thead><tr><th>Block</th><th>Weight</th><th>Rationale</th></tr></thead>
+        <tbody>${BLOCKS.map(b => `<tr><td><span class="kw">${b.id}</span><br>${b.name}</td><td>${b.weight.toFixed(2)}</td><td>${b.description}</td></tr>`).join("")}</tbody>
+      </table>
+      <div class="methodology-block" style="margin-top:14px;"><strong>Weights sum to 1.0.</strong></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Known Limitations</div>
+      <ul style="font-size:13px;color:var(--color-text-secondary);line-height:1.7;padding-left:20px;">
+        <li>Per-point chain score = simple average. Future: weighted average by point importance (e.g., perimeter points weighted higher than interior)</li>
+        <li>Multipath proxy via C/N0 variance — heuristic, not measured PPK residual</li>
+        <li>Device type conditionality (CB_X/AEROPOINT) handled but not exhaustively tested</li>
+        <li>Ionospheric risk requires manual NOAA SWPC Kp index lookup — automation pending</li>
+        <li>Per-point handling pattern is new — first chain to introduce it. Pattern doc update needed.</li>
+        <li>Library text is Claude-drafted placeholder per pattern Q1 — domain refinement pending</li>
+        <li>NO_DESIGNATED_GCPS handling assumes downstream composite scoring respects null. Verification pending.</li>
+      </ul>
+    </div>
+  `;
+  return html;
+}
+
+// ============================================================
+// LIBRARY TABS — same pattern as base_station v3
+// ============================================================
+function renderLibraryBandAsCard(indicator, band) {
+  let cardHtml = "";
+  const sevForRender = severityForBand(band);
+
+  // For library, use generic point ID example "GCP-XXX" for rendering
+  const examplePointId = "GCP-XXX";
+  const verifiedStatement = substitutePointId(indicator.verified_statement, examplePointId);
+  const impact = substitutePointId(band.impact, examplePointId);
+  const actions = (band.actions || []).map(a => substitutePointId(a, examplePointId));
+
+  if (band.level === "good") {
+    cardHtml = `
+      <div class="verified-item">
+        <span class="verified-item-tag">VERIFIED</span>
+        <div class="verified-item-statement"><strong>${indicator.name}:</strong> ${verifiedStatement}</div>
+      </div>
+    `;
+  } else if (band.level === "minor") {
+    cardHtml = `
+      <div class="card" style="margin-bottom:0; padding:14px 16px; border-color:var(--color-border-tertiary);">
+        <div class="lib-card-preview-label" style="margin-bottom:8px; color:var(--color-minor-fg);">Renders as checklist row in "What passed" expandable (audit-only)</div>
+        <ul class="checklist" style="margin:0;">
+          <li>
+            <div class="checklist-row">
+              <span class="checklist-icon minor">ⓘ</span>
+              <span class="checklist-name">${indicator.name}</span>
+              <span class="checklist-status minor">Audit only — minor finding</span>
+            </div>
+            <div class="checklist-statement">${impact || substitutePointId(band.label, examplePointId)}</div>
+          </li>
+        </ul>
+      </div>
+    `;
+  } else {
+    const sevClass = sevForRender === "critical" ? "critical" : "material";
+    const sevLabel = sevForRender === "critical" ? "RESURVEY TRIGGER" : "REVIEW";
+    cardHtml = `
+      <div class="action-item ${sevClass}">
+        <span class="action-item-tag ${sevClass}">${sevLabel}</span>
+        <span class="action-item-point">${examplePointId}</span>
+        <div class="action-item-why"><strong>${indicator.name}:</strong> ${impact || verifiedStatement}</div>
+        ${actions.length ? `<ul class="action-list">${actions.map(a => `<li>${a}</li>`).join("")}</ul>` : ""}
+      </div>
+    `;
+  }
+
+  const qaPreview = `
+    <div class="lib-qa-preview">
+      <div class="lib-qa-preview-label">Internal QA View — how this band appears in indicator decomposition</div>
+      <div class="ind-row" style="padding:6px 0; border:none;">
+        <div class="ind-row-top">
+          <span class="ind-id">${indicator.id}</span>
+          <div class="ind-name">${indicator.name}</div>
+          <span class="ind-score-pill ${band.level}">${band.score_range.join("–")}</span>
+        </div>
+        <div class="ind-meta-row">
+          <span><b>severity of finding:</b> ${sevForRender}</span>
+          <span><b>level:</b> ${band.level}</span>
+          ${indicator.flag ? `<span><b>raises:</b> <code style="font-family:var(--font-mono);">${indicator.flag}</code></span>` : `<span><b>flag:</b> none</span>`}
+        </div>
+        <div class="ind-finding"><b>Band [${band.score_range.join("–")}]:</b> ${substitutePointId(band.label, examplePointId)}</div>
+      </div>
+    </div>
+  `;
+
+  return `
+    <div class="lib-band">
+      <div class="lib-band-header">
+        <span class="lib-band-range ${band.level}">${band.score_range.join("–")}</span>
+        <span class="lib-band-level ${band.level}">${band.level}</span>
+        <span class="lib-band-label">${substitutePointId(band.label, examplePointId)}</span>
+      </div>
+      <div class="lib-card-preview-label">Customer view — how this band appears as a card (example point: GCP-XXX)</div>
+      <div class="lib-card-preview">${cardHtml}</div>
+      ${qaPreview}
+    </div>
+  `;
+}
+
+function renderLibraryStructuredBand(indicator, band) {
+  const sevForRender = severityForBand(band);
+  const isGood = band.level === "good";
+  const examplePointId = "GCP-XXX";
+
+  const customerText = isGood ? substitutePointId(indicator.verified_statement, examplePointId) : (substitutePointId(band.impact, examplePointId) || "(no impact statement)");
+  const actionsHtml = band.actions ? `<ul>${band.actions.map(a => `<li>${substitutePointId(a, examplePointId)}</li>`).join("")}</ul>` : `<span class="lib-struct-val muted">(no actions — verified/passing band)</span>`;
+
+  return `
+    <div class="lib-band">
+      <div class="lib-band-header">
+        <span class="lib-band-range ${band.level}">${band.score_range.join("–")}</span>
+        <span class="lib-band-level ${band.level}">${band.level}</span>
+      </div>
+      <div class="lib-struct-grid">
+        <div class="lib-struct-key">Threshold label</div>
+        <div class="lib-struct-val">${substitutePointId(band.label, examplePointId)}</div>
+        <div class="lib-struct-key">Severity of finding</div>
+        <div class="lib-struct-val">${sevForRender}</div>
+        <div class="lib-struct-key">Customer-facing text</div>
+        <div class="lib-struct-val">${customerText}</div>
+        <div class="lib-struct-key">Action items</div>
+        <div class="lib-struct-val">${actionsHtml}</div>
+        ${indicator.flag ? `
+        <div class="lib-struct-key">Raises flag</div>
+        <div class="lib-struct-val"><code style="font-family:var(--font-mono);font-size:11px;">${indicator.flag}</code></div>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function renderLibraryBlock(block, perBandRenderer) {
+  const inds = INDICATORS.filter(i => i.block === block.id);
+  return `
+    <div class="lib-block-group">
+      <div class="lib-block-header">
+        <div class="lib-block-name">${block.name}</div>
+        <div class="lib-block-weight">weight ${block.weight} · ${inds.length} indicators</div>
+      </div>
+      <div class="lib-block-desc">${block.description}</div>
+      ${inds.map(ind => {
+        const cpTag = ind.is_critical_path ? `<span class="lib-ind-tag cp">CRITICAL-PATH (chain-level when all points)</span>` : (ind.gate_scope === "per_point_only" ? `<span class="lib-ind-tag pp">PER-POINT GATE</span>` : "");
+        return `
+          <div class="lib-indicator-wrap">
+            <div class="lib-indicator-header" data-lib-ind="${ind.id}">
+              <span class="lib-ind-arrow">▼</span>
+              <span class="lib-ind-id">${ind.id}</span>
+              <span class="lib-ind-name">${ind.name}</span>
+              ${cpTag}
+              <span class="lib-ind-meta">weight ${ind.weight} · ${ind.bands.length} band${ind.bands.length > 1 ? "s" : ""}</span>
+            </div>
+            <div class="lib-indicator-body" id="lib-body-${ind.id}">
+              ${ind.bands.map(b => perBandRenderer(ind, b)).join("")}
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderLibraryCards() {
+  return `
+    <div class="lib-controls">
+      <span class="lib-controls-label">Library — Cards · ${INDICATORS.length} indicators · ${INDICATORS.reduce((n,i) => n + i.bands.length, 0)} total bands</span>
+      <button class="lib-control-btn" data-action="lib-expand-all">Expand all</button>
+      <button class="lib-control-btn" data-action="lib-collapse-all">Collapse all</button>
+    </div>
+    ${BLOCKS.map(b => renderLibraryBlock(b, renderLibraryBandAsCard)).join("")}
+  `;
+}
+
+function renderLibraryStructured() {
+  return `
+    <div class="lib-controls">
+      <span class="lib-controls-label">Library — Structured · ${INDICATORS.length} indicators · ${INDICATORS.reduce((n,i) => n + i.bands.length, 0)} total bands</span>
+      <button class="lib-control-btn" data-action="lib-expand-all">Expand all</button>
+      <button class="lib-control-btn" data-action="lib-collapse-all">Collapse all</button>
+    </div>
+    ${BLOCKS.map(b => renderLibraryBlock(b, renderLibraryStructuredBand)).join("")}
+  `;
+}
+
+// ============================================================
+// WIRING
+// ============================================================
+let currentScenario = SCENARIOS[0];
+
+function render() {
+  document.getElementById("customer-content").innerHTML = renderCustomerView(currentScenario);
+  document.getElementById("internal-content").innerHTML = renderInternalView(currentScenario);
+  document.getElementById("auditor-content").innerHTML = renderAuditorView(currentScenario);
+  document.getElementById("lib-cards-content").innerHTML = renderLibraryCards();
+  document.getElementById("lib-structured-content").innerHTML = renderLibraryStructured();
+  wireExpandables();
+  wireLibraryToggles();
+}
+
+function setScenario(id) {
+  currentScenario = SCENARIOS.find(s => s.id === id);
+  document.querySelectorAll(".scenario-btn").forEach(b => b.classList.toggle("active", b.dataset.scenario === id));
+  render();
+}
+
+function setView(id) {
+  document.querySelectorAll(".view-tab").forEach(t => t.classList.toggle("active", t.dataset.view === id));
+  document.querySelectorAll(".view-panel").forEach(p => p.classList.toggle("active", p.id === `view-${id}`));
+  const isLib = id.startsWith("lib-");
+  document.getElementById("scenario-section").classList.toggle("hidden", isLib);
+}
+
+function wireExpandables() {
+  document.querySelectorAll(".expandable-toggle").forEach(toggle => {
+    toggle.onclick = () => {
+      const id = toggle.dataset.expandable;
+      const content = document.getElementById(`exp-${id}`);
+      const isOpen = content.classList.toggle("open");
+      toggle.classList.toggle("open", isOpen);
+    };
+  });
+}
+
+function wireLibraryToggles() {
+  document.querySelectorAll(".lib-indicator-header").forEach(hdr => {
+    hdr.onclick = () => {
+      const body = hdr.parentElement.querySelector(".lib-indicator-body");
+      const isCollapsed = body.classList.toggle("hidden");
+      hdr.classList.toggle("collapsed", isCollapsed);
+    };
+  });
+  document.querySelectorAll(".lib-control-btn").forEach(btn => {
+    btn.onclick = () => {
+      const action = btn.dataset.action;
+      const activePanel = document.querySelector(".view-panel.active");
+      const bodies = activePanel.querySelectorAll(".lib-indicator-body");
+      const headers = activePanel.querySelectorAll(".lib-indicator-header");
+      if (action === "lib-expand-all") {
+        bodies.forEach(b => b.classList.remove("hidden"));
+        headers.forEach(h => h.classList.remove("collapsed"));
+      } else {
+        bodies.forEach(b => b.classList.add("hidden"));
+        headers.forEach(h => h.classList.add("collapsed"));
+      }
+    };
+  });
+}
+
+const row = document.getElementById("scenario-row");
+SCENARIOS.forEach((s, idx) => {
+  const btn = document.createElement("button");
+  btn.className = "scenario-btn" + (idx === 0 ? " active" : "");
+  btn.dataset.scenario = s.id;
+  btn.innerHTML = `<span class="s-name">${s.name}</span><span class="s-desc">${s.desc}</span>`;
+  btn.onclick = () => setScenario(s.id);
+  row.appendChild(btn);
+});
+
+document.querySelectorAll(".view-tab").forEach(tab => {
+  tab.onclick = () => setView(tab.dataset.view);
+});
+
+render();
+</script>
+
+</body>
+</html>

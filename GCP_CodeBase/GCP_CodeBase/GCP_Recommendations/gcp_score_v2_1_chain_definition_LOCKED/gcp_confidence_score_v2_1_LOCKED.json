@@ -1,0 +1,1239 @@
+{
+  "_meta": {
+    "title": "gcp_confidence_score",
+    "version": "2.1.0 (LOCKED)",
+    "previous": "2.0.0 (v2 baseline; pre-Q-GCP locks; no severity vocabulary; no per-point/null clarification)",
+    "workflow": "PPK only",
+    "phase": "single (computed once at Stage 1; never revised)",
+    "generated_at": "2026-05-29T12:44:29Z",
+    "runtime_independence": "Computed entirely from GCP device files + flight timing context + external NOAA Kp API. Does not read from base_station_score, drone_score, or pre_processing_score data at runtime.",
+    "design_summary": "Three-block evidence-based GCP confidence chain. Per-point chain (each survey has multiple GCPs; chain aggregates). Confidence-only output: score (0-100) + tier + recommendation. ONE chain-level hard gate: all-points-coverage-failed (Q-GCP-1 lock). Per-point gates (antenna_height_missing) degrade points but do not kill chain. NULL handling: NO_DESIGNATED_GCPS \u2192 chain returns null per Q-GCP-2 (survey-design choice, not failure). Severity vocabulary at band level: none / minor / material / critical. Recommendation vocabulary at chain level: good_to_go / review_recommended / resurvey_recommended. Per-point findings aggregated to top-3 with point attribution per Q-GCP-3.",
+    "id_prefixes": {
+      "SRC_GCP_": "source file",
+      "L1F_GCP_": "source field",
+      "L2D_GCP_": "derived field",
+      "L3I_GCP_": "indicator",
+      "BB_GCP_": "building block",
+      "FLG_GCP_": "flag"
+    },
+    "counts": {
+      "source_files": 3,
+      "source_fields": 40,
+      "derived_fields": 23,
+      "indicators": 10,
+      "building_blocks": 3,
+      "flags": 14,
+      "problems": 22
+    },
+    "locked_at": "2026-06-10T14:08:05Z",
+    "q_locks_applied": {
+      "Q-GCP-1": "One chain-level hard gate (all-points-coverage-failed). Antenna_height_missing is per-point gate only (NOT chain-level).",
+      "Q-GCP-2": "NO_DESIGNATED_GCPS \u2192 chain returns null (not applicable), not score=0.",
+      "Q-GCP-3": "Customer view aggregates top-3 findings across all points with per-point attribution."
+    },
+    "severity_vocabulary": [
+      "none",
+      "minor",
+      "material",
+      "critical"
+    ],
+    "recommendation_vocabulary": [
+      "good_to_go",
+      "review_recommended",
+      "resurvey_recommended"
+    ],
+    "per_point_dimension": "GCP is the first CBMI chain with explicit per-point semantics. Each survey may have multiple GCPs (typically 4-12). The chain scores each point individually, then aggregates. Two scoring dimensions: (1) per-point score \u2014 computed from indicator values for that specific point; (2) chain-level score \u2014 weighted aggregation across all designated points. Findings surface to customer view with per-point attribution. Internal QA view exposes per-point decomposition.",
+    "device_type_conditionality": "GCP indicators behave differently based on device_type: DGPS (manual antenna setup, like base station) \u2014 full indicator logic applies. CB_X / AEROPOINT (factory-known antenna height) \u2014 L3I_GCP_005 auto-scores 100 (antenna height known by definition). OTHER \u2014 operator-declared; treated as DGPS unless specified otherwise."
+  },
+  "gcp_score": {
+    "score_id": "gcp_score",
+    "display_name": "GCP Confidence Score",
+    "workflow": "PPK (only)",
+    "phase": "single (computed once at Stage 1; never revised)",
+    "formula_expression": "0.45*gcp_capture_completeness_score + 0.35*gcp_setup_confidence_score + 0.20*gcp_observation_environment_score",
+    "per_point_formula": "0.45*per_point_completeness + 0.35*per_point_setup_confidence + 0.20*per_point_environment",
+    "aggregator": "mean \u2212 0.25 \u00d7 (100 \u2212 min) within each role-block, applied across all GCP-role points",
+    "global_gate_condition": "every_designated_gcp.occupation_coverage_score == 0  (i.e., NO usable GCP captures across the entire survey)",
+    "global_gate_action": "Sets gcp_score = 0 (HARD GATE \u2014 Q-GCP-1 lock v2.1). Raises FLAG: GCP_CRITICAL_FAILURE. Per-point coverage failures do NOT trigger this gate \u2014 only the all-points condition. Per-point antenna_height_missing is a per-point gate, NOT a chain-level gate (Q-GCP-1 lock).",
+    "null_handling": "gcp_score = null when (a) NO_DESIGNATED_GCPS flag fires (survey designed without GCPs \u2014 chain not applicable per Q-GCP-2 lock), or (b) GCP device files not provided. When global hard gate fires (every designated GCP has occupation_coverage = 0), gcp_score = 0 (NOT null). Composite scoring downstream should treat null as \"not measured\" rather than \"measured zero\" to avoid unfairly penalizing GCP-less workflows.",
+    "scope_note": "Hardware-derived capture-confidence score. PPK only. Independent at runtime of base_station_score \u2014 requires only GCP device files + flight timing context + NOAA Kp API. Survey-design adequacy (counts, role allocation, check-point independence, target visibility, coordinate accuracy, datum) is owned by pre_processing_score. Check-point scoring is a future deliverable (check_point_score).",
+    "source_file_set": "GCP Device RINEX (per point), GCP Device Operation Log (per point, device-type-aware), GCP User Input (per point). Flight timing from upload context. NOAA SWPC Kp index from external API.",
+    "device_types_supported": "CB_X / AEROPOINT / DGPS / OTHER",
+    "known_limitations": "Per-point disturbance composite is BLIND to slow settling that produces no gap/slip. Antenna-height-missing gate dilutes via aggregation: one bad point in a fleet of 8 reduces gcp_score by ~11 points (vs 35 if it were a single-event score). gcp_set_min_spacing as a #4 partial signal was dropped (Path 1); #4 detection lives in pre_processing_score where the reconstruction extent is known. Operator-honesty-dependent booleans (target_placed_confirmed, etc.) report documentation rigor, not field truth.",
+    "per_point_handling": "Q-GCP-3 lock v2.1: GCP chain is multi-point. Customer view aggregates top-3 findings across ALL designated GCPs, each finding tagged with the point identifier (e.g., \"Antenna height issue at GCP-003\"). Ranking: chain-level hard gate first (only fires when all points fail), then per-point critical findings, then per-point material findings ranked by (block_weight \u00d7 indicator_weight \u00d7 point_severity_score). Internal QA view shows per-point breakdown with each point's individual score and findings.",
+    "severity_of_finding_vocabulary": "Indicator-band level severity (used in operator_action templates and rendering). Four values, in increasing severity: NONE (band passed, no concern) \u2192 MINOR (hygiene signal, audit-only; does NOT drive recommendation; visible only in \"what passed/what else was checked\" expandable per pattern Q5) \u2192 MATERIAL (warrants human review before processing; drives review_recommended recommendation) \u2192 CRITICAL (serious finding warranting recollection; drives resurvey_recommended recommendation). Note: severity_of_finding is the BAND-LEVEL vocabulary. The CHAIN-LEVEL recommendation vocabulary is good_to_go / review_recommended / resurvey_recommended. These are deliberately separate.",
+    "verification_status_field": "Separate categorical field reporting gcp-level verification quality. VALUES: GCP_VERIFIED_HIGH (all designated GCPs passed cleanly); GCP_VERIFIED_MARGINAL (one or more points have material findings; review_recommended); GCP_VERIFIED_FAIL (one or more points have critical findings, but at least one usable point remains; resurvey_recommended for affected points); GCP_HARD_GATE_FIRED (all designated GCPs failed \u2014 chain-level hard gate); GCP_NOT_APPLICABLE (NO_DESIGNATED_GCPS \u2014 chain returns null per Q-GCP-2). NEVER score-gating. Score reflects measurement quality; status reports verification basis.",
+    "tier_interpretation": "BASE TIER (from numerical score): Gold 90-100; Silver 75-89; Bronze 60-74; Marginal 40-59; Poor <40. \n\nHARD GATE: When all-points coverage gate fires (every designated GCP has occupation_coverage_score = 0), gcp_score = 0. Tier = Poor (HARD GATE). \n\nNULL CASE: When NO_DESIGNATED_GCPS fires, gcp_score = null. Tier = Not Applicable. This is NOT a failure \u2014 survey was designed without GCPs.\n\nPer-point gates (e.g., antenna_height_missing on one point) degrade that point's contribution but do not gate the chain. If at least one designated GCP remains usable, chain score is computed from the surviving points with reduced weight.\n\nQ-GCP-1/2/3 lock decisions (v2.1):\n  Q-GCP-1: One chain-level hard gate (all-points-coverage-failed). Antenna_height_missing is per-point gate only, NOT chain-level.\n  Q-GCP-2: NO_DESIGNATED_GCPS \u2192 null return (chain not applicable), not score=0.\n  Q-GCP-3: Customer view aggregates top-3 findings across all points with per-point attribution.\n"
+  },
+  "gcp_score_blocks": [
+    {
+      "block_id": "BB_GCP_COMPLETE",
+      "block_name": "gcp_capture_completeness_score",
+      "weight": 0.45
+    },
+    {
+      "block_id": "BB_GCP_SETUP",
+      "block_name": "gcp_setup_confidence_score",
+      "weight": 0.35
+    },
+    {
+      "block_id": "BB_GCP_ENV",
+      "block_name": "gcp_observation_environment_score",
+      "weight": 0.2
+    }
+  ],
+  "building_blocks": [
+    {
+      "block_id": "BB_GCP_COMPLETE",
+      "block_name": "gcp_capture_completeness_score",
+      "display_name": "Capture Completeness & Integrity",
+      "weight_in_gcp_score": 0.45,
+      "question": "Are the per-point captures present, complete, and usable?",
+      "failure_owner": "Per-point recording / hardware",
+      "operator_action": "May need to re-occupy affected points",
+      "aggregator": "mean \u2212 k \u00d7 (100 \u2212 min) across GCP-role per_point_completeness, k=0.25",
+      "indicators_within": "occupation_coverage_score(0.35), occupation_integrity_score(0.30), occupation_format_score(0.20), occupation_continuity_score(0.15)",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "every GCP-role point has occupation_coverage_score = 0",
+      "gate_action": "Triggers GCP_CRITICAL_FAILURE at gcp_score level."
+    },
+    {
+      "block_id": "BB_GCP_SETUP",
+      "block_name": "gcp_setup_confidence_score",
+      "display_name": "Per-point Setup & Documentation Confidence",
+      "weight_in_gcp_score": 0.35,
+      "question": "Is the per-point operator metadata trustworthy?",
+      "failure_owner": "Operator (per-point setup)",
+      "operator_action": "Re-measure / re-enter / select correct device on form",
+      "aggregator": "mean \u2212 k \u00d7 (100 \u2212 min) across GCP-role per_point_setup_confidence, k=0.25",
+      "indicators_within": "gcp_antenna_height_documented_score(0.55), gcp_device_id_match_score(0.30), gcp_antenna_type_match_score(0.15)",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "per-point antenna_height_m absent AND antenna_height_auto_known=False",
+      "gate_action": "That point per_point_setup_confidence = 0. FLAG: GCP_POINT_ANTENNA_HEIGHT_MISSING."
+    },
+    {
+      "block_id": "BB_GCP_ENV",
+      "block_name": "gcp_observation_environment_score",
+      "display_name": "Per-point Observation Environment",
+      "weight_in_gcp_score": 0.2,
+      "question": "Was the sky/site environment good at each point?",
+      "failure_owner": "Site / sky conditions",
+      "operator_action": "Relocate next time; accept noise",
+      "aggregator": "mean \u2212 k \u00d7 (100 \u2212 min) across GCP-role per_point_environment, k=0.25",
+      "indicators_within": "gcp_multipath_score(0.50), gcp_acquisition_score(0.30), gcp_ionospheric_risk_score(0.20)",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": ""
+    }
+  ],
+  "indicators": [
+    {
+      "indicator_id": "L3I_GCP_001",
+      "indicator_name": "occupation_coverage_score",
+      "display_name": "Per-point Flight Coverage & Buffer",
+      "building_block_id": "BB_GCP_COMPLETE",
+      "weight_in_block": 0.35,
+      "covers_problems": "#8",
+      "input_derived_fields": "occupation_coverage_ratio;pre_flight_buffer_sec;post_flight_buffer_sec",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "occupation_coverage_ratio < 1.0",
+      "gate_action": "Sets this point completeness sub-score = 0. FLAG: GCP_POINT_FLIGHT_GAP.",
+      "justification": "SHEET",
+      "threshold_summary": "coverage_ratio=1.0 AND pre>=120s AND post>=60s -> 100; coverage=1.0 AND pre>=60s -> 88; coverage=1.0 AND pre<60s -> 72; coverage<1.0 -> 0 + gate.",
+      "is_critical_path": true,
+      "gate_scope": "chain_level_when_all_points",
+      "gate_description": "Chain-level hard gate fires only when EVERY designated GCP has occupation_coverage_score = 0. Single-point coverage failure degrades that point but does not gate the chain.",
+      "v2_1_q_lock_note": "Q-GCP-1: chain-level hard gate (all-points condition). Per-point coverage failure degrades the point contribution; chain-level gate only when all points fail."
+    },
+    {
+      "indicator_id": "L3I_GCP_002",
+      "indicator_name": "occupation_integrity_score",
+      "display_name": "Per-point Session & Power Integrity",
+      "building_block_id": "BB_GCP_COMPLETE",
+      "weight_in_block": 0.3,
+      "covers_problems": "#8",
+      "input_derived_fields": "session_integrity_ok;raw_log_download_confirmed;device_type",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET+OPLOG",
+      "threshold_summary": "device_type=DGPS: completed_normally AND 0 shutdowns AND battery_min>=20% -> 100; shutdown>=1 -> 30; oplog absent/null -> 60 (unconfirmed); download not confirmed -> advisory flag.  device_type in {CB_X, AEROPOINT, OTHER}: oplog expected-absent, no penalty for absence; score based on RINEX signals (any_gap_gt_60s=False -> 100; else 40).",
+      "is_critical_path": false,
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_GCP_003",
+      "indicator_name": "occupation_format_score",
+      "display_name": "Per-point RINEX Format & Compatibility",
+      "building_block_id": "BB_GCP_COMPLETE",
+      "weight_in_block": 0.2,
+      "covers_problems": "#10",
+      "input_derived_fields": "rinex_version_supported;header_completeness;dual_freq_available;constellation_count",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "version supported AND header complete AND dual-freq -> 100; single-freq -> 70; version unsupported -> 35 (FLAG: GCP_POINT_RINEX_VERSION_UNSUPPORTED); header incomplete -> 40.",
+      "is_critical_path": false,
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_GCP_004",
+      "indicator_name": "occupation_continuity_score",
+      "display_name": "Per-point Recording Continuity",
+      "building_block_id": "BB_GCP_COMPLETE",
+      "weight_in_block": 0.15,
+      "covers_problems": "#15",
+      "input_derived_fields": "cycle_slip_count;gap_gt_5s_count;any_gap_gt_60s",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "RINEX",
+      "threshold_summary": "no gaps AND <5 slips -> 100; minor gaps OR 5-20 slips -> 75; any_gap_gt_60s OR >20 slips -> 40. Feeds disturbance composite.",
+      "is_critical_path": false,
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_GCP_005",
+      "indicator_name": "gcp_antenna_height_documented_score",
+      "display_name": "Per-point Antenna Height Documentation",
+      "building_block_id": "BB_GCP_SETUP",
+      "weight_in_block": 0.55,
+      "covers_problems": "#6",
+      "input_derived_fields": "antenna_height_auto_known;antenna_measurement_type;measured_to_reference;height_measured_count;antenna_height_agreement",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "antenna_height_m absent AND antenna_height_auto_known=False",
+      "gate_action": "Sets this point setup sub-score = 0. FLAG: GCP_POINT_ANTENNA_HEIGHT_MISSING.",
+      "justification": "SHEET",
+      "threshold_summary": "antenna_height_auto_known=True (CB_X / AEROPOINT) -> 100 by definition (factory-known).  device_type=DGPS: VERTICAL AND measured_to=ARP AND count>=3 AND RINEX agreement -> 100; single VERTICAL -> 88; SLANT -> 72; height entered but RINEX delta_h disagrees -> 55 (review).  No height entered (DGPS / OTHER) -> 0 + gate.",
+      "is_critical_path": false,
+      "gate_scope": "per_point_only",
+      "gate_description": "Per-point gate: when antenna height missing on a specific point, that point's setup sub-score = 0. Does NOT trigger chain-level hard gate. Affected point's contribution to chain is minimized.",
+      "v2_1_q_lock_note": "Q-GCP-1: per-point gate ONLY. Not a chain-level hard gate. Per-point antenna height missing degrades that point; chain continues to score from other points."
+    },
+    {
+      "indicator_id": "L3I_GCP_006",
+      "indicator_name": "gcp_device_id_match_score",
+      "display_name": "Per-point Device ID Match",
+      "building_block_id": "BB_GCP_SETUP",
+      "weight_in_block": 0.3,
+      "covers_problems": "#14",
+      "input_derived_fields": "device_id_match",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET (gap-add)",
+      "threshold_summary": "Match -> 100; mismatch -> 50 + FLAG: GCP_POINT_DEVICE_ID_MISMATCH (HIGH, reviewer-blocking); either side missing -> 60 (unconfirmed).",
+      "is_critical_path": false,
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_GCP_007",
+      "indicator_name": "gcp_antenna_type_match_score",
+      "display_name": "Per-point Antenna Type Consistency",
+      "building_block_id": "BB_GCP_SETUP",
+      "weight_in_block": 0.15,
+      "covers_problems": "#6 supporting",
+      "input_derived_fields": "antenna_type_match",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "RINEX",
+      "threshold_summary": "Match -> 100; mismatch -> 40 + FLAG. Type-string consistency only, NOT a true ANTEX calibration check (that is Stage 2).",
+      "is_critical_path": false,
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_GCP_008",
+      "indicator_name": "gcp_multipath_score",
+      "display_name": "Per-point Multipath Environment",
+      "building_block_id": "BB_GCP_ENV",
+      "weight_in_block": 0.5,
+      "covers_problems": "#9",
+      "input_derived_fields": "multipath_risk_level;cn0_mean_dbhz",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "multipath_risk_level low (<=2.5 dB-Hz) -> 100; moderate (2.5-4.0) -> 65; high (>4.0) -> 35 + FLAG: GCP_POINT_HIGH_MULTIPATH. Risk proxy, not error magnitude.",
+      "is_critical_path": false,
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_GCP_009",
+      "indicator_name": "gcp_acquisition_score",
+      "display_name": "Per-point Satellite Acquisition",
+      "building_block_id": "BB_GCP_ENV",
+      "weight_in_block": 0.3,
+      "covers_problems": "#18",
+      "input_derived_fields": "device_acquisition_time_sec",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "acquisition <60s -> 100; 60-119s -> 88; 120-299s -> 65; >=300s -> 30 + FLAG: GCP_POINT_SLOW_ACQUISITION.",
+      "is_critical_path": false,
+      "gate_scope": "none"
+    },
+    {
+      "indicator_id": "L3I_GCP_010",
+      "indicator_name": "gcp_ionospheric_risk_score",
+      "display_name": "Per-point Ionospheric Risk",
+      "building_block_id": "BB_GCP_ENV",
+      "weight_in_block": 0.2,
+      "covers_problems": "#20",
+      "input_derived_fields": "kp_index;dual_freq_available",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "Kp <= 4 OR dual-freq available -> 100; Kp 5-6 AND single-freq -> 60; Kp >= 7 AND single-freq -> 40 + FLAG: GCP_POINT_IONO_RISK. External NOAA SWPC dependency.",
+      "is_critical_path": false,
+      "gate_scope": "none"
+    }
+  ],
+  "derived_fields": [
+    {
+      "derived_id": "L2D_GCP_001",
+      "derived_name": "occupation_coverage_ratio",
+      "formula_expression": "overlap(obs window, flight window) / duration(flight window)",
+      "meaning": "Fraction of the drone flight covered by this GCP's observations. Must equal 1.0; less means PPK gaps for this point.",
+      "input_field_names": "obs_start_utc;obs_end_utc;flight_start_utc;flight_end_utc",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_002",
+      "derived_name": "pre_flight_buffer_sec",
+      "formula_expression": "flight_start_utc - obs_start_utc",
+      "meaning": "Seconds the GCP device was recording before flight start. Threshold >= 120s ideal, >= 60s acceptable.",
+      "input_field_names": "obs_start_utc;flight_start_utc",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_003",
+      "derived_name": "post_flight_buffer_sec",
+      "formula_expression": "obs_end_utc - flight_end_utc",
+      "meaning": "Seconds the GCP device kept recording after flight end. Threshold >= 60s.",
+      "input_field_names": "obs_end_utc;flight_end_utc",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_004",
+      "derived_name": "dual_freq_available",
+      "formula_expression": "dual_freq_present == True",
+      "meaning": "Whether dual-frequency observations are available.",
+      "input_field_names": "dual_freq_present",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_005",
+      "derived_name": "cycle_slip_count",
+      "formula_expression": "count of cycle_slip_markers",
+      "meaning": "Total cycle slips. Elevated = obstruction/disturbance/multipath.",
+      "input_field_names": "cycle_slip_markers",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_006",
+      "derived_name": "gap_gt_5s_count",
+      "formula_expression": "count of inter-epoch gaps > 5s",
+      "meaning": "Short recording gaps within the occupation.",
+      "input_field_names": "epoch_interval_sec;total_epochs",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_007",
+      "derived_name": "any_gap_gt_60s",
+      "formula_expression": "max inter-epoch gap > 60s",
+      "meaning": "Any major recording gap.",
+      "input_field_names": "epoch_interval_sec;total_epochs",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_008",
+      "derived_name": "cn0_mean_dbhz",
+      "formula_expression": "mean of cn0_per_sat",
+      "meaning": "Mean signal strength across the occupation.",
+      "input_field_names": "cn0_per_sat",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_009",
+      "derived_name": "multipath_risk_level",
+      "formula_expression": "std-dev of cn0_per_sat across sats at equal elevation",
+      "meaning": "Proxy for multipath risk from a fixed reflector geometry. Risk indicator, not error magnitude. Numeric thresholds: low <= 2.5 dB-Hz; moderate 2.5\u20134.0; high > 4.0.",
+      "input_field_names": "cn0_per_sat",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_010",
+      "derived_name": "mean_pdop",
+      "formula_expression": "mean of pdop_per_epoch during occupation",
+      "meaning": "Average sky-geometry quality. Thresholds: <2 = 100; 2-4 = 80; 4-6 = 55; >6 = 30.",
+      "input_field_names": "pdop_per_epoch",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_011",
+      "derived_name": "max_pdop",
+      "formula_expression": "max of pdop_per_epoch during occupation",
+      "meaning": "Worst-case geometry during occupation.",
+      "input_field_names": "pdop_per_epoch",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_012",
+      "derived_name": "device_acquisition_time_sec",
+      "formula_expression": "time from power-on to stable sat_count (>=6 sats with low PDOP)",
+      "meaning": "How quickly the device reached a stable solution after power-on. Thresholds: <60s = 100; 60-119s = 88; 120-299s = 65; >=300s = 30.",
+      "input_field_names": "sat_count_per_epoch",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_013",
+      "derived_name": "rinex_version_supported",
+      "formula_expression": "rinex_version in {2.10, 2.11, 3.02, 3.03, 3.04, 3.05}",
+      "meaning": "Whether RINEX version is accepted by the PPK pipeline.",
+      "input_field_names": "rinex_version",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_014",
+      "derived_name": "header_completeness",
+      "formula_expression": "antenna_type AND receiver_type AND approx_position_xyz all present",
+      "meaning": "Whether required header records are present.",
+      "input_field_names": "antenna_type;receiver_type;approx_position_xyz",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_015",
+      "derived_name": "constellation_count",
+      "formula_expression": "count of constellation_set",
+      "meaning": "Number of constellations tracked.",
+      "input_field_names": "constellation_set",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_016",
+      "derived_name": "session_integrity_ok",
+      "formula_expression": "device_type-aware: for DGPS, requires completed_normally AND shutdowns==0 AND battery_min >= 20%; for CB_X / AEROPOINT / OTHER, oplog expected-absent, evaluates as TRUE if RINEX-side signals are clean (no gap_gt_60s)",
+      "meaning": "Whether the occupation terminated cleanly with adequate power. Device-type aware.",
+      "input_field_names": "session_completed_normally;unexpected_shutdown_count;battery_min_pct;any_gap_gt_60s;device_type",
+      "kind": "composite_scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_017",
+      "derived_name": "antenna_type_match",
+      "formula_expression": "antenna_model (form) == antenna_type (RINEX), normalised",
+      "meaning": "Form vs RINEX antenna type consistency. NOT ANTEX calibration (Stage 2).",
+      "input_field_names": "antenna_model;antenna_type",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_018",
+      "derived_name": "antenna_height_agreement",
+      "formula_expression": "|antenna_height_m (form) - antenna_delta_h (RINEX)| within tolerance (when delta_h != 0)",
+      "meaning": "Form-height vs RINEX-recorded-height cross-check. Agreement raises confidence; conflict flags the wrong-reference blunder.",
+      "input_field_names": "antenna_height_m;antenna_delta_h",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_019",
+      "derived_name": "device_id_match",
+      "formula_expression": "device_id (form) == device_id (RINEX), normalised",
+      "meaning": "Form vs RINEX device ID match. Uniform threshold: match=100; mismatch=50 + reviewer-blocking flag (HIGH severity).",
+      "input_field_names": "device_id;device_id",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_020",
+      "derived_name": "kp_index",
+      "formula_expression": "NOAA SWPC Kp at obs_start_utc",
+      "meaning": "Geomagnetic activity index. External NOAA SWPC API dependency.",
+      "input_field_names": "obs_start_utc",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_021",
+      "derived_name": "antenna_height_auto_known",
+      "formula_expression": "device_type in {CB_X, AEROPOINT}",
+      "meaning": "Whether antenna height is factory-known for this device type. When true, antenna_height_documented_score = 100 by definition.",
+      "input_field_names": "device_type",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_GCP_022",
+      "derived_name": "position_disturbance_signature",
+      "formula_expression": "gap_gt_5s_count rising AND cycle_slip_count rising AND cn0 variance rising in same time window",
+      "meaning": "Correlation detector for physical disturbance during occupation (#15). FLAG-ONLY, no weight. BLIND to slow settling that produces no gap/slip.",
+      "input_field_names": "gap_gt_5s_count;cycle_slip_count;cn0_per_sat",
+      "kind": "composite_flag"
+    },
+    {
+      "derived_id": "L2D_GCP_023",
+      "derived_name": "truncation_check",
+      "formula_expression": "|session_end_utc - obs_end_utc| within tolerance (when oplog is expected-present)",
+      "meaning": "Device-clock vs observation-end cross-check. Disagreement = silent truncation. Applies to DGPS only.",
+      "input_field_names": "session_end_utc;obs_end_utc;device_type",
+      "kind": "composite_flag"
+    }
+  ],
+  "source_fields": [
+    {
+      "field_id": "L1F_GCP_001",
+      "field_name": "marker_name",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Header Identity",
+      "meaning": "Marker/point identifier from RINEX header. Basis for matching point records.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_002",
+      "field_name": "antenna_type",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Header Antenna",
+      "meaning": "Antenna model from ANT # / TYPE record. Cross-checked vs operator-entered antenna_model.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_003",
+      "field_name": "antenna_delta_h",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Header Antenna",
+      "meaning": "ARP height above marker from ANTENNA: DELTA H/E/N record, as configured in the device. Often 0.000 if unset. Second independent height source.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_004",
+      "field_name": "receiver_type",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Header Hardware",
+      "meaning": "Receiver model from REC # / TYPE / VERS header record.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_005",
+      "field_name": "firmware_version",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Header Hardware",
+      "meaning": "Receiver firmware/version from RINEX extended header where written. May be null.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_006",
+      "field_name": "approx_position_xyz",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Header Position",
+      "meaning": "Approximate ECEF position from header (autonomous seed). Used for set-spacing computation only \u2014 not scored as accuracy.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_007",
+      "field_name": "rinex_version",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Header Format",
+      "meaning": "RINEX format version (e.g. 2.11, 3.04). Drives PPK-software compatibility.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_008",
+      "field_name": "constellation_set",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Header Format",
+      "meaning": "Constellations present (GPS/GLONASS/Galileo/BeiDou).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_009",
+      "field_name": "obs_start_utc",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Header Timing",
+      "meaning": "First observation epoch time (UTC).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_010",
+      "field_name": "obs_end_utc",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Header Timing",
+      "meaning": "Last observation epoch time (UTC). Cross-checked against oplog session_end_utc when oplog is expected-present.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_011",
+      "field_name": "dual_freq_present",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Header Format",
+      "meaning": "Whether L1+L2 (or more) carrier phase is present. Single-frequency worsens iono impact.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_012",
+      "field_name": "device_id",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Header Identity",
+      "meaning": "Device serial / ID from RINEX header. Cross-checked vs operator-entered device_id.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_013",
+      "field_name": "epoch_interval_sec",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Body Timing",
+      "meaning": "Nominal logging interval between epochs.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_014",
+      "field_name": "total_epochs",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Body Timing",
+      "meaning": "Count of recorded epochs in the occupation.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_015",
+      "field_name": "cn0_per_sat",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Body Signal",
+      "meaning": "Carrier-to-noise density per satellite per epoch. Basis for signal quality and multipath risk.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_016",
+      "field_name": "cycle_slip_markers",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Body Signal",
+      "meaning": "Cycle-slip indications per satellite. Elevated counts indicate disturbance or obstruction.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_017",
+      "field_name": "pdop_per_epoch",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Body Geometry",
+      "meaning": "Position dilution of precision over time.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_018",
+      "field_name": "sat_count_per_epoch",
+      "file_id": "SRC_GCP_RINEX",
+      "category": "Body Geometry",
+      "meaning": "Tracked satellite count over time. Acquisition ramp visible at session start.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_019",
+      "field_name": "session_completed_normally",
+      "file_id": "SRC_GCP_OPLOG",
+      "category": "Integrity",
+      "meaning": "True only if recording stopped by deliberate operator action. Null = unconfirmed (DGPS) or expected-absent (CB_X / AEROPOINT / OTHER).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_020",
+      "field_name": "unexpected_shutdown_count",
+      "file_id": "SRC_GCP_OPLOG",
+      "category": "Integrity",
+      "meaning": "Count of mid-session unexpected shutdowns/resets. >=1 raises GCP_POINT_DEVICE_FAILURE.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_021",
+      "field_name": "battery_start_pct",
+      "file_id": "SRC_GCP_OPLOG",
+      "category": "Power",
+      "meaning": "Battery level at occupation start.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_022",
+      "field_name": "battery_end_pct",
+      "file_id": "SRC_GCP_OPLOG",
+      "category": "Power",
+      "meaning": "Battery level at occupation end.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_023",
+      "field_name": "battery_min_pct",
+      "file_id": "SRC_GCP_OPLOG",
+      "category": "Power",
+      "meaning": "Lowest battery level reached during occupation. Adequacy line: >= 20%.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_024",
+      "field_name": "session_end_utc",
+      "file_id": "SRC_GCP_OPLOG",
+      "category": "Integrity",
+      "meaning": "Device-reported session end (UTC). Cross-check vs RINEX last epoch.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_025",
+      "field_name": "raw_log_download_confirmed",
+      "file_id": "SRC_GCP_OPLOG",
+      "category": "Integrity",
+      "meaning": "True once the RINEX has been transferred off the device.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_026",
+      "field_name": "device_type",
+      "file_id": "SRC_GCP_FORM",
+      "category": "Device Identity",
+      "meaning": "Enum: CB_X / AEROPOINT / DGPS / OTHER. Drives oplog branching and antenna-height auto-fill logic.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_027",
+      "field_name": "device_id",
+      "file_id": "SRC_GCP_FORM",
+      "category": "Device Identity",
+      "meaning": "Operator-entered device ID. Cross-checked vs RINEX header device_id.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_028",
+      "field_name": "device_role",
+      "file_id": "SRC_GCP_FORM",
+      "category": "Survey Role",
+      "meaning": "Locked to GCP for this score. CHECK_POINT points are excluded from gcp_score (future check_point_score).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_029",
+      "field_name": "antenna_model",
+      "file_id": "SRC_GCP_FORM",
+      "category": "Antenna Setup",
+      "meaning": "Operator-selected antenna model. Cross-checked vs RINEX antenna_type.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_030",
+      "field_name": "antenna_height_m",
+      "file_id": "SRC_GCP_FORM",
+      "category": "Antenna Setup",
+      "meaning": "Operator-entered height. For CB_X / AEROPOINT, factory-known and auto-filled (indicator = 100). For DGPS, operator-measured. Cross-checked vs RINEX antenna_delta_h when populated.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_031",
+      "field_name": "antenna_height_units",
+      "file_id": "SRC_GCP_FORM",
+      "category": "Antenna Setup",
+      "meaning": "Explicit units (m/ft).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_032",
+      "field_name": "antenna_measurement_type",
+      "file_id": "SRC_GCP_FORM",
+      "category": "Antenna Setup",
+      "meaning": "VERTICAL or SLANT. Only meaningful for DGPS.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_033",
+      "field_name": "measured_to_reference",
+      "file_id": "SRC_GCP_FORM",
+      "category": "Antenna Setup",
+      "meaning": "ARP / SLANT_MARK / MOUNT_BOTTOM / OTHER. Only meaningful for DGPS.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_034",
+      "field_name": "height_measured_count",
+      "file_id": "SRC_GCP_FORM",
+      "category": "Antenna Setup",
+      "meaning": "Number of independent measurements. Only meaningful for DGPS.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_035",
+      "field_name": "pole_tripod_fixed_height",
+      "file_id": "SRC_GCP_FORM",
+      "category": "Antenna Setup",
+      "meaning": "Fixed pole/tripod height when applicable.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_036",
+      "field_name": "target_type",
+      "file_id": "SRC_GCP_FORM",
+      "category": "Target",
+      "meaning": "Target physical type (printed_paper / painted / aeropoint_surface / cb_x_surface / dgps_peg / other).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_037",
+      "field_name": "target_size_m",
+      "file_id": "SRC_GCP_FORM",
+      "category": "Target",
+      "meaning": "Target minimum linear dimension. CAPTURED HERE but consumed by pre_processing_score for #11 visibility check; not read by gcp_score.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_038",
+      "field_name": "target_placed_confirmed",
+      "file_id": "SRC_GCP_FORM",
+      "category": "Target",
+      "meaning": "Operator confirmation that target was placed and visible at flight time. Reported as metadata; not scored in gcp_score (handed to pre-processing).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_039",
+      "field_name": "flight_start_utc",
+      "file_id": "SRC_GCP_FORM",
+      "category": "Flight Context",
+      "meaning": "Drone flight start (UTC) from upload bundle.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_GCP_040",
+      "field_name": "flight_end_utc",
+      "file_id": "SRC_GCP_FORM",
+      "category": "Flight Context",
+      "meaning": "Drone flight end (UTC) from upload bundle.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    }
+  ],
+  "source_files": [
+    {
+      "file_id": "SRC_GCP_RINEX",
+      "file_name": "GCP Device RINEX",
+      "subsystem": "GCP GNSS Device (per point)",
+      "file_extensions": ".obs / .nav / .21o / .25o",
+      "physical_source": "Downloaded from CB_X / AeroPoint / DGPS receiver after the occupation",
+      "how_to_obtain": "Each GCP device records raw observations during its occupation. Downloaded per point either via USB, the CB companion app, the Propeller dashboard (AeroPoint), or the receiver manufacturer's utility (DGPS). Recording must span the drone flight window with buffer.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": "Per-point machine truth. One file per occupation. Antenna type and delta-H here serve as cross-checks against the user form."
+    },
+    {
+      "file_id": "SRC_GCP_OPLOG",
+      "file_name": "GCP Device Operation Log",
+      "subsystem": "GCP GNSS Device (per point)",
+      "file_extensions": ".json",
+      "physical_source": "Exported from CB_X device or DGPS companion app",
+      "how_to_obtain": "Device firmware records a session log per occupation. Required for DGPS. Expected-absent for CB_X (CB_X has its own oplog dev spec \u2014 see CB_X Operation Log spec). Expected-absent for AEROPOINT (Propeller hardware does not expose one in this format). Expected-absent for OTHER (unknown hardware).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": "Behaviour branches on device_type. When expected-absent, the integrity indicator scores from RINEX-only signals; when expected-present and missing, integrity degrades to unconfirmed."
+    },
+    {
+      "file_id": "SRC_GCP_FORM",
+      "file_name": "GCP User Input (per point)",
+      "subsystem": "Operator Field Form (per point)",
+      "file_extensions": ".json (gcp_user_input.json)",
+      "physical_source": "Entered by operator in CB capture app at upload, one record per occupation",
+      "how_to_obtain": "Structured field form filled per occupation. Human-entered: device_type, antenna model/height/method/reference/count, monument facts, device_id, target metadata. Target size and placement confirmation captured here but consumed by pre_processing_score, not gcp_score.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": "Per-point operator metadata. Form design itself is the safeguard against #6 antenna-height blunder. target_size_m is on this form but read by pre-processing, not gcp_score."
+    }
+  ],
+  "flags": [
+    {
+      "flag_id": "FLG_GCP_001",
+      "flag_name": "GCP_CRITICAL_FAILURE",
+      "raised_by_type": "score",
+      "condition": "every GCP-role point has occupation_coverage_score=0",
+      "severity": "CRITICAL",
+      "covers_problems": "#8 system view",
+      "meaning": "Foundational GCP data unusable across the survey \u2014 gcp_score = 0. Parallels DRONE_CRITICAL_FAILURE and BASE_CRITICAL_FAILURE structurally; defined independently.",
+      "raised_at_stage": "global_gate"
+    },
+    {
+      "flag_id": "FLG_GCP_002",
+      "flag_name": "GCP_POINT_ANTENNA_HEIGHT_MISSING",
+      "raised_by_type": "indicator_gate",
+      "condition": "antenna_height_m absent AND antenna_height_auto_known=False",
+      "severity": "CRITICAL",
+      "covers_problems": "#6",
+      "meaning": "Per-point antenna height not entered for a non-factory-known device \u2014 per_point_setup_confidence = 0 for this point.",
+      "raised_at_stage": "internal_gate"
+    },
+    {
+      "flag_id": "FLG_GCP_003",
+      "flag_name": "GCP_POINT_FLIGHT_GAP",
+      "raised_by_type": "indicator_gate",
+      "condition": "occupation_coverage_ratio < 1.0",
+      "severity": "CRITICAL",
+      "covers_problems": "#8",
+      "meaning": "This GCP did not record over the full flight window; PPK will lack coverage for this point.",
+      "raised_at_stage": "internal_gate"
+    },
+    {
+      "flag_id": "FLG_GCP_004",
+      "flag_name": "GCP_POINT_DEVICE_FAILURE",
+      "raised_by_type": "indicator",
+      "condition": "unexpected_shutdown_count >= 1 OR session_completed_normally = false (DGPS only)",
+      "severity": "HIGH",
+      "covers_problems": "#8",
+      "meaning": "Per-point session interrupted by power/shutdown event.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_GCP_005",
+      "flag_name": "GCP_POINT_LOG_DOWNLOAD_UNCONFIRMED",
+      "raised_by_type": "indicator advisory",
+      "condition": "raw_log_download_confirmed != True (DGPS only)",
+      "severity": "MEDIUM",
+      "covers_problems": "#8",
+      "meaning": "Raw log transfer off the device not confirmed (advisory).",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_GCP_006",
+      "flag_name": "GCP_POINT_RINEX_VERSION_UNSUPPORTED",
+      "raised_by_type": "indicator",
+      "condition": "rinex_version not in supported set",
+      "severity": "HIGH",
+      "covers_problems": "#10",
+      "meaning": "This point's RINEX version may not be accepted by the PPK pipeline.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_GCP_007",
+      "flag_name": "GCP_POINT_HIGH_MULTIPATH",
+      "raised_by_type": "indicator",
+      "condition": "multipath_risk_level > 4.0",
+      "severity": "HIGH",
+      "covers_problems": "#9",
+      "meaning": "Elevated multipath risk at this point.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_GCP_008",
+      "flag_name": "GCP_POINT_IONO_RISK",
+      "raised_by_type": "indicator",
+      "condition": "kp_index >= 7 AND single-frequency",
+      "severity": "HIGH",
+      "covers_problems": "#20",
+      "meaning": "Ionospheric disturbance likely degraded accuracy at this point. External Kp dependency.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_GCP_009",
+      "flag_name": "GCP_POINT_SLOW_ACQUISITION",
+      "raised_by_type": "indicator",
+      "condition": "device_acquisition_time_sec >= 300",
+      "severity": "MEDIUM",
+      "covers_problems": "#18",
+      "meaning": "Per-point acquisition was unusually slow.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_GCP_010",
+      "flag_name": "GCP_POINT_DEVICE_ID_MISMATCH",
+      "raised_by_type": "indicator (reviewer-blocking)",
+      "condition": "form device_id != RINEX device_id",
+      "severity": "HIGH",
+      "covers_problems": "#14",
+      "meaning": "Per-point form/RINEX device_id disagreement. Reviewer-blocking \u2014 must be resolved before survey delivery sign-off.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_GCP_011",
+      "flag_name": "GCP_POINT_DISTURBANCE",
+      "raised_by_type": "composite (flag-only)",
+      "condition": "position_disturbance_signature fires",
+      "severity": "HIGH",
+      "covers_problems": "#15",
+      "meaning": "Composite signal of physical disturbance during this occupation. Flag-only; no weight. BLIND to slow settling.",
+      "raised_at_stage": "composite"
+    },
+    {
+      "flag_id": "FLG_GCP_012",
+      "flag_name": "NO_DESIGNATED_GCPS",
+      "raised_by_type": "score advisory",
+      "condition": "no points with device_role=GCP in survey",
+      "severity": "INFORMATIONAL (null trigger \u2014 Q-GCP-2 lock v2.1)",
+      "covers_problems": "system view",
+      "meaning": "Survey was designed without any GCPs (no points carry GCP role). gcp_score = null (chain not applicable). NOT a hard gate failure. Composite scoring should treat null as \"not measured\" rather than \"measured zero\".",
+      "raised_at_stage": "null_handler",
+      "v2_1_q_lock": "Q-GCP-2: NO_DESIGNATED_GCPS triggers null return (chain not applicable), NOT score=0. A survey designed without GCPs is not a failed survey \u2014 GCP confidence is simply not measurable."
+    },
+    {
+      "flag_id": "FLG_GCP_013",
+      "flag_name": "UNRECOGNIZED_DEVICE_TYPE",
+      "raised_by_type": "indicator advisory",
+      "condition": "device_type = OTHER",
+      "severity": "MEDIUM",
+      "covers_problems": "operational",
+      "meaning": "Unknown device hardware; oplog expectations not enforced; reviewer should verify scoring assumptions.",
+      "raised_at_stage": "threshold"
+    },
+    {
+      "flag_id": "FLG_GCP_014",
+      "flag_name": "GCP_POINT_RINEX_TRUNCATED",
+      "raised_by_type": "composite (DGPS only)",
+      "condition": "|session_end_utc - obs_end_utc| > tolerance, with oplog expected-present",
+      "severity": "HIGH",
+      "covers_problems": "#8",
+      "meaning": "Device end-time and RINEX observation end-time disagree \u2014 silent truncation. Applies to DGPS only.",
+      "raised_at_stage": "composite"
+    }
+  ],
+  "problem_coverage_map": [
+    {
+      "problem_no": 1,
+      "problem": "No Check Points",
+      "severity": "CATASTROPHIC",
+      "frequency": "VERY COMMON",
+      "disposition": "OUT-FUTURE",
+      "covered_by": "future check_point_score; survey-design \u2014 pre_processing_score also flags"
+    },
+    {
+      "problem_no": 2,
+      "problem": "CP Not Spatially Independent",
+      "severity": "CATASTROPHIC",
+      "frequency": "VERY COMMON",
+      "disposition": "PRE-PROC",
+      "covered_by": "pre_processing_score"
+    },
+    {
+      "problem_no": 3,
+      "problem": "Insufficient GCP Count",
+      "severity": "CRITICAL",
+      "frequency": "COMMON",
+      "disposition": "PRE-PROC",
+      "covered_by": "pre_processing_score (count gate, needs site area)"
+    },
+    {
+      "problem_no": 4,
+      "problem": "Clustered Near Access Roads",
+      "severity": "CRITICAL",
+      "frequency": "VERY COMMON",
+      "disposition": "PRE-PROC",
+      "covered_by": "pre_processing_score (needs reconstruction extent)"
+    },
+    {
+      "problem_no": 5,
+      "problem": "Vertical Extremes Uncovered",
+      "severity": "CRITICAL",
+      "frequency": "COMMON",
+      "disposition": "LE",
+      "covered_by": "Learning Engine (needs DTM)"
+    },
+    {
+      "problem_no": 6,
+      "problem": "Antenna Height Blunder (Pole-Mounted)",
+      "severity": "CATASTROPHIC",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "gcp_antenna_height_documented_score + hard gate"
+    },
+    {
+      "problem_no": 7,
+      "problem": "Coordinate Accuracy Unknown",
+      "severity": "CATASTROPHIC",
+      "frequency": "COMMON",
+      "disposition": "PRE-PROC",
+      "covered_by": "pre_processing_score (Stage 2)"
+    },
+    {
+      "problem_no": 8,
+      "problem": "Battery/Solar Failure Mid-Session",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "occupation_completeness + integrity per-point"
+    },
+    {
+      "problem_no": 9,
+      "problem": "Multipath from Structures",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "gcp_multipath_score per point"
+    },
+    {
+      "problem_no": 10,
+      "problem": "Mark Disturbed Pre-Flight",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "SPLIT",
+      "covered_by": "CB_X / AeroPoint case detectable via RINEX (per-point continuity + disturbance composite); traditional marks \u2192 Stage 2 ODM detection"
+    },
+    {
+      "problem_no": 11,
+      "problem": "Target Not Visible at Flight Altitude",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "PRE-PROC",
+      "covered_by": "pre_processing_score (cross-doc with planned_gsd_cm)"
+    },
+    {
+      "problem_no": 12,
+      "problem": "Wrong Coord Typo in ODM",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OUT",
+      "covered_by": "Outside CBMI (manual ODM entry)"
+    },
+    {
+      "problem_no": 13,
+      "problem": "Pre-Surveyed Coords Wrong CRS",
+      "severity": "CATASTROPHIC",
+      "frequency": "OCCASIONAL",
+      "disposition": "PRE-PROC",
+      "covered_by": "pre_processing_score (datum)"
+    },
+    {
+      "problem_no": 14,
+      "problem": "Device_ID Mismatch",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "gcp_device_id_match_score (reviewer-blocking)"
+    },
+    {
+      "problem_no": 15,
+      "problem": "AeroPoint/CB_X Moved During Flight",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "GCP_POINT_DISTURBANCE composite (flag-only)"
+    },
+    {
+      "problem_no": 16,
+      "problem": "Uneven Surface Tilt",
+      "severity": "MEDIUM",
+      "frequency": "OCCASIONAL",
+      "disposition": "OUT",
+      "covered_by": "Hardware limitation (no inclinometer)"
+    },
+    {
+      "problem_no": 17,
+      "problem": "Target Washed/Blown Away",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "STAGE2",
+      "covered_by": "Stage 2 ODM target detection"
+    },
+    {
+      "problem_no": 18,
+      "problem": "Recording Starts After Takeoff",
+      "severity": "CRITICAL",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "gcp_acquisition_score"
+    },
+    {
+      "problem_no": 19,
+      "problem": "Processing Method Too Weak",
+      "severity": "CRITICAL",
+      "frequency": "COMMON",
+      "disposition": "PRE-PROC",
+      "covered_by": "pre_processing_score (Stage 2)"
+    },
+    {
+      "problem_no": 20,
+      "problem": "Too Many Check Points, Few GCPs",
+      "severity": "MEDIUM",
+      "frequency": "OCCASIONAL",
+      "disposition": "OUT-FUTURE",
+      "covered_by": "future check_point_score (and pre_processing role-allocation)"
+    },
+    {
+      "problem_no": 21,
+      "problem": "Roles Reversed in ODM",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OUT",
+      "covered_by": "Outside CBMI (third-party software input)"
+    },
+    {
+      "problem_no": 22,
+      "problem": "Drift Despite Good GCPs",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "LE",
+      "covered_by": "Learning Engine (consequence of #5)"
+    }
+  ]
+}

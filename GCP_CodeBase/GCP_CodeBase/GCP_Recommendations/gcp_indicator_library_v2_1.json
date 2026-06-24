@@ -1,0 +1,557 @@
+{
+  "_meta": {
+    "title": "gcp_indicator_library",
+    "version": "2.1.0 (LOCKED)",
+    "generated_at": "2026-06-10T14:09:36Z",
+    "description": "Library of customer-facing text for every indicator at every band of the GCP chain. Layered annotation ON TOP OF the canonical chain definition (gcp_confidence_score_v2_1_LOCKED.json). References chain indicator IDs (L3I_GCP_NNN). PER-POINT CHAIN: text fields use {point_id} placeholder which the rendering layer substitutes with actual GCP point identifier (e.g., GCP-003) at render time.",
+    "three_tier_architecture": {
+      "tier_1_chain_definition": "gcp_confidence_score_v2_1_LOCKED.json \u2014 canonical scoring",
+      "tier_2_library_this_file": "gcp_indicator_library_v2_1.json \u2014 customer-voice text per indicator per band",
+      "tier_3_reference_html": "gcp_multi_view_v1_LOCKED.html \u2014 five-tab reference implementation"
+    },
+    "text_authorship_status": "CLAUDE-DRAFTED PLACEHOLDER. Per pattern Q1 confirmation: structure locked, library text marked as placeholder pending domain refinement.",
+    "q_locks_applied": [
+      "Q-GCP-1",
+      "Q-GCP-2",
+      "Q-GCP-3"
+    ],
+    "indicators_count": 10,
+    "total_bands_count": 30,
+    "critical_path_indicators": [
+      "L3I_GCP_001"
+    ],
+    "per_point_gate_indicators": [
+      "L3I_GCP_005"
+    ],
+    "per_point_chain_notes": "GCP is a per-point chain. Each survey may have multiple GCPs. Indicator scores are computed per-point; chain score aggregates across points. Per-point findings surface in customer view with point-ID attribution per Q-GCP-3 lock. Text placeholders use {point_id} which renders as actual point identifier.",
+    "device_type_conditionality": "L3I_GCP_005 (antenna_height) auto-scores 100 for CB_X / AEROPOINT devices (factory-known height). L3I_GCP_002 (integrity) score logic differs by device class (DGPS expects operation log; CB_X/AEROPOINT do not).",
+    "schema_notes": {
+      "point_id_placeholder": "Use {point_id} in verified_statement, impact, and actions text. Rendering layer substitutes with actual point ID (e.g., GCP-003).",
+      "gate_scope": "Per-indicator field: chain_level_when_all_points / per_point_only / none. Distinguishes chain-level vs per-point gating behavior."
+    }
+  },
+  "library": {
+    "L3I_GCP_001": {
+      "id": "L3I_GCP_001",
+      "num": "#01",
+      "block": "BB_GCP_COMPLETE",
+      "weight": 0.35,
+      "name": "Coverage",
+      "fullName": "occupation_coverage_score",
+      "is_critical_path": true,
+      "gate_scope": "chain_level_when_all_points",
+      "verified_statement": "GCP {point_id} was occupied for the full required duration with adequate buffer time.",
+      "bands": [
+        {
+          "score_range": [
+            88,
+            100
+          ],
+          "level": "good",
+          "label": "Coverage 100% + pre-occupation buffer \u2265120s + post-occupation buffer \u226560s",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            72,
+            87
+          ],
+          "level": "good",
+          "label": "Coverage 100%, pre-occupation buffer 60-120s",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            71
+          ],
+          "level": "review",
+          "label": "Coverage 100% but pre-occupation buffer <60s",
+          "impact": "GCP {point_id} convergence may be incomplete at occupation start. Early epochs can carry residual error.",
+          "actions": [
+            "Allow 2 min for the device to converge before walking away from the point next time",
+            "Review processed sigma on early epochs at this point",
+            "If accuracy is critical, consider trimming noisy early data"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            0
+          ],
+          "level": "resurvey",
+          "label": "GCP {point_id} has no usable occupation data (per-point coverage failed)",
+          "impact": "GCP {point_id} cannot contribute to control. If multiple points fail, chain-level hard gate fires.",
+          "actions": [
+            "Re-occupy this specific point",
+            "Allow full occupation duration with proper buffer",
+            "Verify recording started before occupation and stopped after"
+          ]
+        }
+      ],
+      "derivation": "Per-point coverage gate (score=0) degrades that point's contribution but does NOT fire chain-level hard gate. Chain-level hard gate fires only when EVERY designated GCP has score=0 (Q-GCP-1 lock). Threshold 88 reflects industry PPK convergence guidance for static occupations.",
+      "flag": "GCP_POINT_FLIGHT_GAP"
+    },
+    "L3I_GCP_002": {
+      "id": "L3I_GCP_002",
+      "num": "#02",
+      "block": "BB_GCP_COMPLETE",
+      "weight": 0.3,
+      "name": "Integrity",
+      "fullName": "occupation_integrity_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "GCP {point_id} occupation completed normally with no interruptions and battery state healthy.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Clean session, no shutdowns, battery \u226520%",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            84
+          ],
+          "level": "review",
+          "label": "Operation log absent \u2014 occupation integrity unconfirmed",
+          "impact": "Cannot verify GCP {point_id} occupation completed cleanly. Data may still be usable but audit trail is incomplete.",
+          "actions": [
+            "Verify recorded file size matches expected occupation duration",
+            "Inspect last epoch timestamp against planned end",
+            "Ensure operation log uploads with device files next time"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "resurvey",
+          "label": "Device shutdown during occupation at point {point_id}",
+          "impact": "Device shut down unexpectedly during occupation at GCP {point_id}. Recording may be truncated or corrupted.",
+          "actions": [
+            "Inspect device file around shutdown timestamp",
+            "If shutdown occurred outside occupation window, data may still process",
+            "If shutdown occurred during occupation, re-occupy this point"
+          ]
+        }
+      ],
+      "derivation": "Score 60 (operation log absent) is conservative middle band per base_station v2.1 pattern. Conditional on device_type: CB_X / AEROPOINT devices don't expect operation logs (factory-known operation), so score logic differs by device class.",
+      "flag": "GCP_POINT_DEVICE_FAILURE"
+    },
+    "L3I_GCP_003": {
+      "id": "L3I_GCP_003",
+      "num": "#03",
+      "block": "BB_GCP_COMPLETE",
+      "weight": 0.2,
+      "name": "Format",
+      "fullName": "occupation_format_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "GCP {point_id} data is in supported format with complete header and dual-frequency observations.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Supported version, complete header, dual-frequency",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            84
+          ],
+          "level": "review",
+          "label": "Single-frequency or incomplete header at point {point_id}",
+          "impact": "Single-frequency observations at GCP {point_id} mean ionospheric error cannot be modeled. Accuracy degrades during active solar weather.",
+          "actions": [
+            "Verify device was configured for dual-frequency at this point",
+            "Patch missing header fields if known",
+            "Expect reduced accuracy at this point under high Kp index"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "review",
+          "label": "File version not supported by PPK software (point {point_id})",
+          "impact": "Device file from GCP {point_id} cannot be ingested directly. Data is fine \u2014 format conversion required.",
+          "actions": [
+            "Convert file to a supported version using vendor or standard converter",
+            "Verify converted file passes format validation",
+            "Resubmit for processing"
+          ]
+        }
+      ],
+      "derivation": "Following base_station v2.1 Q2 lock pattern: version-unsupported is review (material), not resurvey. Data is fine; format conversion is fixable without recollection.",
+      "flag": "GCP_POINT_RINEX_VERSION_UNSUPPORTED"
+    },
+    "L3I_GCP_004": {
+      "id": "L3I_GCP_004",
+      "num": "#04",
+      "block": "BB_GCP_COMPLETE",
+      "weight": 0.15,
+      "name": "Continuity",
+      "fullName": "occupation_continuity_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Continuous observations at GCP {point_id} with minimal cycle slips.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "No gaps or minor gaps only (<60s), minimal cycle slips",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            74
+          ],
+          "level": "review",
+          "label": "Gap >60s detected at point {point_id} \u2014 PPK must re-converge",
+          "impact": "GCP {point_id} lost satellite tracking for >60s. PPK must re-converge after the gap, reducing accuracy in that window.",
+          "actions": [
+            "Check whether occupation was interrupted (operator walked away?)",
+            "Investigate cause \u2014 signal blockage, brief power loss, person standing on point?",
+            "Position next occupation in clearer location"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "review",
+          "label": "Multiple disturbances or extensive gaps at point {point_id}",
+          "impact": "Significant disturbance pattern at GCP {point_id}. Position oscillations likely in processed output.",
+          "actions": [
+            "Inspect raw file for repeated signal loss events",
+            "Consider re-occupying this point in a less disturbed environment",
+            "Flag for review during processing residual analysis"
+          ]
+        }
+      ],
+      "derivation": "60s gap threshold from industry PPK best practice. Feeds disturbance composite.",
+      "flag": "GCP_POINT_DISTURBANCE"
+    },
+    "L3I_GCP_005": {
+      "id": "L3I_GCP_005",
+      "num": "#05",
+      "block": "BB_GCP_SETUP",
+      "weight": 0.55,
+      "name": "Antenna height",
+      "fullName": "gcp_antenna_height_documented_score",
+      "is_critical_path": false,
+      "gate_scope": "per_point_only",
+      "verified_statement": "Antenna height at GCP {point_id} documented to ARP, matching device file delta-H.",
+      "bands": [
+        {
+          "score_range": [
+            100,
+            100
+          ],
+          "level": "good",
+          "label": "Factory-known antenna height (CB_X / AEROPOINT \u2014 auto-100)",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            85,
+            99
+          ],
+          "level": "good",
+          "label": "DGPS device \u2014 vertical measurement to ARP, \u22653 measurements, matches RINEX",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            84
+          ],
+          "level": "review",
+          "label": "Slant measurement, single measurement, or RINEX delta-H disagreement at point {point_id}",
+          "impact": "Antenna height measurement at GCP {point_id} carries higher uncertainty. Wrong height shifts elevation reference for that point.",
+          "actions": [
+            "Verify slant-to-vertical conversion was applied at point {point_id}",
+            "Reconcile entered value against RINEX delta-H for this point",
+            "Re-measure vertical-to-ARP if uncertain"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            0
+          ],
+          "level": "resurvey",
+          "label": "Antenna height missing at GCP {point_id} (PER-POINT GATE)",
+          "impact": "GCP {point_id} elevation reference is unknown. This point cannot contribute to elevation control. NOT a chain-level hard gate \u2014 other points still score.",
+          "actions": [
+            "Enter antenna height for point {point_id} now if recoverable from field notes",
+            "If not recoverable, re-occupy this specific point with measured height",
+            "Measure 3 times vertical-to-ARP, average for best confidence"
+          ]
+        }
+      ],
+      "derivation": "PER-POINT GATE only (Q-GCP-1 lock). Missing antenna height on one GCP degrades that point's contribution but does NOT fire chain-level hard gate. CB_X/AEROPOINT devices auto-score 100 (factory-known). Device-type conditional logic per chain meta.",
+      "flag": "GCP_POINT_ANTENNA_HEIGHT_MISSING"
+    },
+    "L3I_GCP_006": {
+      "id": "L3I_GCP_006",
+      "num": "#06",
+      "block": "BB_GCP_SETUP",
+      "weight": 0.3,
+      "name": "Device ID match",
+      "fullName": "gcp_device_id_match_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Device ID at GCP {point_id} matches between operator form and RINEX header.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Form device ID matches RINEX header",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            55,
+            84
+          ],
+          "level": "review",
+          "label": "Device ID unconfirmed at point {point_id} (one side missing)",
+          "impact": "Cannot verify which physical device captured GCP {point_id} data. Audit trail incomplete.",
+          "actions": [
+            "Check field notes for device serial used at this point",
+            "Update either form or header with correct device ID",
+            "Document for QA"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            54
+          ],
+          "level": "review",
+          "label": "Device ID mismatch at point {point_id} (form vs file)",
+          "impact": "Form-declared device differs from device that wrote the file at GCP {point_id}. Wrong device profile may produce systematic positioning bias.",
+          "actions": [
+            "Verify physical device used at this point \u2014 check field photos if available",
+            "Update whichever source is incorrect",
+            "Re-process with correct device profile"
+          ]
+        }
+      ],
+      "derivation": "Reviewer-blocking flag \u2014 significant audit trail concern. Mismatch indicates form was filled incorrectly or wrong file was uploaded for this point.",
+      "flag": "GCP_POINT_DEVICE_ID_MISMATCH"
+    },
+    "L3I_GCP_007": {
+      "id": "L3I_GCP_007",
+      "num": "#07",
+      "block": "BB_GCP_SETUP",
+      "weight": 0.15,
+      "name": "Antenna type match",
+      "fullName": "gcp_antenna_type_match_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Antenna type at GCP {point_id} matches between form and RINEX header.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Form antenna matches RINEX header",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            84
+          ],
+          "level": "review",
+          "label": "Antenna type mismatch at point {point_id}",
+          "impact": "Wrong antenna profile at GCP {point_id} means wrong ANTEX calibration \u2014 systematic position bias from millimeters to centimeters at this point.",
+          "actions": [
+            "Verify physical antenna at point {point_id} against form selection",
+            "Update whichever source is incorrect",
+            "Re-process this point with correct ANTEX profile"
+          ]
+        }
+      ],
+      "derivation": "Type-string consistency check only \u2014 not a true ANTEX phase-center calibration (Stage-2 concern in pre_processing chain).",
+      "flag": null
+    },
+    "L3I_GCP_008": {
+      "id": "L3I_GCP_008",
+      "num": "#08",
+      "block": "BB_GCP_ENV",
+      "weight": 0.5,
+      "name": "Multipath",
+      "fullName": "gcp_multipath_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Clean signal environment at GCP {point_id} \u2014 low C/N0 variance.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "Low C/N0 variance (<2.5 dB-Hz) \u2014 clean signal at point {point_id}",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            74
+          ],
+          "level": "review",
+          "label": "Moderate multipath risk at point {point_id}",
+          "impact": "GCP {point_id} was near reflective surfaces. PPK can usually handle it but residuals may show position oscillations at this point.",
+          "actions": [
+            "Check processed residuals for oscillations at point {point_id}",
+            "Position next occupation \u226510m from buildings/vehicles/water",
+            "Choose open-sky locations for high-stakes work"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "review",
+          "label": "High multipath risk at point {point_id} (>4.0 dB-Hz variance)",
+          "impact": "GCP {point_id} was clearly in a reflective environment. PPK output for this point likely has elevated residuals.",
+          "actions": [
+            "Inspect processed position output for this point",
+            "Consider re-occupying at cleaner site if accuracy is critical",
+            "Scout point locations for reflective surfaces in future surveys"
+          ]
+        }
+      ],
+      "derivation": "C/N0 variance as multipath proxy is a standard signal-quality metric. Threshold values are heuristic \u2014 calibration against measured PPK residuals is a future deliverable per chain calibration roadmap.",
+      "flag": "GCP_POINT_HIGH_MULTIPATH"
+    },
+    "L3I_GCP_009": {
+      "id": "L3I_GCP_009",
+      "num": "#09",
+      "block": "BB_GCP_ENV",
+      "weight": 0.3,
+      "name": "Acquisition",
+      "fullName": "gcp_acquisition_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Device at GCP {point_id} acquired satellites within normal startup time.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "<2 min \u2014 normal startup at point {point_id}",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "minor",
+          "label": ">2 min \u2014 slow startup at point {point_id} (hygiene signal)",
+          "impact": "Device was slow to lock onto satellites at GCP {point_id}. Usually cold start. Recurring slowness can indicate device health issues, but rarely affects this point's data quality.",
+          "actions": [
+            "Check device location for obstructions at this point",
+            "Verify device firmware and battery state",
+            "Service unit if slow acquisition is recurring across multiple occupations"
+          ]
+        }
+      ],
+      "derivation": "Following base_station Q4 lock pattern: acquisition slowness is hygiene signal, not deliverable-quality concern. Downgraded to minor (audit-only, doesn't drive chain recommendation).",
+      "flag": "GCP_POINT_SLOW_ACQUISITION"
+    },
+    "L3I_GCP_010": {
+      "id": "L3I_GCP_010",
+      "num": "#10",
+      "block": "BB_GCP_ENV",
+      "weight": 0.2,
+      "name": "Ionospheric risk",
+      "fullName": "gcp_ionospheric_risk_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Either calm geomagnetic conditions or dual-frequency observations at GCP {point_id}.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Low Kp (\u22644) OR dual-frequency device \u2014 ionospheric error modeled",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            50,
+            84
+          ],
+          "level": "review",
+          "label": "Moderate Kp (5-6) and single-frequency at point {point_id}",
+          "impact": "Active solar weather + single-frequency device at GCP {point_id} means ionospheric delay cannot be modeled fully.",
+          "actions": [
+            "Check NOAA SWPC Kp index for occupation window",
+            "Prefer dual-frequency devices for future surveys",
+            "Document for QA \u2014 expected accuracy reduced at this point"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            49
+          ],
+          "level": "review",
+          "label": "Severe geomagnetic storm (Kp \u22657) and single-frequency at point {point_id}",
+          "impact": "Severe geomagnetic conditions at GCP {point_id} during occupation. Position errors can reach decimeters under these conditions with single-frequency receivers.",
+          "actions": [
+            "Re-occupy this point during calmer space weather if accuracy is critical",
+            "Replace single-frequency devices with dual-frequency for future surveys",
+            "Reschedule surveys when forecast Kp \u22655 and accuracy is critical"
+          ]
+        }
+      ],
+      "derivation": "Kp \u22655 threshold from NOAA space weather scale (G1+ geomagnetic storm). Kp \u22657 represents severe (G3+) storm. External NOAA SWPC API dependency \u2014 automation pending per chain calibration roadmap.",
+      "flag": "GCP_POINT_IONO_RISK"
+    }
+  }
+}

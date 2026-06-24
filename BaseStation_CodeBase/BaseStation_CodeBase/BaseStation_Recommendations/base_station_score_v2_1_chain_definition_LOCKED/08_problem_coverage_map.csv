@@ -1,0 +1,23 @@
+problem_no,problem,severity,frequency,disposition,covered_by
+1,Antenna Height Blunder,CATASTROPHIC,UNIVERSAL,OWNED,antenna_height_documented_score + ANTENNA_HEIGHT_MISSING gate
+2,Unstable/Unverified Benchmark,CATASTROPHIC,VERY COMMON,PARTIAL+LE,setup_verification_score + BASE_BENCHMARK_UNVERIFIED + Learning Engine
+3,Autonomous Position as Known Base,CATASTROPHIC,COMMON,WARN,BASE_AUTONOMOUS_SEED (non-scoring); judgement to pre-processing
+4,Wrong CRS/Datum,CATASTROPHIC,VERY COMMON,PRE-PROC,removed to pre_processing_score (datum)
+5,Height Mode Confusion,CATASTROPHIC,COMMON,PRE-PROC,removed to pre_processing_score (datum)
+6,Short Observation Window,CRITICAL,VERY COMMON,OWNED,coverage_score + BASE_RINEX_FLIGHT_GAP gate
+7,Base Disturbed Mid-Observation,CRITICAL,COMMON,FLAG,BASE_POSITION_DISCONTINUITY (blind to slow settling)
+8,Base Log Not Downloaded,CRITICAL,VERY COMMON,OWNED,integrity_score via raw_log_download_confirmed
+9,Baseline Too Long (PPK),CRITICAL,COMMON,PRE-PROC,PPK baseline needs Stage-2 known position
+10,RINEX Incompatibility,CRITICAL,COMMON,OWNED,format_score + BASE_RINEX_VERSION_UNSUPPORTED
+11,Float Solution Accepted as Fixed,CRITICAL,OCCASIONAL,OUT-OF-SCOPE,RTK-only — not in PPK base scope
+12,Geoid Model Mismatch,CRITICAL,COMMON,PRE-PROC,removed to pre_processing_score (geoid)
+13,Re-Occupation Error Across Sessions,CRITICAL,COMMON,LE,monument_id handoff to Learning Engine
+14,Multipath from Structures,HIGH,COMMON,OWNED,multipath_score
+15,Multiple Flights Wrong Log Matched,HIGH,COMMON,FLAG,BASE_FLIGHT_LOG_MISMATCH
+16,Constellation Mismatch Base/Rover,HIGH,OCCASIONAL,PARTIAL,format_score base-side + BASE_CONSTELLATION_CROSSDOC
+17,Power Interruption Mid-Observation,HIGH,OCCASIONAL,OWNED,integrity_score (battery+shutdown); oplog-absent edge handled
+18,UTC/Time Offset Error,HIGH,OCCASIONAL,CROSSDOC,BASE_TIME_OFFSET_CROSSDOC — not Stage-1-closeable
+19,Firmware Version Mismatch,HIGH,OCCASIONAL,PARTIAL,firmware_version captured + BASE_FIRMWARE_CROSSDOC
+20,Ionospheric Storm,HIGH,OCCASIONAL,OWNED,ionospheric_risk_score (external NOAA SWPC)
+21,Phase Centre / ANTEX Uncalibrated,MEDIUM,OCCASIONAL,OWNED,"antenna_type_match_score (type-match only, not ANTEX calibration)"
+22,L-Band Correction Conflict,MEDIUM,RARE,OUT-OF-SCOPE,RTK/Trimble-only — not in PPK base scope

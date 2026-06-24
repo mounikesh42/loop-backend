@@ -1,0 +1,1695 @@
+{
+  "_meta": {
+    "title": "base_station_confidence_score",
+    "version": "2.1.0 (LOCKED)",
+    "previous": "2.1.0-pre (six parked questions in offline review)",
+    "workflow": "PPK",
+    "phase": "single",
+    "generated_at": "2026-05-28T07:28:19Z",
+    "design_summary": "Three-block evidence-based base station confidence chain. Confidence-only output: score (0-100) + tier + recommendation. Two HARD gates: coverage gap (L3I_BASE_001=0) and antenna height missing (L3I_BASE_005=0) \u2014 both force overall score to 0 (Q1, Q6 locks). Severity vocabulary at band level: none / minor / material / critical. Recommendation vocabulary at chain level: good_to_go / review_recommended / resurvey_recommended. Vocabularies are deliberately separate. Minor findings (per Q4 lock: slow acquisition, log download unconfirmed) are audit-only \u2014 do not drive recommendation, visible only in \"what passed/what else was checked\" expandable per Q5 lock.",
+    "id_prefixes": {
+      "SRC_BASE_": "source file",
+      "L1F_BASE_": "source field",
+      "L2D_BASE_": "derived field",
+      "L3I_BASE_": "indicator",
+      "BB_BASE_": "building block",
+      "FLG_BASE_": "flag"
+    },
+    "counts": {
+      "source_files": 3,
+      "source_fields": 36,
+      "derived_fields": 24,
+      "indicators": 11,
+      "building_blocks": 3,
+      "flags": 17,
+      "problems": 22
+    },
+    "v2_1_changes": "Added action-template layer to indicators and flags. Each indicator has recommended_action_template with per-band entries (technical_description, operator_action_technical, operator_action_customer_voice, category_impact, raises_flag). Each flag has recommended_action and category_impact. New categorical output: base_station_recommendation = Good to go / Review recommended / Resurvey recommended. Numerical base_station_score retained as diagnostic (now secondary, not primary).",
+    "categorical_output": "PRIMARY operator-facing output is base_station_recommendation. THREE categories: Good to go (proceed with this base station data, no concerns), Review recommended (usable but worth human check before processing), Resurvey recommended (do not use, recollect). Category is determined by most-severe trigger across all fired action items: any resurvey-trigger \u2192 resurvey_recommended; else any review-trigger \u2192 review_recommended; else good_to_go. Hard gates always trigger resurvey_recommended.",
+    "category_mapping_rules": {
+      "chain": "base_station",
+      "categories": [
+        "good_to_go",
+        "review_recommended",
+        "resurvey_recommended"
+      ],
+      "universal_rules": [
+        "HARD GATE fired \u2192 resurvey_recommended (universal across chain library)",
+        "NULL state (chain cannot compute) \u2192 resurvey_recommended"
+      ],
+      "chain_specific_rules": [
+        "Coverage gap (#6 hard gate) \u2192 resurvey_recommended",
+        "Antenna height not entered (#1 hard gate) \u2192 resurvey_recommended",
+        "CRITICAL severity flag fired \u2192 resurvey_recommended",
+        "HIGH severity flag fired (where chain-fixable) \u2192 review_recommended",
+        "HIGH severity flag fired (where downstream-fixable only) \u2192 review_recommended with rationale",
+        "MEDIUM severity flag fired \u2192 review_recommended OR advisory (per-flag judgment)",
+        "Indicator scoring in lowest band (no hard gate) \u2192 review_recommended",
+        "Indicator scoring in middle band \u2192 review_recommended or advisory (per-indicator judgment)",
+        "All indicators \u2265 band-2 AND no flags fired \u2192 good_to_go"
+      ],
+      "final_category_resolution": "Category = most-severe trigger across all fired action items. If any item tags itself \"resurvey\", overall = resurvey_recommended. Else if any item tags itself \"review\", overall = review_recommended. Else good_to_go."
+    },
+    "locked_at": "2026-06-10T13:26:05Z",
+    "q_locks_applied": {
+      "Q1": "antenna_height = true HARD GATE (is_critical_path=true; forces overall score=0)",
+      "Q2": "RINEX version unsupported = material (not critical) \u2014 data fixable via conversion",
+      "Q3": "session interrupted stays critical for v2.1; v2 enhancement (flight-window overlap) pending",
+      "Q4": "SLOW_BASE_ACQUISITION and BASE_LOG_DOWNLOAD_UNCONFIRMED = minor (hygiene, audit-only)",
+      "Q5": "minor findings hidden from default customer view; visible only in \"what passed\" expandable",
+      "Q6": "global_gate_condition lists both hard gates explicitly (coverage + antenna_height)"
+    },
+    "severity_vocabulary": [
+      "none",
+      "minor",
+      "material",
+      "critical"
+    ],
+    "recommendation_vocabulary": [
+      "good_to_go",
+      "review_recommended",
+      "resurvey_recommended"
+    ]
+  },
+  "base_station_score": {
+    "score_id": "base_station_score",
+    "display_name": "Base Station Confidence Score",
+    "workflow": "PPK",
+    "phase": "single (computed once at Stage 1; never revised)",
+    "formula_expression": "0.45*base_completeness_integrity_score + 0.35*base_setup_confidence_score + 0.20*base_observation_environment_score",
+    "global_gate_condition": "base_completeness_integrity_score == 0 OR antenna_height_documented_score == 0",
+    "global_gate_action": "Any one of the following forces base_station_score = 0 (HARD GATE):\n  (1) L3I_BASE_001 coverage_score == 0 (flight gap: BASE_RINEX_FLIGHT_GAP)\n  (2) L3I_BASE_005 antenna_height_documented_score == 0 (no height: ANTENNA_HEIGHT_MISSING)\nWhen either fires, overall score is forced to 0 regardless of other indicators. Audit trail must identify which gate(s) fired.",
+    "scope_note": "Feeds capture_score alongside drone_score, gcp_score, pre_processing_score. Excludes everything from CORS/known-point/datum/geoid (those live in pre_processing_score). RTK-only concerns out of scope.",
+    "source_file_set": "Base Station RINEX (SRC_BASE_RINEX), Operation Log (SRC_BASE_OPLOG), User Input form (SRC_BASE_FORM).",
+    "severity_of_finding_vocabulary": "Indicator-band level severity (used in operator_action templates and rendering). Four values, in increasing severity: NONE (band passed, no concern) \u2192 MINOR (hygiene signal, audit-only; does NOT drive recommendation; visible only in \"what passed/what else was checked\" expandable per Q5 lock) \u2192 MATERIAL (warrants human review before processing; drives review_recommended recommendation) \u2192 CRITICAL (serious finding warranting recollection; drives resurvey_recommended recommendation). Note: severity_of_finding is the BAND-LEVEL vocabulary. The CHAIN-LEVEL recommendation vocabulary is good_to_go / review_recommended / resurvey_recommended. These are deliberately separate to prevent conflation (resolved during v2.1 design).",
+    "verification_status_field": "Separate categorical field reporting base-station-level verification quality. VALUES: BASE_VERIFIED_HIGH (clean session, all blocks passed, no findings); BASE_VERIFIED_MARGINAL (one or more material findings present; review_recommended); BASE_VERIFIED_FAIL (critical finding present; resurvey_recommended); BASE_HARD_GATE_FIRED (one or both hard gates fired \u2014 coverage gap or antenna height missing). NEVER score-gating. Score reflects measurement quality; status reports verification basis.",
+    "tier_interpretation": "BASE TIER (from numerical score): Gold 90-100; Silver 75-89; Bronze 60-74; Marginal 40-59; Poor <40. \n\nHARD GATE: When either hard gate fires (coverage_score = 0 OR antenna_height_documented_score = 0), overall base_station_score is forced to 0. Tier = Poor (HARD GATE). This is enforced at the chain level, not at indicator-band level. \n\nQ1-Q6 lock decisions (v2.1):\n  Q1: antenna_height = true hard gate (forces overall score to 0)\n  Q2: RINEX version unsupported = review (not resurvey) \u2014 data fixable via conversion\n  Q3: session interrupted stays critical for v2.1; v2 enhancement (flight-window overlap) pending\n  Q4: SLOW_BASE_ACQUISITION and BASE_LOG_DOWNLOAD_UNCONFIRMED = minor (hygiene signals)\n  Q5: minor findings hidden from default customer view, visible only in expandables\n  Q6: global_gate_condition lists both hard gates explicitly\n",
+    "null_handling": "base_station_score = null when RINEX file not provided. When BASE_LOG_DOWNLOAD_UNCONFIRMED fires (operation log absent), integrity score reduced (per L3I_BASE_002 band logic) but overall score not nulled. When session_interrupted occurs outside flight window (future v2 enhancement), score may downgrade rather than fire critical."
+  },
+  "base_station_score_blocks": [
+    {
+      "block_id": "BB_BASE_COMPLETE",
+      "block_name": "base_completeness_integrity_score",
+      "weight": 0.45
+    },
+    {
+      "block_id": "BB_BASE_SETUP",
+      "block_name": "base_setup_confidence_score",
+      "weight": 0.35
+    },
+    {
+      "block_id": "BB_BASE_ENV",
+      "block_name": "base_observation_environment_score",
+      "weight": 0.2
+    }
+  ],
+  "building_blocks": [
+    {
+      "block_id": "BB_BASE_COMPLETE",
+      "block_name": "base_completeness_integrity_score",
+      "display_name": "Data Completeness & Integrity",
+      "weight_in_base_station_score": 0.45,
+      "question": "Is the data there, complete, and usable?",
+      "failure_owner": "Recording / hardware",
+      "operator_action": "May need to re-survey",
+      "formula": "0.35*coverage_score + 0.30*integrity_score + 0.20*format_score + 0.15*continuity_score",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "coverage_score = 0 (coverage_ratio < 1.0)",
+      "gate_action": "Sets block = 0 and base_station_score = 0. FLAG: BASE_RINEX_FLIGHT_GAP + BASE_CRITICAL_FAILURE."
+    },
+    {
+      "block_id": "BB_BASE_SETUP",
+      "block_name": "base_setup_confidence_score",
+      "display_name": "Setup & Documentation Confidence",
+      "weight_in_base_station_score": 0.35,
+      "question": "Is the operator metadata trustworthy?",
+      "failure_owner": "Human (operator)",
+      "operator_action": "Re-measure & re-enter; get second-person verification",
+      "formula": "0.55*antenna_height_documented_score + 0.30*setup_verification_score + 0.15*antenna_type_match_score",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "antenna_height_m absent",
+      "gate_action": "Sets block = 0. FLAG: ANTENNA_HEIGHT_MISSING. (Scores documentation rigor, not measured correctness.)"
+    },
+    {
+      "block_id": "BB_BASE_ENV",
+      "block_name": "base_observation_environment_score",
+      "display_name": "Observation Environment Quality",
+      "weight_in_base_station_score": 0.2,
+      "question": "Was the sky / site good enough?",
+      "failure_owner": "Sky / site",
+      "operator_action": "Relocate antenna next time; accept noise or reprocess",
+      "formula": "0.45*multipath_score + 0.20*ionospheric_risk_score + 0.20*pdop_score + 0.15*acquisition_score",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": ""
+    }
+  ],
+  "indicators": [
+    {
+      "indicator_id": "L3I_BASE_001",
+      "indicator_name": "coverage_score",
+      "display_name": "Flight Coverage & Buffer",
+      "building_block_id": "BB_BASE_COMPLETE",
+      "weight_in_block": 0.35,
+      "covers_problems": "#6",
+      "input_derived_fields": "base_flight_coverage_ratio;pre_flight_buffer_sec;post_flight_buffer_sec",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "base_flight_coverage_ratio < 1.0",
+      "gate_action": "Sets completeness block = 0. FLAG: BASE_RINEX_FLIGHT_GAP.",
+      "justification": "SHEET",
+      "threshold_summary": "Coverage=1.0 & pre\u2265120s & post\u226560s \u2192100; coverage=1.0 & pre\u226560s \u219288; coverage=1.0 & pre<60s \u219272; coverage<1.0 \u21920+gate.",
+      "recommended_action_template": [
+        {
+          "score_range": "100",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "Base station RINEX fully covers the flight window with sufficient pre-flight buffer (\u2265120s) and post-flight buffer (\u226560s).",
+          "operator_action_technical": "No action required. Coverage is optimal for PPK processing.",
+          "operator_action_customer_voice": "Base recording timing is good \u2014 covers the full flight with healthy buffers before and after."
+        },
+        {
+          "score_range": "88",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "Coverage complete but pre-flight buffer is short (60-120s). PPK convergence may be slightly compromised at flight start.",
+          "operator_action_technical": "No action required. Coverage acceptable. For future surveys, target \u22652 min pre-flight buffer for best convergence.",
+          "operator_action_customer_voice": "Coverage is fine but pre-flight buffer was on the short side. Next survey: try to start the base at least 2 minutes before the drone takes off."
+        },
+        {
+          "score_range": "72",
+          "raises_flag": null,
+          "category_impact": "review_recommended",
+          "technical_description": "Coverage complete but pre-flight buffer is <60s. Insufficient time for PPK ambiguity resolution before flight begins. First-pass measurements may be affected.",
+          "operator_action_technical": "Review processed PPK convergence quality for the first few epochs. If sigma values are elevated early in the flight, exclude those points or accept reduced confidence on early data.",
+          "operator_action_customer_voice": "Base was started too close to takeoff. The first few seconds of flight data may have higher position error than the rest. Check the processed output \u2014 if it looks fine, you're good. If early epochs look noisy, trim them."
+        },
+        {
+          "score_range": "0 (HARD GATE)",
+          "raises_flag": "BASE_RINEX_FLIGHT_GAP",
+          "category_impact": "resurvey_recommended",
+          "technical_description": "Coverage gap: base RINEX does not fully cover the flight window. Portions of the flight have no PPK reference data available.",
+          "operator_action_technical": "Cannot proceed with PPK for the uncovered flight portions. Options: (1) recollect the base station data with adequate coverage; (2) use a CORS as base for uncovered portions if available; (3) accept that uncovered flight portions have only autonomous-fix accuracy.",
+          "operator_action_customer_voice": "The base wasn't recording during part of your flight. PPK can't correct those moments. You'll need to recollect \u2014 start the base earlier and stop it later next time. (If a CORS station was nearby, your processor may be able to use that instead.)",
+          "hard_gate": true
+        }
+      ],
+      "is_critical_path": true
+    },
+    {
+      "indicator_id": "L3I_BASE_002",
+      "indicator_name": "integrity_score",
+      "display_name": "Session & Power Integrity",
+      "building_block_id": "BB_BASE_COMPLETE",
+      "weight_in_block": 0.3,
+      "covers_problems": "#8,#17",
+      "input_derived_fields": "session_integrity_ok;raw_log_download_confirmed",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET+OPLOG",
+      "threshold_summary": "completed_normally & 0 shutdowns & battery ok \u2192100; shutdown\u22651 \u219220 (BASE_SESSION_INTERRUPTED); Operation Log absent/null \u2192 unconfirmed (\u224860), never silent pass; download not confirmed \u2192 advisory flag.",
+      "recommended_action_template": [
+        {
+          "score_range": "100",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "Session completed normally. Zero unexpected shutdowns. Battery state was healthy throughout. RINEX downloaded confirmed.",
+          "operator_action_technical": "No action required. Session integrity verified.",
+          "operator_action_customer_voice": "Base recording session was clean \u2014 no interruptions, battery held up, file transferred properly."
+        },
+        {
+          "score_range": "20",
+          "raises_flag": "BASE_SESSION_INTERRUPTED",
+          "category_impact": "resurvey_recommended",
+          "technical_description": "Operation Log reports at least one unexpected shutdown during the session. RINEX may be truncated or contain epoch corruption near the shutdown event.",
+          "operator_action_technical": "Inspect RINEX around the timestamp of the reported shutdown(s). If the shutdown occurred outside the flight window, data may still be usable for PPK. If it occurred during flight coverage, recollect.",
+          "operator_action_customer_voice": "The base shut down during recording. Check whether it died during the flight or before/after. If during the flight, you need to redo the survey \u2014 the base data has a hole. If before takeoff or after landing, your flight data should still be fine."
+        },
+        {
+          "score_range": "~60 (Operation Log absent)",
+          "raises_flag": null,
+          "category_impact": "review_recommended",
+          "technical_description": "Operation Log file not uploaded. Session integrity cannot be confirmed from device-side evidence. Per chain design: absent log = unconfirmed, not silent pass.",
+          "operator_action_technical": "Confirm RINEX file integrity by other means: check file size against expected duration, inspect last epoch timestamp, verify download completed. For future surveys, ensure Operation Log capture is part of standard procedure.",
+          "operator_action_customer_voice": "We didn't get the device's status file, so we can't confirm the base shut down cleanly. The data looks usable, but if you noticed any issues at the base unit, mention them now. Make sure the operation log uploads with the base files next time."
+        },
+        {
+          "score_range": "Advisory: download not confirmed",
+          "raises_flag": "BASE_LOG_DOWNLOAD_UNCONFIRMED",
+          "category_impact": "review_recommended",
+          "technical_description": "RINEX file transfer from receiver was not explicitly confirmed. Possible incomplete download or sync.",
+          "operator_action_technical": "Verify file completeness: compare file size and last epoch against expected duration. Re-download from receiver if available.",
+          "operator_action_customer_voice": "File transfer from the base receiver wasn't confirmed. Check the file size looks right for the recording duration. If the base is still in the field, pull the file again to be sure."
+        }
+      ],
+      "is_critical_path": false,
+      "v2_1_q_lock_note": "Q3: session_interrupted band stays critical for v2.1 (safe default). v2 enhancement to check timestamp overlap with flight window pending \u2014 when implemented, will conditionally downgrade to material if shutdown is outside flight window."
+    },
+    {
+      "indicator_id": "L3I_BASE_003",
+      "indicator_name": "format_score",
+      "display_name": "RINEX Format & Compatibility",
+      "building_block_id": "BB_BASE_COMPLETE",
+      "weight_in_block": 0.2,
+      "covers_problems": "#10,#16,#19",
+      "input_derived_fields": "rinex_version_supported;header_completeness;dual_freq_available;constellation_count",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "version supported & header complete & dual-freq \u2192100; single-freq \u219270; version unsupported \u219235 (BASE_RINEX_VERSION_UNSUPPORTED); header incomplete \u219240.",
+      "recommended_action_template": [
+        {
+          "score_range": "100",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "RINEX version is supported (2.11 or 3.x). Header is complete with all required metadata. Dual-frequency observations present.",
+          "operator_action_technical": "No action required.",
+          "operator_action_customer_voice": "RINEX file format is clean \u2014 header is complete, dual-frequency data captured."
+        },
+        {
+          "score_range": "70",
+          "raises_flag": null,
+          "category_impact": "review_recommended",
+          "technical_description": "Single-frequency observations only. Ionospheric error cannot be modeled or removed. Position accuracy degraded, especially under elevated solar activity.",
+          "operator_action_technical": "Verify receiver capabilities and configuration. If single-frequency is unavoidable, ensure ionospheric correction model is applied during PPK processing. Expect reduced accuracy under high Kp index conditions.",
+          "operator_action_customer_voice": "The base only logged single-frequency GPS. This reduces accuracy, especially when ionospheric activity is high. Check if the receiver actually supports dual-frequency and whether it was configured correctly. If single-frequency is what you have, the PPK output will be less precise \u2014 particularly during active solar weather."
+        },
+        {
+          "score_range": "40 (header incomplete)",
+          "raises_flag": null,
+          "category_impact": "review_recommended",
+          "technical_description": "RINEX header missing required fields (e.g., marker name, antenna type, approx position). Processing software may reject or default to assumptions.",
+          "operator_action_technical": "Inspect RINEX header against RINEX format specification. Manually populate missing fields if values are known from receiver configuration or operator records. Verify PPK software can ingest the resulting file.",
+          "operator_action_customer_voice": "The RINEX header is missing information the processor needs. Open the file and check what's missing \u2014 usually the antenna type or marker name. You can patch these in manually if you know the right values, but get them confirmed."
+        },
+        {
+          "score_range": "35 (version unsupported)",
+          "raises_flag": "BASE_RINEX_VERSION_UNSUPPORTED",
+          "category_impact": "review_recommended",
+          "technical_description": "RINEX file is in a version not supported by the configured PPK software (e.g., obsolete v1.x or non-standard variant).",
+          "operator_action_technical": "Convert RINEX to a supported version using receiver-specific converter or industry-standard tool (e.g., teqc, gfzrnx). Verify converted file passes format validation before submitting to PPK.",
+          "operator_action_customer_voice": "The RINEX file is in a version we can't process directly. You'll need to convert it to a standard format (RINEX 3.x or 2.11) \u2014 your receiver manufacturer's software usually has this option, or you can use a standard converter. Then resubmit.",
+          "severity_of_finding": "material",
+          "v2_1_q_lock": "Q2: downgraded from resurvey_recommended to review_recommended (data is fine; format conversion required; not a recollection trigger)"
+        }
+      ],
+      "is_critical_path": false
+    },
+    {
+      "indicator_id": "L3I_BASE_004",
+      "indicator_name": "continuity_score",
+      "display_name": "Recording Continuity",
+      "building_block_id": "BB_BASE_COMPLETE",
+      "weight_in_block": 0.15,
+      "covers_problems": "#7",
+      "input_derived_fields": "cycle_slip_count;gap_gt_5s_count;any_gap_gt_60s",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "RINEX",
+      "threshold_summary": "no gaps & low slips \u2192100; minor gaps \u219275; any_gap_gt_60s \u219240; feeds disturbance_signature composite.",
+      "recommended_action_template": [
+        {
+          "score_range": "100",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "No epoch gaps. Cycle slip count is low across all tracked satellites. Continuous observation throughout session.",
+          "operator_action_technical": "No action required.",
+          "operator_action_customer_voice": "Base recorded continuously \u2014 no dropouts, minimal cycle slips. Clean data."
+        },
+        {
+          "score_range": "75",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "Minor epoch gaps (<60s total) or moderate cycle slip count. PPK processing should still resolve cleanly.",
+          "operator_action_technical": "No action required. Note in QA log that minor disturbances were observed for traceability.",
+          "operator_action_customer_voice": "Base had a few brief blips in the recording. Nothing serious \u2014 PPK will handle it. Worth noting in your project log."
+        },
+        {
+          "score_range": "40 (gap >60s)",
+          "raises_flag": "BASE_POSITION_DISCONTINUITY",
+          "category_impact": "review_recommended",
+          "technical_description": "Observation gap exceeding 60 seconds detected. PPK processing must re-converge after the gap. Position accuracy degraded across the gap and during re-convergence.",
+          "operator_action_technical": "Inspect RINEX around the gap timestamp. Determine cause (signal blockage, brief receiver power issue, satellite constellation change). If gap occurred during flight coverage, expect reduced PPK confidence for affected flight portion. Consider splitting flight into pre-gap and post-gap segments for processing.",
+          "operator_action_customer_voice": "The base lost satellite tracking for over a minute at one point. PPK will work, but the accuracy near that gap will be reduced. If the gap happened during your flight, check whether any photos were taken during the affected window. Common causes: vehicle parked over the antenna, building blockage, or brief power dip."
+        }
+      ],
+      "is_critical_path": false
+    },
+    {
+      "indicator_id": "L3I_BASE_005",
+      "indicator_name": "antenna_height_documented_score",
+      "display_name": "Antenna Height Documentation",
+      "building_block_id": "BB_BASE_SETUP",
+      "weight_in_block": 0.55,
+      "covers_problems": "#1",
+      "input_derived_fields": "antenna_measurement_type;measured_to_reference;height_measured_count;antenna_height_agreement",
+      "has_internal_gate": "TRUE",
+      "gate_condition": "antenna_height_m absent",
+      "gate_action": "Sets base_station_score = 0 (HARD GATE \u2014 Q1 lock v2.1). FLAG: ANTENNA_HEIGHT_MISSING.",
+      "justification": "SHEET",
+      "threshold_summary": "vertical + reference=ARP + \u22653 measurements + RINEX agreement \u2192100; single vertical \u219288; slant \u219272; height entered but conflicts with RINEX delta-H \u219255 (review); no height \u21920+gate.",
+      "recommended_action_template": [
+        {
+          "score_range": "100",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "Antenna height entered as vertical measurement, with reference=ARP (antenna reference point), \u22653 independent measurements taken, and value matches RINEX delta-H if present.",
+          "operator_action_technical": "No action required.",
+          "operator_action_customer_voice": "Antenna height was measured carefully (multiple readings, to ARP) and matches what the receiver recorded."
+        },
+        {
+          "score_range": "88",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "Antenna height entered with vertical measurement and ARP reference, but with single measurement (no redundancy).",
+          "operator_action_technical": "No action required. For higher confidence in future surveys, take 3+ measurements and average.",
+          "operator_action_customer_voice": "Antenna height is recorded correctly but only measured once. For projects where height accuracy really matters, measure 3 times and average. Otherwise good."
+        },
+        {
+          "score_range": "72 (slant)",
+          "raises_flag": null,
+          "category_impact": "review_recommended",
+          "technical_description": "Antenna height entered as slant measurement (from ground to antenna edge) rather than vertical-to-ARP. Trigonometric conversion may have been applied incorrectly. Slant measurements have higher systematic error.",
+          "operator_action_technical": "Verify slant-to-vertical conversion: vertical = sqrt(slant\u00b2 - radius\u00b2) where radius is the horizontal distance from ARP projection to measurement point. Confirm conversion was applied. If processed PPK used the slant value directly, recompute with corrected vertical.",
+          "operator_action_customer_voice": "Antenna height was measured as a slant (from ground to the edge of the antenna disc), not a true vertical to the ARP. Check whether the slant was converted correctly \u2014 if not, your processed elevations will be off by a few cm. For future surveys, measure vertical-to-ARP directly, or measure slant and write down both the slant distance and the antenna radius."
+        },
+        {
+          "score_range": "55 (conflicts with RINEX delta-H)",
+          "raises_flag": null,
+          "category_impact": "review_recommended",
+          "technical_description": "Operator-entered antenna height conflicts with the delta-H value in the RINEX header. One of the values is wrong. Cannot proceed with PPK until resolved \u2014 wrong delta-H propagates directly to all processed elevations.",
+          "operator_action_technical": "Reconcile the two values. Common causes: (1) form value measured to base of antenna, RINEX written to ARP; (2) wrong antenna model selected on form, default delta-H differs; (3) field measurement error. Resolve by checking field notes and antenna documentation. Update whichever source is wrong before reprocessing.",
+          "operator_action_customer_voice": "Your field-measured antenna height ({entered_value}m) doesn't match what the receiver logged ({rinex_value}m). One of them is wrong \u2014 most common reason: you measured to the bottom of the antenna instead of to the ARP (antenna reference point). Check your field notes and the antenna spec sheet. Whichever value is wrong, fix it before processing."
+        },
+        {
+          "score_range": "0 (HARD GATE)",
+          "raises_flag": "ANTENNA_HEIGHT_MISSING",
+          "category_impact": "resurvey_recommended",
+          "technical_description": "Antenna height not entered in form. Without antenna height, the base station ARP elevation cannot be determined. All PPK-derived elevations would be relative to an unknown reference.",
+          "operator_action_technical": "Enter antenna height immediately if known from field records. If not recoverable, recollect: the base station must be set up again with antenna height measured and recorded.",
+          "operator_action_customer_voice": "No antenna height was entered. PPK can't produce correct elevations without this. Check your field notes \u2014 if you measured it but forgot to enter it, add it now. If you didn't measure it, you need to redo the base setup at the same point with a measured height.",
+          "hard_gate": true
+        }
+      ],
+      "is_critical_path": true
+    },
+    {
+      "indicator_id": "L3I_BASE_006",
+      "indicator_name": "setup_verification_score",
+      "display_name": "Setup Verification",
+      "building_block_id": "BB_BASE_SETUP",
+      "weight_in_block": 0.3,
+      "covers_problems": "#2",
+      "input_derived_fields": "over_known_mark;monument_id;verified_by_second_person",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "over known mark & verified by 2nd person \u2192100; known mark only \u219280; unverified reused mark \u219250 (BASE_BENCHMARK_UNVERIFIED, non-scoring warn + LE handoff).",
+      "recommended_action_template": [
+        {
+          "score_range": "100",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "Base station was set up over a known reference mark with documented coordinates. Setup was verified by a second person (independent check of antenna centering, height measurement, mark identification).",
+          "operator_action_technical": "No action required.",
+          "operator_action_customer_voice": "Base was set up on a known reference mark with a second person checking the setup. Best practice followed."
+        },
+        {
+          "score_range": "80",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "Base was set up over a known reference mark but verification by second person was not documented.",
+          "operator_action_technical": "No action required. For future surveys involving high-stakes deliverables, add second-person setup verification to standard procedure.",
+          "operator_action_customer_voice": "Base was on a known mark but nobody else confirmed the setup. Fine for most jobs. For high-stakes work (legal surveys, billing-grade deliverables), have someone else double-check the centering and height measurement next time."
+        },
+        {
+          "score_range": "50 (unverified reused mark)",
+          "raises_flag": "BASE_BENCHMARK_UNVERIFIED",
+          "category_impact": "review_recommended",
+          "technical_description": "Base was set up over a mark that was previously used but no verification of that mark's coordinates was performed this session. Possible mark disturbance or coordinate drift since last use.",
+          "operator_action_technical": "Verify reused mark coordinates by static occupation + processing against a CORS, or by comparing PPK-derived position against published mark coordinates. If verification not feasible, document as advisory and hand off to local-engineering reviewer.",
+          "operator_action_customer_voice": "Base was set up on a reference mark that has been used before but wasn't re-checked this time. The mark might have been disturbed or its coordinates may have drifted. For most surveys this is fine but should be flagged in your project log. If the mark hasn't been checked in over a year or there's been ground disturbance nearby, verify it."
+        }
+      ],
+      "is_critical_path": false
+    },
+    {
+      "indicator_id": "L3I_BASE_007",
+      "indicator_name": "antenna_type_match_score",
+      "display_name": "Antenna Type Consistency",
+      "building_block_id": "BB_BASE_SETUP",
+      "weight_in_block": 0.15,
+      "covers_problems": "#21",
+      "input_derived_fields": "antenna_type_match",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "form model matches RINEX type \u2192100; mismatch \u219240 (type inconsistent; NOT a true ANTEX calibration check \u2014 that is Stage 2).",
+      "recommended_action_template": [
+        {
+          "score_range": "100",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "Antenna model selected on operator form matches the antenna_type field in the RINEX header. Cross-document consistency verified.",
+          "operator_action_technical": "No action required.",
+          "operator_action_customer_voice": "Antenna model entered on the form matches what the receiver recorded. Consistent."
+        },
+        {
+          "score_range": "40 (mismatch)",
+          "raises_flag": null,
+          "category_impact": "review_recommended",
+          "technical_description": "Operator-selected antenna model does not match RINEX antenna_type field. Possible causes: wrong selection on form, RINEX header miswritten, antenna swap mid-session. Wrong antenna selection \u2192 wrong ANTEX/ARP geometry \u2192 systematic position bias (typically mm to cm).",
+          "operator_action_technical": "Reconcile: (1) verify the physical antenna in the field against both form selection and RINEX header; (2) determine which is correct; (3) update the wrong source and re-process. Note: this is NOT a true ANTEX calibration check \u2014 only a type-string consistency check. Even with matched type, ANTEX phase-center variations remain a Stage-2 concern (pre_processing).",
+          "operator_action_customer_voice": "The antenna model on the form doesn't match what the receiver logged. Check what was actually on the tripod. Usually the form is wrong (operator selected the wrong model from the dropdown) but sometimes the receiver was configured with the wrong antenna name. Fix whichever is wrong and re-process. Using the wrong antenna profile will shift all your heights by a few millimetres to a few centimetres."
+        }
+      ],
+      "is_critical_path": false
+    },
+    {
+      "indicator_id": "L3I_BASE_008",
+      "indicator_name": "multipath_score",
+      "display_name": "Multipath Environment",
+      "building_block_id": "BB_BASE_ENV",
+      "weight_in_block": 0.45,
+      "covers_problems": "#14",
+      "input_derived_fields": "multipath_risk_level;cn0_mean_dbhz",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "low C/N0 variance \u2192100; moderate \u219265; high variance \u219235 (BASE_MULTIPATH_RISK). Risk proxy, not error magnitude.",
+      "recommended_action_template": [
+        {
+          "score_range": "100",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "Low C/N0 (carrier-to-noise) variance across tracked satellites. Signal environment appears clean of reflective/multipath disturbance.",
+          "operator_action_technical": "No action required.",
+          "operator_action_customer_voice": "Signal-to-noise readings look clean \u2014 base was probably in a good open spot, away from reflective surfaces."
+        },
+        {
+          "score_range": "65",
+          "raises_flag": null,
+          "category_impact": "review_recommended",
+          "technical_description": "Moderate C/N0 variance. Suggests partial multipath risk \u2014 base may have been near reflective surfaces (vehicles, structures, water). Risk proxy only \u2014 actual error impact emerges during PPK residual analysis.",
+          "operator_action_technical": "Review processed PPK residuals for systematic position oscillations consistent with multipath. If residuals look clean, accept and proceed. For future surveys, position base further from buildings, vehicles, and metal surfaces.",
+          "operator_action_customer_voice": "Signal-to-noise was noisier than ideal. The base may have been too close to a building, vehicle, water, or other reflective surface. PPK can usually handle this, but check the processed output for any wobbly position values. Next time, give the base at least 10-15m of clearance from anything reflective."
+        },
+        {
+          "score_range": "35 (high variance)",
+          "raises_flag": "BASE_MULTIPATH_RISK",
+          "category_impact": "review_recommended",
+          "technical_description": "High C/N0 variance. Significant multipath risk \u2014 base was very likely in a reflective environment. PPK residuals likely show position oscillations.",
+          "operator_action_technical": "Inspect processed PPK output for position oscillations or elevated residuals. If observed, either: (1) accept reduced confidence, (2) reprocess excluding affected satellite tracks, or (3) recollect base at a cleaner site. For future surveys: relocate base to open sky, away from reflectors.",
+          "operator_action_customer_voice": "Base was clearly in a noisy spot \u2014 reflections were affecting the signal. Look at the processed position output: if it's wobbling around, you may need to redo this with the base in a cleaner location (open sky, away from buildings, vehicles, water). For future jobs: scout the base location first and avoid anything that could reflect signals back to the antenna."
+        }
+      ],
+      "is_critical_path": false
+    },
+    {
+      "indicator_id": "L3I_BASE_009",
+      "indicator_name": "ionospheric_risk_score",
+      "display_name": "Ionospheric Risk",
+      "building_block_id": "BB_BASE_ENV",
+      "weight_in_block": 0.2,
+      "covers_problems": "#20",
+      "input_derived_fields": "kp_index;dual_freq_available",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "SHEET",
+      "threshold_summary": "Kp low OR dual-freq \u2192100; Kp high & single-freq \u219240 (BASE_IONO_RISK). External NOAA SWPC dependency; not yet built.",
+      "recommended_action_template": [
+        {
+          "score_range": "100",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "Either Kp index was low during survey window OR base recorded dual-frequency (which models ionospheric delay). No elevated ionospheric risk.",
+          "operator_action_technical": "No action required.",
+          "operator_action_customer_voice": "Ionospheric conditions were calm (or you recorded dual-frequency which handles it). No issue."
+        },
+        {
+          "score_range": "40 (high Kp + single-freq)",
+          "raises_flag": "BASE_IONO_RISK",
+          "category_impact": "review_recommended",
+          "technical_description": "Geomagnetic activity (Kp index) was elevated during the survey window AND base recorded only single-frequency observations. Ionospheric delay cannot be modeled. Position accuracy may be degraded by cm to tens of cm depending on activity level.",
+          "operator_action_technical": "Check actual Kp index for survey window via NOAA SWPC. If Kp \u22655, expect significant accuracy degradation. Consider: (1) reprocessing with ionospheric correction model from external source if available, (2) accepting reduced confidence, (3) recollecting during calmer geomagnetic conditions if accuracy is critical. (NOTE: NOAA SWPC integration is not yet built into CBMI \u2014 Kp lookup is currently manual.)",
+          "operator_action_customer_voice": "Solar activity was elevated during your survey and your base was single-frequency. This can push position errors by several centimetres or more. Check the NOAA space weather website (swpc.noaa.gov) for the Kp index during your survey window. If conditions were stormy (Kp 5+), consider re-shooting during quieter weather, or accept that this dataset has higher error than usual."
+        }
+      ],
+      "is_critical_path": false
+    },
+    {
+      "indicator_id": "L3I_BASE_010",
+      "indicator_name": "pdop_score",
+      "display_name": "Sky Geometry (PDOP)",
+      "building_block_id": "BB_BASE_ENV",
+      "weight_in_block": 0.2,
+      "covers_problems": "(general quality)",
+      "input_derived_fields": "mean_pdop;max_pdop",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "RINEX",
+      "threshold_summary": "mean PDOP <2 \u2192100; 2\u20134 \u219280; 4\u20136 \u219255; >6 \u219230. General geometry hygiene; no enumerated problem.",
+      "recommended_action_template": [
+        {
+          "score_range": "100",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "Mean PDOP < 2.0. Excellent satellite geometry throughout session.",
+          "operator_action_technical": "No action required.",
+          "operator_action_customer_voice": "Satellite geometry was excellent \u2014 strong sky coverage."
+        },
+        {
+          "score_range": "80",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "Mean PDOP 2-4. Good satellite geometry. No expected impact on PPK performance.",
+          "operator_action_technical": "No action required.",
+          "operator_action_customer_voice": "Satellite geometry was good. Standard PPK performance expected."
+        },
+        {
+          "score_range": "55",
+          "raises_flag": null,
+          "category_impact": "review_recommended",
+          "technical_description": "Mean PDOP 4-6. Marginal satellite geometry. PPK accuracy modestly degraded.",
+          "operator_action_technical": "Review processed PPK output for elevated position uncertainty. For future surveys at this location, check planned satellite availability with mission planning software before deployment.",
+          "operator_action_customer_voice": "Satellite geometry was below ideal \u2014 fewer or worse-spaced satellites visible. PPK still works but accuracy is somewhat reduced. Check your processed output. Next time, run a mission planner for this location and time to confirm satellite coverage will be adequate."
+        },
+        {
+          "score_range": "30",
+          "raises_flag": null,
+          "category_impact": "review_recommended",
+          "technical_description": "Mean PDOP > 6. Poor satellite geometry throughout session. PPK accuracy significantly degraded.",
+          "operator_action_technical": "Inspect PPK processed position uncertainties. Expect elevated sigma values. Consider whether dataset meets accuracy requirements; if not, recollect during a different satellite availability window.",
+          "operator_action_customer_voice": "Sky coverage was poor for this base location \u2014 too few satellites or all clustered together. PPK will work but with reduced accuracy. Check whether your project tolerance allows it. If accuracy is critical, redo when satellite coverage is better (use a mission planning tool first)."
+        }
+      ],
+      "is_critical_path": false
+    },
+    {
+      "indicator_id": "L3I_BASE_011",
+      "indicator_name": "acquisition_score",
+      "display_name": "Satellite Acquisition",
+      "building_block_id": "BB_BASE_ENV",
+      "weight_in_block": 0.15,
+      "covers_problems": "(general quality)",
+      "input_derived_fields": "base_acquisition_time_sec",
+      "has_internal_gate": "FALSE",
+      "gate_condition": "",
+      "gate_action": "",
+      "justification": "RINEX",
+      "threshold_summary": "fast acquisition (<60s) \u2192100; 60\u2013180s \u219280; 180\u2013300s \u219255; >300s \u219230 (SLOW_BASE_ACQUISITION). General hygiene.",
+      "recommended_action_template": [
+        {
+          "score_range": "100",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "Base acquired sufficient satellites within 60 seconds of session start. Fast acquisition indicates healthy receiver and clean signal environment.",
+          "operator_action_technical": "No action required.",
+          "operator_action_customer_voice": "Base picked up satellites quickly \u2014 healthy startup."
+        },
+        {
+          "score_range": "80",
+          "raises_flag": null,
+          "category_impact": "good_to_go",
+          "technical_description": "Acquisition took 60-180 seconds. Normal startup.",
+          "operator_action_technical": "No action required.",
+          "operator_action_customer_voice": "Base took a couple minutes to lock onto satellites \u2014 normal."
+        },
+        {
+          "score_range": "55",
+          "raises_flag": null,
+          "category_impact": "audit_only_minor",
+          "technical_description": "Acquisition took 180-300 seconds. Slow startup may indicate cold receiver, partial sky obstruction, or signal interference.",
+          "operator_action_technical": "Document for QA. If signal environment was clean and receiver was warm, may indicate receiver health issue worth tracking over multiple surveys.",
+          "operator_action_customer_voice": "Base was slow to acquire satellites. This is usually just a cold start (first time powering up that day, or after long storage). If it keeps happening, the receiver may have an issue or the antenna site has obstructions.",
+          "severity_of_finding": "minor",
+          "v2_1_q_lock": "Q4: downgraded from review_recommended to minor (audit_only_minor). Acquisition slowness is hygiene signal, not deliverable-quality concern."
+        },
+        {
+          "score_range": "30",
+          "raises_flag": "SLOW_BASE_ACQUISITION",
+          "category_impact": "audit_only_minor",
+          "technical_description": "Acquisition took >300 seconds. Significant startup difficulty suggests environmental obstruction, receiver health issue, or signal interference.",
+          "operator_action_technical": "Investigate cause: (1) check antenna location for obstructions; (2) review receiver firmware and battery state; (3) check for RF interference sources (transmitters, motors, power lines). If pattern repeats, retire or service receiver.",
+          "operator_action_customer_voice": "Base took over 5 minutes to find satellites. Something's wrong \u2014 either the base location has bad sky exposure, the receiver is having issues, or there's radio interference nearby. If this keeps happening with this unit, have it serviced or replaced.",
+          "severity_of_finding": "minor",
+          "v2_1_q_lock": "Q4: downgraded from review_recommended to minor (audit_only_minor). Acquisition slowness is hygiene signal, not deliverable-quality concern."
+        }
+      ],
+      "is_critical_path": false
+    }
+  ],
+  "derived_fields": [
+    {
+      "derived_id": "L2D_BASE_001",
+      "derived_name": "base_flight_coverage_ratio",
+      "formula_expression": "base obs window \u2229 flight window / flight window",
+      "meaning": "Fraction of the drone flight covered by base observations. Must equal 1.0; any less means PPK gaps.",
+      "input_field_names": "obs_start_utc;obs_end_utc;flight_start_utc;flight_end_utc",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_002",
+      "derived_name": "pre_flight_buffer_sec",
+      "formula_expression": "flight_start_utc \u2212 obs_start_utc",
+      "meaning": "Seconds the base was recording before flight start. Threshold \u2265120s ideal, \u226560s acceptable.",
+      "input_field_names": "obs_start_utc;flight_start_utc",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_003",
+      "derived_name": "post_flight_buffer_sec",
+      "formula_expression": "obs_end_utc \u2212 flight_end_utc",
+      "meaning": "Seconds the base kept recording after flight end. Threshold \u226560s.",
+      "input_field_names": "obs_end_utc;flight_end_utc",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_004",
+      "derived_name": "dual_freq_available",
+      "formula_expression": "dual_freq_present == True",
+      "meaning": "Whether dual-frequency data is available (better ambiguity resolution, iono mitigation).",
+      "input_field_names": "dual_freq_present",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_005",
+      "derived_name": "cycle_slip_count",
+      "formula_expression": "count of cycle_slip_markers",
+      "meaning": "Total cycle slips. Elevated = obstruction/disturbance/multipath.",
+      "input_field_names": "cycle_slip_markers",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_006",
+      "derived_name": "gap_gt_5s_count",
+      "formula_expression": "count of inter-epoch gaps > 5s",
+      "meaning": "Short recording gaps.",
+      "input_field_names": "epoch_interval_sec;total_epochs",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_007",
+      "derived_name": "any_gap_gt_60s",
+      "formula_expression": "max inter-epoch gap > 60s",
+      "meaning": "Any major recording gap.",
+      "input_field_names": "epoch_interval_sec;total_epochs",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_008",
+      "derived_name": "cn0_mean_dbhz",
+      "formula_expression": "mean of cn0_per_sat",
+      "meaning": "Mean signal strength across the session.",
+      "input_field_names": "cn0_per_sat",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_009",
+      "derived_name": "multipath_risk_level",
+      "formula_expression": "std-dev of cn0_per_sat across sats at equal elevation",
+      "meaning": "Proxy for multipath from a fixed reflector geometry. Risk indicator, not an error magnitude.",
+      "input_field_names": "cn0_per_sat",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_010",
+      "derived_name": "mean_pdop",
+      "formula_expression": "mean of pdop_per_epoch during flight window",
+      "meaning": "Average sky-geometry quality.",
+      "input_field_names": "pdop_per_epoch",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_011",
+      "derived_name": "max_pdop",
+      "formula_expression": "max of pdop_per_epoch during flight window",
+      "meaning": "Worst-case geometry.",
+      "input_field_names": "pdop_per_epoch",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_012",
+      "derived_name": "base_acquisition_time_sec",
+      "formula_expression": "time from power-on to stable sat_count",
+      "meaning": "How quickly the base reached a stable solution.",
+      "input_field_names": "sat_count_per_epoch",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_013",
+      "derived_name": "rinex_version_supported",
+      "formula_expression": "rinex_version \u2208 supported set",
+      "meaning": "Whether the RINEX version is accepted by the PPK pipeline (#10).",
+      "input_field_names": "rinex_version",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_014",
+      "derived_name": "header_completeness",
+      "formula_expression": "required header records all present",
+      "meaning": "Whether antenna type, receiver type, approx position are present in the header (#10).",
+      "input_field_names": "antenna_type;receiver_type;approx_position_xyz",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_015",
+      "derived_name": "constellation_count",
+      "formula_expression": "count of constellation_set",
+      "meaning": "Number of constellations the base tracked. Base-side input to #16 cross-check.",
+      "input_field_names": "constellation_set",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_016",
+      "derived_name": "session_integrity_ok",
+      "formula_expression": "completed_normally AND shutdowns==0 AND battery_min adequate",
+      "meaning": "Whether the session terminated cleanly with adequate power. Degrades to unconfirmed if Operation Log absent/null.",
+      "input_field_names": "session_completed_normally;unexpected_shutdown_count;battery_min_pct",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_017",
+      "derived_name": "antenna_type_match",
+      "formula_expression": "antenna_model == antenna_type (normalised)",
+      "meaning": "Whether the operator-entered antenna model matches the RINEX header type. Type consistency, NOT ANTEX calibration (#21).",
+      "input_field_names": "antenna_model;antenna_type",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_018",
+      "derived_name": "antenna_height_agreement",
+      "formula_expression": "|antenna_height_m \u2212 antenna_delta_h| within tolerance (when delta_h \u2260 0)",
+      "meaning": "Whether the form height agrees with the RINEX-recorded ARP height. Agreement raises confidence; conflict flags the wrong-reference blunder (#1).",
+      "input_field_names": "antenna_height_m;antenna_delta_h",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_019",
+      "derived_name": "kp_index",
+      "formula_expression": "NOAA SWPC Kp at session time",
+      "meaning": "Geomagnetic activity index. High Kp + single-freq = degraded accuracy (#20). External dependency.",
+      "input_field_names": "obs_start_utc",
+      "kind": "scoring"
+    },
+    {
+      "derived_id": "L2D_BASE_020",
+      "derived_name": "disturbance_signature",
+      "formula_expression": "gap_gt_5s_count\u2191 AND cycle_slip_count\u2191 AND cn0 variance\u2191 co-occurring",
+      "meaning": "Correlation detector for physical base disturbance (#7). FLAG-ONLY, no weight. BLIND to slow settling that produces no gap/slip.",
+      "input_field_names": "gap_gt_5s_count;cycle_slip_count;cn0_per_sat",
+      "kind": "composite_flag"
+    },
+    {
+      "derived_id": "L2D_BASE_021",
+      "derived_name": "log_match_check",
+      "formula_expression": "flight window \u2286 base obs window",
+      "meaning": "Whether the flight falls inside this base log (#15). FLAG-ONLY. Guards wrong multi-flight log matching.",
+      "input_field_names": "obs_start_utc;obs_end_utc;flight_start_utc;flight_end_utc",
+      "kind": "composite_flag"
+    },
+    {
+      "derived_id": "L2D_BASE_022",
+      "derived_name": "truncation_check",
+      "formula_expression": "|session_end_utc \u2212 obs_end_utc| within tolerance",
+      "meaning": "Internal device-clock vs observation end cross-check (#17 cross). Disagreement = silent truncation.",
+      "input_field_names": "session_end_utc;obs_end_utc",
+      "kind": "composite_flag"
+    },
+    {
+      "derived_id": "L2D_BASE_023",
+      "derived_name": "autonomous_seed_flag",
+      "formula_expression": "approx_position_xyz is autonomous (always true at S1)",
+      "meaning": "Records that the base position is an autonomous seed (#3). NON-scoring; judgement deferred to pre-processing.",
+      "input_field_names": "approx_position_xyz",
+      "kind": "handoff"
+    },
+    {
+      "derived_id": "L2D_BASE_024",
+      "derived_name": "benchmark_unverified",
+      "formula_expression": "over_known_mark reused AND NOT verified_by_second_person",
+      "meaning": "Risk signal for unstable/unverified benchmark (#2). NON-scoring warning + monument_id handoff to Learning Engine (#13).",
+      "input_field_names": "over_known_mark;verified_by_second_person;monument_id",
+      "kind": "handoff"
+    }
+  ],
+  "source_fields": [
+    {
+      "field_id": "L1F_BASE_001",
+      "field_name": "marker_name",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Header Identity",
+      "meaning": "Station/marker name from RINEX header. Basis for matching the base log to the correct flight.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_002",
+      "field_name": "antenna_type",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Header Antenna",
+      "meaning": "Antenna model from the ANT # / TYPE header record. Cross-checked against the operator-entered model.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_003",
+      "field_name": "antenna_delta_h",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Header Antenna",
+      "meaning": "ARP height above marker from the ANTENNA: DELTA H/E/N record, as configured in the device. Often 0.000 if unset. Second independent height source.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_004",
+      "field_name": "receiver_type",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Header Hardware",
+      "meaning": "Receiver model from the REC # / TYPE / VERS header record.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_005",
+      "field_name": "firmware_version",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Header Hardware",
+      "meaning": "Receiver firmware/version where written to the RINEX extended header. Base-side input to the cross-document firmware check (#19). May be null if not emitted.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_006",
+      "field_name": "approx_position_xyz",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Header Position",
+      "meaning": "Approximate ECEF position from the header. Always an autonomous seed at Stage 1. Captured as fact only \u2014 not scored; raises BASE_AUTONOMOUS_SEED.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_007",
+      "field_name": "rinex_version",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Header Format",
+      "meaning": "RINEX format version (e.g. 2.11, 3.04). Drives PPK-software compatibility (#10).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_008",
+      "field_name": "constellation_set",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Header Format",
+      "meaning": "Constellations present (GPS/GLONASS/Galileo/BeiDou). Base-side input to the cross-document constellation check (#16).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_009",
+      "field_name": "obs_start_utc",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Header Timing",
+      "meaning": "First observation epoch time (UTC).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_010",
+      "field_name": "obs_end_utc",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Header Timing",
+      "meaning": "Last observation epoch time (UTC). Cross-checked against Operation Log session_end_utc for truncation.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_011",
+      "field_name": "dual_freq_present",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Header Format",
+      "meaning": "Whether L1+L2 (or more) carrier phase is present. Single-frequency limits ambiguity resolution and worsens iono impact.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_012",
+      "field_name": "epoch_interval_sec",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Body Timing",
+      "meaning": "Nominal logging interval between epochs.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_013",
+      "field_name": "total_epochs",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Body Timing",
+      "meaning": "Count of recorded epochs.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_014",
+      "field_name": "cn0_per_sat",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Body Signal",
+      "meaning": "Carrier-to-noise density per satellite per epoch. Basis for signal quality and multipath variance.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_015",
+      "field_name": "cycle_slip_markers",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Body Signal",
+      "meaning": "Cycle-slip indications per satellite. Elevated counts indicate disturbance or obstruction.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_016",
+      "field_name": "pdop_per_epoch",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Body Geometry",
+      "meaning": "Position dilution of precision over time, from satellite geometry.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_017",
+      "field_name": "sat_count_per_epoch",
+      "file_id": "SRC_BASE_RINEX",
+      "category": "Body Geometry",
+      "meaning": "Tracked satellite count over time. Acquisition ramp visible at session start.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_018",
+      "field_name": "session_completed_normally",
+      "file_id": "SRC_BASE_OPLOG",
+      "category": "Integrity",
+      "meaning": "True only if recording stopped by deliberate operator action. Null = unconfirmed.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_019",
+      "field_name": "unexpected_shutdown_count",
+      "file_id": "SRC_BASE_OPLOG",
+      "category": "Integrity",
+      "meaning": "Count of mid-session unexpected shutdowns/resets. >=1 raises BASE_SESSION_INTERRUPTED.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_020",
+      "field_name": "battery_start_pct",
+      "file_id": "SRC_BASE_OPLOG",
+      "category": "Power",
+      "meaning": "Battery level at session start (nullable; null for mains/solar).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_021",
+      "field_name": "battery_end_pct",
+      "file_id": "SRC_BASE_OPLOG",
+      "category": "Power",
+      "meaning": "Battery level at session end (nullable).",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_022",
+      "field_name": "battery_min_pct",
+      "file_id": "SRC_BASE_OPLOG",
+      "category": "Power",
+      "meaning": "Lowest battery level reached. More important than endpoints \u2014 a deep dip means risk even if recovered.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_023",
+      "field_name": "session_end_utc",
+      "file_id": "SRC_BASE_OPLOG",
+      "category": "Integrity",
+      "meaning": "Device-reported session end (UTC). Cross-check partner for RINEX truncation detection.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_024",
+      "field_name": "raw_log_download_confirmed",
+      "file_id": "SRC_BASE_OPLOG",
+      "category": "Integrity",
+      "meaning": "True once the RINEX has actually been transferred off the device. Closes #8.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_025",
+      "field_name": "antenna_model",
+      "file_id": "SRC_BASE_FORM",
+      "category": "Antenna Setup",
+      "meaning": "Operator-selected antenna model. Selects the ANTEX/ARP geometry and is cross-checked against RINEX antenna_type.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_026",
+      "field_name": "antenna_height_m",
+      "file_id": "SRC_BASE_FORM",
+      "category": "Antenna Setup",
+      "meaning": "Operator-entered height. Cross-checked against RINEX antenna_delta_h when present. The single highest-stakes unverifiable value.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_027",
+      "field_name": "antenna_height_units",
+      "file_id": "SRC_BASE_FORM",
+      "category": "Antenna Setup",
+      "meaning": "Explicit units (m/ft) to prevent unit-mix errors.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_028",
+      "field_name": "antenna_measurement_type",
+      "file_id": "SRC_BASE_FORM",
+      "category": "Antenna Setup",
+      "meaning": "VERTICAL or SLANT. Slant requires trig conversion and is more error-prone.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_029",
+      "field_name": "measured_to_reference",
+      "file_id": "SRC_BASE_FORM",
+      "category": "Antenna Setup",
+      "meaning": "Explicit reference point measured to (ARP / slant mark / mount bottom). The field that kills the wrong-reference blunder (#1).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_030",
+      "field_name": "height_measured_count",
+      "file_id": "SRC_BASE_FORM",
+      "category": "Antenna Setup",
+      "meaning": "Number of independent height measurements/confirmations. Corroboration signal.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_031",
+      "field_name": "pole_tripod_fixed_height",
+      "file_id": "SRC_BASE_FORM",
+      "category": "Antenna Setup",
+      "meaning": "Fixed pole/tripod height when applicable (known, not re-measured each time).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_032",
+      "field_name": "monument_id",
+      "file_id": "SRC_BASE_FORM",
+      "category": "Setup Verification",
+      "meaning": "Monument/benchmark identifier. Handed to the Learning Engine for cross-session drift (#2/#13).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_033",
+      "field_name": "over_known_mark",
+      "file_id": "SRC_BASE_FORM",
+      "category": "Setup Verification",
+      "meaning": "Boolean: was the base set over a known/established mark?",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_034",
+      "field_name": "verified_by_second_person",
+      "file_id": "SRC_BASE_FORM",
+      "category": "Setup Verification",
+      "meaning": "Boolean: was setup independently confirmed?",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_035",
+      "field_name": "flight_start_utc",
+      "file_id": "SRC_BASE_FORM",
+      "category": "Flight Context",
+      "meaning": "Drone flight start (UTC) from the upload bundle. Needed for coverage/buffer (#6).",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    },
+    {
+      "field_id": "L1F_BASE_036",
+      "field_name": "flight_end_utc",
+      "file_id": "SRC_BASE_FORM",
+      "category": "Flight Context",
+      "meaning": "Drone flight end (UTC). Needed for coverage and post-flight buffer.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": ""
+    }
+  ],
+  "source_files": [
+    {
+      "file_id": "SRC_BASE_RINEX",
+      "file_name": "Base Station RINEX",
+      "subsystem": "GNSS Receiver",
+      "file_extensions": ".obs / .nav / .21o / .25o",
+      "physical_source": "Downloaded from Datum device after session",
+      "how_to_obtain": "Receiver records raw satellite observations continuously from power-on to end of session. Download via USB or the Datum companion app after the survey. Recording must start before drone takeoff and continue past landing.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": "Machine truth. Self-evidencing for completeness/format/environment. Antenna type and delta-H here serve as cross-checks against the user form."
+    },
+    {
+      "file_id": "SRC_BASE_OPLOG",
+      "file_name": "Operation Log",
+      "subsystem": "Device Management",
+      "file_extensions": ".json",
+      "physical_source": "Exported from Datum device / companion app",
+      "how_to_obtain": "Device firmware records a session log. Exported alongside the RINEX. Scoped (per dev spec) to completeness & power certification only: completed-normally, shutdown count, battery trace, end-time, download-confirmed.",
+      "acquisition_mode": "auto",
+      "is_aspirational": "FALSE",
+      "notes": "Only source that can certify clean termination. Nullable fields: null = unconfirmed (not bad). If file absent (abrupt death), integrity degrades to unconfirmed, never silently passes."
+    },
+    {
+      "file_id": "SRC_BASE_FORM",
+      "file_name": "User Input (Antenna Setup Record)",
+      "subsystem": "Operator Field Form",
+      "file_extensions": ".json (user_input.json)",
+      "physical_source": "Entered by operator in CB capture app at upload",
+      "how_to_obtain": "Structured field form. Human-entered: antenna model/height/method/reference/count, monument facts, plus flight start/end UTC from the upload context. The form design itself is the safeguard against the #1 antenna-height blunder.",
+      "acquisition_mode": "user",
+      "is_aspirational": "FALSE",
+      "notes": "Human input. Cannot verify correctness, only provenance, corroboration, and consistency with RINEX. Antenna type and height are cross-checked against the RINEX header."
+    }
+  ],
+  "flags": [
+    {
+      "flag_id": "FLG_BASE_001",
+      "flag_name": "BASE_CRITICAL_FAILURE",
+      "raised_by_type": "score",
+      "condition": "base_completeness_integrity_score == 0",
+      "severity": "CRITICAL",
+      "covers_problems": "#6/#10",
+      "meaning": "Foundational base data unusable \u2014 base_station_score = 0. Parallels DRONE_CRITICAL_FAILURE.",
+      "raised_at_stage": "global_gate",
+      "category_impact": "resurvey_recommended",
+      "recommended_action": {
+        "technical_description": "Composite flag indicating critical chain failure: typically fires alongside coverage-gap (#6) or other HARD GATE conditions.",
+        "operator_action_technical": "Address the underlying hard gate condition. This flag is a roll-up signal; see specific underlying flags for actionable detail.",
+        "operator_action_customer_voice": "Critical issue with the base station data \u2014 see the specific flag below for what's wrong and how to fix."
+      }
+    },
+    {
+      "flag_id": "FLG_BASE_002",
+      "flag_name": "ANTENNA_HEIGHT_MISSING",
+      "raised_by_type": "indicator_gate",
+      "condition": "antenna_height_m absent",
+      "severity": "CRITICAL",
+      "covers_problems": "#1",
+      "meaning": "No antenna height documented \u2014 setup block = 0. The catastrophic-case guard.",
+      "raised_at_stage": "internal_gate",
+      "category_impact": "resurvey_recommended",
+      "recommended_action": {
+        "technical_description": "Antenna height not entered. Hard gate. Without this value, PPK output elevations are referenced to an unknown ARP elevation.",
+        "operator_action_technical": "Enter antenna height if known from field records. Otherwise, recollect with antenna height measured and documented.",
+        "operator_action_customer_voice": "Antenna height is missing \u2014 PPK can't produce correct elevations without it. Add it now if you have it in your field notes. Otherwise, redo the base setup with the height measured."
+      }
+    },
+    {
+      "flag_id": "FLG_BASE_003",
+      "flag_name": "BASE_RINEX_FLIGHT_GAP",
+      "raised_by_type": "indicator_gate",
+      "condition": "base_flight_coverage_ratio < 1.0",
+      "severity": "CRITICAL",
+      "covers_problems": "#6",
+      "meaning": "Base RINEX does not cover the full flight; PPK will have gaps.",
+      "raised_at_stage": "internal_gate",
+      "category_impact": "resurvey_recommended",
+      "recommended_action": {
+        "technical_description": "Coverage gap: base RINEX does not cover the flight window. Hard gate.",
+        "operator_action_technical": "Recollect base data with adequate coverage, OR substitute a CORS reference for the uncovered portions if available.",
+        "operator_action_customer_voice": "Base wasn't recording during part of your flight. You need to recollect \u2014 start the base earlier and stop it later. If a CORS station was nearby, your processor may be able to use that instead."
+      }
+    },
+    {
+      "flag_id": "FLG_BASE_004",
+      "flag_name": "BASE_SESSION_INTERRUPTED",
+      "raised_by_type": "indicator",
+      "condition": "unexpected_shutdown_count >= 1 OR session_completed_normally == False",
+      "severity": "HIGH",
+      "covers_problems": "#17",
+      "meaning": "Recording session was interrupted by power/shutdown event.",
+      "raised_at_stage": "threshold",
+      "category_impact": "resurvey_recommended",
+      "recommended_action": {
+        "technical_description": "Base station session had at least one unexpected shutdown. RINEX may be truncated or have epoch corruption near the event.",
+        "operator_action_technical": "Inspect RINEX around the shutdown timestamp. If the gap falls outside the flight window, PPK may still proceed. If inside the flight window, recollect.",
+        "operator_action_customer_voice": "The base shut down unexpectedly during recording. Check whether it died during your flight or outside it. If during the flight, redo the survey. If before takeoff or after landing, your flight data should be fine."
+      }
+    },
+    {
+      "flag_id": "FLG_BASE_005",
+      "flag_name": "BASE_LOG_DOWNLOAD_UNCONFIRMED",
+      "raised_by_type": "indicator",
+      "condition": "raw_log_download_confirmed != True",
+      "severity": "MINOR (audit-only \u2014 formalized per Q4 v2.1 lock)",
+      "covers_problems": "#8",
+      "meaning": "Raw log transfer off the device not confirmed (advisory).",
+      "raised_at_stage": "threshold",
+      "category_impact": "review_recommended",
+      "recommended_action": {
+        "technical_description": "RINEX file transfer from receiver was not confirmed. Possible incomplete download or sync.",
+        "operator_action_technical": "Verify file completeness: file size vs expected duration, last epoch timestamp, re-download from receiver if available.",
+        "operator_action_customer_voice": "File transfer from the base wasn't confirmed. Check the file looks the right size for the recording duration. If the base is still accessible, re-pull the file to be sure."
+      },
+      "v2_1_q_lock": "Q4: formalized as MINOR (was MEDIUM, but operationally audit-only). Doesn't drive recommendation; visible in audit trail."
+    },
+    {
+      "flag_id": "FLG_BASE_006",
+      "flag_name": "BASE_RINEX_VERSION_UNSUPPORTED",
+      "raised_by_type": "indicator",
+      "condition": "rinex_version not in supported set",
+      "severity": "MEDIUM (material \u2014 downgraded per Q2 v2.1 lock)",
+      "covers_problems": "#10",
+      "meaning": "RINEX version may not be accepted / may degrade in the PPK pipeline.",
+      "raised_at_stage": "threshold",
+      "category_impact": "resurvey_recommended",
+      "recommended_action": {
+        "technical_description": "RINEX version is not supported by configured PPK software.",
+        "operator_action_technical": "Convert RINEX to a supported version using a standard converter (e.g., teqc, gfzrnx, or vendor tool). Verify format before resubmitting.",
+        "operator_action_customer_voice": "RINEX file is in a format we can't read directly. Convert it to RINEX 3.x or 2.11 \u2014 your receiver's software usually has a converter, or use a standard tool."
+      },
+      "v2_1_q_lock": "Q2: downgraded from CRITICAL/HIGH because data is fine; format conversion is fixable without recollection"
+    },
+    {
+      "flag_id": "FLG_BASE_007",
+      "flag_name": "BASE_MULTIPATH_RISK",
+      "raised_by_type": "indicator",
+      "condition": "multipath_risk_level high",
+      "severity": "HIGH",
+      "covers_problems": "#14",
+      "meaning": "Elevated multipath risk from the placement environment.",
+      "raised_at_stage": "threshold",
+      "category_impact": "review_recommended",
+      "recommended_action": {
+        "technical_description": "High C/N0 variance indicates significant multipath risk. Likely caused by reflective surfaces near antenna.",
+        "operator_action_technical": "Inspect PPK residuals for systematic oscillations. If observed, recollect base at a cleaner site or accept reduced confidence.",
+        "operator_action_customer_voice": "Base was in a reflective environment \u2014 too close to buildings, vehicles, water, or metal surfaces. Check the processed output for wobbly position values. If they're bad, redo with the base in open sky."
+      }
+    },
+    {
+      "flag_id": "FLG_BASE_008",
+      "flag_name": "BASE_IONO_RISK",
+      "raised_by_type": "indicator",
+      "condition": "kp_index high AND single-frequency",
+      "severity": "HIGH",
+      "covers_problems": "#20",
+      "meaning": "Ionospheric disturbance likely degraded single-frequency accuracy.",
+      "raised_at_stage": "threshold",
+      "category_impact": "review_recommended",
+      "recommended_action": {
+        "technical_description": "Ionospheric risk: high Kp index during survey AND base recorded single-frequency only.",
+        "operator_action_technical": "Check actual Kp via NOAA SWPC. If Kp \u22655, expect cm-level accuracy degradation. Consider reprocessing with ionospheric correction model, or recollecting during calmer conditions.",
+        "operator_action_customer_voice": "Solar activity was high during your survey and the base was single-frequency. This adds noise to position. Check NOAA space weather for the Kp index during your survey. If it was stormy, consider re-shooting later."
+      }
+    },
+    {
+      "flag_id": "FLG_BASE_009",
+      "flag_name": "SLOW_BASE_ACQUISITION",
+      "raised_by_type": "indicator",
+      "condition": "base_acquisition_time_sec > 300",
+      "severity": "MINOR (audit-only \u2014 downgraded per Q4 v2.1 lock)",
+      "covers_problems": "(general)",
+      "meaning": "Base took unusually long to reach a stable solution.",
+      "raised_at_stage": "threshold",
+      "category_impact": "review_recommended",
+      "recommended_action": {
+        "technical_description": "Base took >300s to acquire sufficient satellites. Possible obstruction, receiver health issue, or RF interference.",
+        "operator_action_technical": "Document for QA. If pattern repeats with this receiver, investigate hardware health.",
+        "operator_action_customer_voice": "Base was very slow to lock onto satellites. Usually a cold start, but if it keeps happening with this unit, get it serviced."
+      },
+      "v2_1_q_lock": "Q4: downgraded from MEDIUM to MINOR (hygiene signal, doesn't drive recommendation)"
+    },
+    {
+      "flag_id": "FLG_BASE_010",
+      "flag_name": "BASE_POSITION_DISCONTINUITY",
+      "raised_by_type": "composite",
+      "condition": "gap + cycle-slip + CN0-variance co-occur",
+      "severity": "HIGH",
+      "covers_problems": "#7",
+      "meaning": "Likely physical base disturbance. FLAG-ONLY (no weight). Blind to slow settling.",
+      "raised_at_stage": "composite",
+      "category_impact": "review_recommended",
+      "recommended_action": {
+        "technical_description": "Observation gap >60s in RINEX. PPK must re-converge after gap.",
+        "operator_action_technical": "Inspect RINEX around gap timestamp. Determine cause and impact on flight coverage. May need to split processing into pre/post-gap segments.",
+        "operator_action_customer_voice": "Base lost satellite tracking for over a minute at one point. Check whether photos were taken during the gap window. Position accuracy near the gap is reduced."
+      }
+    },
+    {
+      "flag_id": "FLG_BASE_011",
+      "flag_name": "BASE_FLIGHT_LOG_MISMATCH",
+      "raised_by_type": "composite",
+      "condition": "flight window not inside base obs window",
+      "severity": "HIGH",
+      "covers_problems": "#15",
+      "meaning": "Possible wrong base-log/flight match. FLAG-ONLY.",
+      "raised_at_stage": "composite",
+      "category_impact": "review_recommended",
+      "recommended_action": {
+        "technical_description": "Base session timestamps don't align cleanly with flight log timestamps. Possible clock drift or wrong session matched to wrong flight.",
+        "operator_action_technical": "Verify base/flight pairing. Check whether base RINEX session_id matches the intended flight. Investigate clock drift if pairing is correct.",
+        "operator_action_customer_voice": "The base recording times don't match up cleanly with the flight times. Make sure you've paired the right base session with the right flight. If they are paired right, the receiver clock may have drifted."
+      }
+    },
+    {
+      "flag_id": "FLG_BASE_012",
+      "flag_name": "BASE_RINEX_TRUNCATED",
+      "raised_by_type": "composite",
+      "condition": "session_end_utc vs obs_end_utc disagree",
+      "severity": "HIGH",
+      "covers_problems": "#17",
+      "meaning": "Device end-time and observation end-time disagree \u2014 silent truncation.",
+      "raised_at_stage": "composite",
+      "category_impact": "review_recommended",
+      "recommended_action": {
+        "technical_description": "RINEX file appears truncated relative to operation log session length. Last epoch is before logged session end.",
+        "operator_action_technical": "Check whether truncation affects flight coverage. If truncated portion falls outside flight window, PPK may proceed. Otherwise treat as a coverage issue.",
+        "operator_action_customer_voice": "RINEX file looks cut short compared to how long the base actually ran. Check whether the cut-off happened during the flight or outside it."
+      }
+    },
+    {
+      "flag_id": "FLG_BASE_013",
+      "flag_name": "BASE_AUTONOMOUS_SEED",
+      "raised_by_type": "handoff",
+      "condition": "approx_position is autonomous",
+      "severity": "MEDIUM",
+      "covers_problems": "#3",
+      "meaning": "Base position is an autonomous seed. NON-scoring; judgement deferred to pre-processing.",
+      "raised_at_stage": "handoff",
+      "category_impact": "review_recommended",
+      "recommended_action": {
+        "technical_description": "Base station used its own autonomous-fix position as starting seed rather than a declared known reference. PPK output positions will be relative to this autonomous seed, not absolute.",
+        "operator_action_technical": "If a known reference position was available but not entered, add it and re-process. If no known reference exists, accept that PPK is in autonomous frame and downstream confidence reflects this.",
+        "operator_action_customer_voice": "The base used its own initial GPS fix as the reference point rather than a known surveyed coordinate. PPK results are relative to this self-determined position. For most projects this is fine but it means your positions won't tie to any absolute coordinate system unless adjusted later. If you have a known coordinate for the base location, enter it and re-process."
+      }
+    },
+    {
+      "flag_id": "FLG_BASE_014",
+      "flag_name": "BASE_BENCHMARK_UNVERIFIED",
+      "raised_by_type": "handoff",
+      "condition": "reused monument without verification",
+      "severity": "MEDIUM",
+      "covers_problems": "#2,#13",
+      "meaning": "Benchmark may be unstable/unverified. NON-scoring warning + monument_id handoff to Learning Engine.",
+      "raised_at_stage": "handoff",
+      "category_impact": "review_recommended",
+      "recommended_action": {
+        "technical_description": "Base set up over a reused mark but not verified this session. Possible mark disturbance or coordinate drift since last use.",
+        "operator_action_technical": "Verify mark coordinates by static occupation + CORS processing, or compare PPK position against published coordinates. If verification not feasible, document and hand off.",
+        "operator_action_customer_voice": "Base was on a known mark but it wasn't verified this session. The mark might have shifted since last use. For most projects this is OK. If the mark hasn't been checked in over a year or there's been construction nearby, verify it."
+      }
+    },
+    {
+      "flag_id": "FLG_BASE_015",
+      "flag_name": "BASE_TIME_OFFSET_CROSSDOC",
+      "raised_by_type": "handoff",
+      "condition": "base time vs drone flight log time offset",
+      "severity": "HIGH",
+      "covers_problems": "#18",
+      "meaning": "UTC/local offset between base and flight logs. Cross-document \u2014 not Stage-1-closeable.",
+      "raised_at_stage": "handoff_crossdoc",
+      "category_impact": "review_recommended",
+      "recommended_action": {
+        "technical_description": "Operation log timestamps differ systematically from RINEX timestamps. Receiver clock drift or wrong time zone applied somewhere.",
+        "operator_action_technical": "Verify time zone settings on both receiver and logging system. Check for systematic offset. May need to correct timestamps before processing.",
+        "operator_action_customer_voice": "The timestamps in the base log don't line up with the RINEX timestamps. Usually a time zone problem on one of them. Check the receiver and logging system are set to the same time zone."
+      }
+    },
+    {
+      "flag_id": "FLG_BASE_016",
+      "flag_name": "BASE_CONSTELLATION_CROSSDOC",
+      "raised_by_type": "handoff",
+      "condition": "base vs rover constellation mismatch",
+      "severity": "HIGH",
+      "covers_problems": "#16",
+      "meaning": "Base-side constellations captured; comparison needs the rover document.",
+      "raised_at_stage": "handoff_crossdoc",
+      "category_impact": "review_recommended",
+      "recommended_action": {
+        "technical_description": "RINEX header declares one satellite constellation configuration but observation data shows different constellations being tracked. Misconfiguration or partial data corruption.",
+        "operator_action_technical": "Inspect RINEX content vs header. Determine which is correct. If a constellation was tracked but not declared (or vice versa), update header or reprocess with correct configuration.",
+        "operator_action_customer_voice": "The RINEX file says it tracked one set of satellite systems but the actual data shows different ones. Usually a configuration error on the receiver. Have someone check the file content versus the header."
+      }
+    },
+    {
+      "flag_id": "FLG_BASE_017",
+      "flag_name": "BASE_FIRMWARE_CROSSDOC",
+      "raised_by_type": "handoff",
+      "condition": "base vs rover firmware mismatch",
+      "severity": "HIGH",
+      "covers_problems": "#19",
+      "meaning": "Base-side firmware captured; comparison needs the rover document.",
+      "raised_at_stage": "handoff_crossdoc",
+      "category_impact": "review_recommended",
+      "recommended_action": {
+        "technical_description": "Firmware version declared in base setup doesn't match firmware version written to RINEX header. Possible firmware update between setup recording and survey start, or misdeclaration.",
+        "operator_action_technical": "Verify actual firmware running. Document correct version for future audit. May affect known-issue tracking for this firmware revision.",
+        "operator_action_customer_voice": "Firmware version listed at setup doesn't match what the receiver actually used. Maybe an update happened. Confirm the actual firmware version for your records."
+      }
+    }
+  ],
+  "problem_coverage_map": [
+    {
+      "problem_no": 1,
+      "problem": "Antenna Height Blunder",
+      "severity": "CATASTROPHIC",
+      "frequency": "UNIVERSAL",
+      "disposition": "OWNED",
+      "covered_by": "antenna_height_documented_score + ANTENNA_HEIGHT_MISSING gate"
+    },
+    {
+      "problem_no": 2,
+      "problem": "Unstable/Unverified Benchmark",
+      "severity": "CATASTROPHIC",
+      "frequency": "VERY COMMON",
+      "disposition": "PARTIAL+LE",
+      "covered_by": "setup_verification_score + BASE_BENCHMARK_UNVERIFIED + Learning Engine"
+    },
+    {
+      "problem_no": 3,
+      "problem": "Autonomous Position as Known Base",
+      "severity": "CATASTROPHIC",
+      "frequency": "COMMON",
+      "disposition": "WARN",
+      "covered_by": "BASE_AUTONOMOUS_SEED (non-scoring); judgement to pre-processing"
+    },
+    {
+      "problem_no": 4,
+      "problem": "Wrong CRS/Datum",
+      "severity": "CATASTROPHIC",
+      "frequency": "VERY COMMON",
+      "disposition": "PRE-PROC",
+      "covered_by": "removed to pre_processing_score (datum)"
+    },
+    {
+      "problem_no": 5,
+      "problem": "Height Mode Confusion",
+      "severity": "CATASTROPHIC",
+      "frequency": "COMMON",
+      "disposition": "PRE-PROC",
+      "covered_by": "removed to pre_processing_score (datum)"
+    },
+    {
+      "problem_no": 6,
+      "problem": "Short Observation Window",
+      "severity": "CRITICAL",
+      "frequency": "VERY COMMON",
+      "disposition": "OWNED",
+      "covered_by": "coverage_score + BASE_RINEX_FLIGHT_GAP gate"
+    },
+    {
+      "problem_no": 7,
+      "problem": "Base Disturbed Mid-Observation",
+      "severity": "CRITICAL",
+      "frequency": "COMMON",
+      "disposition": "FLAG",
+      "covered_by": "BASE_POSITION_DISCONTINUITY (blind to slow settling)"
+    },
+    {
+      "problem_no": 8,
+      "problem": "Base Log Not Downloaded",
+      "severity": "CRITICAL",
+      "frequency": "VERY COMMON",
+      "disposition": "OWNED",
+      "covered_by": "integrity_score via raw_log_download_confirmed"
+    },
+    {
+      "problem_no": 9,
+      "problem": "Baseline Too Long (PPK)",
+      "severity": "CRITICAL",
+      "frequency": "COMMON",
+      "disposition": "PRE-PROC",
+      "covered_by": "PPK baseline needs Stage-2 known position"
+    },
+    {
+      "problem_no": 10,
+      "problem": "RINEX Incompatibility",
+      "severity": "CRITICAL",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "format_score + BASE_RINEX_VERSION_UNSUPPORTED"
+    },
+    {
+      "problem_no": 11,
+      "problem": "Float Solution Accepted as Fixed",
+      "severity": "CRITICAL",
+      "frequency": "OCCASIONAL",
+      "disposition": "OUT-OF-SCOPE",
+      "covered_by": "RTK-only \u2014 not in PPK base scope"
+    },
+    {
+      "problem_no": 12,
+      "problem": "Geoid Model Mismatch",
+      "severity": "CRITICAL",
+      "frequency": "COMMON",
+      "disposition": "PRE-PROC",
+      "covered_by": "removed to pre_processing_score (geoid)"
+    },
+    {
+      "problem_no": 13,
+      "problem": "Re-Occupation Error Across Sessions",
+      "severity": "CRITICAL",
+      "frequency": "COMMON",
+      "disposition": "LE",
+      "covered_by": "monument_id handoff to Learning Engine"
+    },
+    {
+      "problem_no": 14,
+      "problem": "Multipath from Structures",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "OWNED",
+      "covered_by": "multipath_score"
+    },
+    {
+      "problem_no": 15,
+      "problem": "Multiple Flights Wrong Log Matched",
+      "severity": "HIGH",
+      "frequency": "COMMON",
+      "disposition": "FLAG",
+      "covered_by": "BASE_FLIGHT_LOG_MISMATCH"
+    },
+    {
+      "problem_no": 16,
+      "problem": "Constellation Mismatch Base/Rover",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "PARTIAL",
+      "covered_by": "format_score base-side + BASE_CONSTELLATION_CROSSDOC"
+    },
+    {
+      "problem_no": 17,
+      "problem": "Power Interruption Mid-Observation",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "integrity_score (battery+shutdown); oplog-absent edge handled"
+    },
+    {
+      "problem_no": 18,
+      "problem": "UTC/Time Offset Error",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "CROSSDOC",
+      "covered_by": "BASE_TIME_OFFSET_CROSSDOC \u2014 not Stage-1-closeable"
+    },
+    {
+      "problem_no": 19,
+      "problem": "Firmware Version Mismatch",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "PARTIAL",
+      "covered_by": "firmware_version captured + BASE_FIRMWARE_CROSSDOC"
+    },
+    {
+      "problem_no": 20,
+      "problem": "Ionospheric Storm",
+      "severity": "HIGH",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "ionospheric_risk_score (external NOAA SWPC)"
+    },
+    {
+      "problem_no": 21,
+      "problem": "Phase Centre / ANTEX Uncalibrated",
+      "severity": "MEDIUM",
+      "frequency": "OCCASIONAL",
+      "disposition": "OWNED",
+      "covered_by": "antenna_type_match_score (type-match only, not ANTEX calibration)"
+    },
+    {
+      "problem_no": 22,
+      "problem": "L-Band Correction Conflict",
+      "severity": "MEDIUM",
+      "frequency": "RARE",
+      "disposition": "OUT-OF-SCOPE",
+      "covered_by": "RTK/Trimble-only \u2014 not in PPK base scope"
+    }
+  ]
+}

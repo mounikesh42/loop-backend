@@ -1,0 +1,23 @@
+problem_no,problem,severity,frequency,disposition,covered_by
+1,No Check Points,CATASTROPHIC,VERY COMMON,OUT-FUTURE,future check_point_score; survey-design — pre_processing_score also flags
+2,CP Not Spatially Independent,CATASTROPHIC,VERY COMMON,PRE-PROC,pre_processing_score
+3,Insufficient GCP Count,CRITICAL,COMMON,PRE-PROC,"pre_processing_score (count gate, needs site area)"
+4,Clustered Near Access Roads,CRITICAL,VERY COMMON,PRE-PROC,pre_processing_score (needs reconstruction extent)
+5,Vertical Extremes Uncovered,CRITICAL,COMMON,LE,Learning Engine (needs DTM)
+6,Antenna Height Blunder (Pole-Mounted),CATASTROPHIC,COMMON,OWNED,gcp_antenna_height_documented_score + hard gate
+7,Coordinate Accuracy Unknown,CATASTROPHIC,COMMON,PRE-PROC,pre_processing_score (Stage 2)
+8,Battery/Solar Failure Mid-Session,CRITICAL,OCCASIONAL,OWNED,occupation_completeness + integrity per-point
+9,Multipath from Structures,HIGH,COMMON,OWNED,gcp_multipath_score per point
+10,Mark Disturbed Pre-Flight,HIGH,OCCASIONAL,SPLIT,CB_X / AeroPoint case detectable via RINEX (per-point continuity + disturbance composite); traditional marks → Stage 2 ODM detection
+11,Target Not Visible at Flight Altitude,HIGH,COMMON,PRE-PROC,pre_processing_score (cross-doc with planned_gsd_cm)
+12,Wrong Coord Typo in ODM,HIGH,OCCASIONAL,OUT,Outside CBMI (manual ODM entry)
+13,Pre-Surveyed Coords Wrong CRS,CATASTROPHIC,OCCASIONAL,PRE-PROC,pre_processing_score (datum)
+14,Device_ID Mismatch,HIGH,OCCASIONAL,OWNED,gcp_device_id_match_score (reviewer-blocking)
+15,AeroPoint/CB_X Moved During Flight,HIGH,OCCASIONAL,OWNED,GCP_POINT_DISTURBANCE composite (flag-only)
+16,Uneven Surface Tilt,MEDIUM,OCCASIONAL,OUT,Hardware limitation (no inclinometer)
+17,Target Washed/Blown Away,HIGH,OCCASIONAL,STAGE2,Stage 2 ODM target detection
+18,Recording Starts After Takeoff,CRITICAL,COMMON,OWNED,gcp_acquisition_score
+19,Processing Method Too Weak,CRITICAL,COMMON,PRE-PROC,pre_processing_score (Stage 2)
+20,"Too Many Check Points, Few GCPs",MEDIUM,OCCASIONAL,OUT-FUTURE,future check_point_score (and pre_processing role-allocation)
+21,Roles Reversed in ODM,HIGH,OCCASIONAL,OUT,Outside CBMI (third-party software input)
+22,Drift Despite Good GCPs,HIGH,OCCASIONAL,LE,Learning Engine (consequence of #5)

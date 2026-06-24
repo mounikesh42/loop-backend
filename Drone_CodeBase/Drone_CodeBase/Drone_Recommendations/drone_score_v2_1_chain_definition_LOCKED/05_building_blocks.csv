@@ -1,0 +1,5 @@
+block_id,block_name,display_name,weight_in_drone_score,question,failure_owner,operator_action,aggregator,indicators_within,has_internal_gate,gate_condition,gate_action
+BB_IMG_CAPTURE,image_capture_score,Image Capture Quality,0.4,,,,,,True,image_validity_score < 30,Sets image_capture_score = 0. Raises FLAG: CRITICAL_IMAGE_FAILURE. No recoverable survey data.
+BB_ROVER_GNSS,rover_gnss_score,Rover GNSS Quality,0.3,,,,,,False,,
+BB_MISSION_EXEC,mission_execution_score,Mission Execution Quality,0.2,,,,,,False,,
+BB_CAL_CONF,CAL_CONF,Camera Calibration Deliverable Confidence Score,0.1,,,,,,False,,

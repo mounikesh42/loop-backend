@@ -1,0 +1,54 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Check Point Confidence Score — v2.1 LOCKED</title><style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--accent:#4A8BBF;--accent2:#5fa3d8;--gold:#c9a84c;--green:#3dba78;--teal:#3dd8c0;
+--orange:#e08c3a;--purple:#9b6fe0;--red:#e05555;--minor:#8aa2b5;--navy:#0d1b2a;
+--navy2:#112236;--navy3:#162d44;--text:#d6e4f0;--textdim:#7a9bb5;
+--border:rgba(122,155,181,.18);--border2:rgba(122,155,181,.30);
+--mono:'SF Mono',ui-monospace,Menlo,monospace;--sans:-apple-system,Segoe UI,Roboto,sans-serif}
+body{background:var(--navy);color:var(--text);font-family:var(--sans);line-height:1.55;padding:40px 32px 80px;max-width:1180px;margin:0 auto}
+.hdr-eye{font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin-bottom:6px}
+.hdr-title{font-size:30px;font-weight:700;letter-spacing:-.5px}
+.hdr-title span{color:var(--accent2);font-weight:400}
+.sec{margin:38px 0 0}
+.sec-bar{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border2);padding-bottom:8px;margin-bottom:16px}
+.sec-name{font-size:18px;font-weight:700;color:var(--accent2)}
+.card{background:var(--navy2);border:1px solid var(--border);border-radius:9px;padding:18px 20px;margin-bottom:14px}
+.card.gate{border-color:rgba(224,140,58,.35)}
+.row-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.name{font-family:var(--mono);font-size:14px;color:var(--gold);font-weight:600}
+.wt{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--teal)}
+.meaning{font-size:12.5px;color:var(--textdim);margin:4px 0}
+.formula{font-family:var(--mono);font-size:12px;color:var(--text);background:var(--navy);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin:8px 0;white-space:pre-wrap;line-height:1.7}
+.qlocktag{font-size:11px;color:var(--gold);background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:5px;padding:7px 10px;margin-top:8px;font-family:var(--mono)}
+.vsbox{font-size:12px;color:var(--purple);background:rgba(155,111,224,.05);border:1px solid rgba(155,111,224,.35);border-radius:8px;padding:14px 18px;margin-top:14px;line-height:1.7}
+.vsbox b{color:var(--text)}
+.note{font-size:12px;color:var(--textdim);background:var(--navy3);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-top:14px;line-height:1.7}
+.note b{color:var(--gold)}
+</style></head><body>
+<div class="hdr-eye">CrystalBall Infinity · Capture Subsystem · Check Point · LOCKED</div>
+<div class="hdr-title">Check Point Confidence Score <span>v2.1 LOCKED · Per-Point RTK · Mean-Minus-Worst Aggregation · 2 Per-Point Gates</span></div>
+<div class="hdr-sub">Per-point RTK capture-confidence score with mean-minus-worst aggregation. Hardware-independent of other capture chains; purely device exports + operation logs + user input + timing context. Simplest capture chain (14 indicators, 3 blocks). Per-point aggregation formula: mean - 0.25*(100-min). Two indicator-level gates (Q-CP-2 fix_type per-point, antenna_height per-point). Global gate fires when ALL points fail in at least one dimension. Null case when no CHECK_POINT-role points designated.</div>
+
+<div class="sec"><div class="sec-bar"><div class="sec-name">v2.1 Q-Locks Applied (5 decisions)</div></div><div class="card">
+<div class="qlocktag" style="margin-bottom:8px"><b>Q-CP-1:</b> Complex global gate retained as-is. Documents operational condition: all CHECK_POINT-role points failed in at least one dimension (fix_type=FLOAT/AUTONOMOUS OR position_sigma=catastrophic).</div><div class="qlocktag" style="margin-bottom:8px"><b>Q-CP-2:</b> Fix type promoted to per-point gate. FLOAT/AUTONOMOUS on a single point zeros that point&#x27;s score; other points continue. Affects per-point aggregation, not chain.</div><div class="qlocktag" style="margin-bottom:8px"><b>Q-CP-3:</b> Per-point aggregation formula mean - 0.25*(100 - worst_point) LOCKED as v2.1 design. k=0.25 penalty coefficient is operationally calibrated.</div><div class="qlocktag" style="margin-bottom:8px"><b>Q-CP-4:</b> No device-type special handling. All device types (CB_X, AEROPOINT, DGPS, OTHER) treated uniformly. RTK antenna height documentation is field operation, not factory-known.</div><div class="qlocktag" style="margin-bottom:8px"><b>Q-CP-5:</b> No new pattern concepts. Check_point propagates existing patterns: per-point scoring, per-point gates, per-point aggregation, null case, device-types.</div>
+</div></div>
+
+<div class="sec"><div class="sec-bar"><div class="sec-name">Core — check_point_score</div></div><div class="card gate">
+<div class="row-top"><div class="name">check_point_score</div><div class="wt">per-point RTK</div></div>
+<div class="formula">0.45 * cp_capture_completeness_score + 0.35 * cp_setup_confidence_score + 0.20 * cp_observation_environment_score</div>
+<div class="qlocktag">Per-point formula: 0.45 * per_point_completeness + 0.35 * per_point_setup_confidence + 0.20 * per_point_environment</div>
+<div class="qlocktag">Aggregation (Q-CP-3 LOCKED): mean − 0.25 × (100 − min) within each role-block, applied across all CHECK_POINT-role points (Q-CP-3 LOCKED)</div>
+<div class="qlocktag">Global gate: (every CHECK_POINT-role point has cp_fix_type_score == 0) OR (every CHECK_POINT-role point has cp_po</div>
+<div class="vsbox"><b>Severity vocabulary:</b> Indicator-band level severity. Four values: NONE (band passed) → MINOR (hygiene signal, audit-only) → MATERIAL (warrants review) → CRITICAL (warrants resurvey).</div>
+<div class="meaning" style="margin-top:10px">Hardware-derived capture-confidence score for RTK check-point captures. Runtime independent of base_station_score, gcp_score, drone_score. Requires only: per-point RTK device export + operation log + </div></div></div>
+
+<div class="sec"><div class="sec-bar"><div class="sec-name">Indicators (14 per-point)</div></div>
+<div class="card">
+<div class="meaning"><b>3 blocks:</b> Completeness (0.45) / Setup (0.35) / Environment (0.20)</div>
+<div class="meaning" style="margin-top:10px"><b>2 per-point gates (Q-CP-2):</b> L3I_CP_002 (fix_type FLOAT/AUTONOMOUS), L3I_CP_005 (antenna_height missing). Each zeros the affected point; aggregation dilutes.</div>
+<div class="meaning" style="margin-top:10px"><b>Global gate:</b> Fires when ALL points fail in at least one dimension. check_point_score = 0.</div>
+</div></div>
+
+<div class="note"><b>Three-tier architecture:</b><br>Tier 1 — check_point_confidence_score_v2_1_LOCKED.json<br>Tier 2 — check_point_indicator_library_v2_1.json<br>Tier 3 — check_point_multi_view_v1_LOCKED.html<br><br>Check_point is the simplest and cleanest capture chain. 14 indicators, 3 blocks. Per-point aggregation with mean-minus-worst formula (Q-CP-3 locked). Two per-point gates reduce individual points; global gate is all-points-failed condition.</div>
+</body></html>

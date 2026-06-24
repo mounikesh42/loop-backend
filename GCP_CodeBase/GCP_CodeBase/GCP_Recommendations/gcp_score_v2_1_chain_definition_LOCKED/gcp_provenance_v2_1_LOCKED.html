@@ -1,0 +1,203 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GCP Confidence Score — v2.1 LOCKED</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--accent:#4A8BBF;--accent2:#5fa3d8;--gold:#c9a84c;--green:#3dba78;--teal:#3dd8c0;
+--orange:#e08c3a;--purple:#9b6fe0;--red:#e05555;--minor:#8aa2b5;--navy:#0d1b2a;
+--navy2:#112236;--navy3:#162d44;--navy4:#1a3350;--text:#d6e4f0;--textdim:#7a9bb5;
+--textfaint:#4a6a80;--border:rgba(122,155,181,.18);--border2:rgba(122,155,181,.30);
+--mono:'SF Mono',ui-monospace,Menlo,monospace;--sans:-apple-system,Segoe UI,Roboto,sans-serif}
+body{background:var(--navy);color:var(--text);font-family:var(--sans);line-height:1.55;padding:40px 32px 80px;max-width:1180px;margin:0 auto}
+.hdr-eye{font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin-bottom:6px}
+.hdr-title{font-size:30px;font-weight:700;letter-spacing:-.5px}
+.hdr-title span{color:var(--accent2);font-weight:400}
+.hdr-sub{font-size:13px;color:var(--textdim);margin-top:8px;line-height:1.65;max-width:880px}
+.flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:22px 0 8px;font-family:var(--mono);font-size:11px}
+.flow span{padding:5px 11px;border-radius:5px;background:var(--navy3);border:1px solid var(--border2);color:var(--textdim)}
+.flow b{color:var(--gold)}
+.sec{margin:38px 0 0}
+.sec-bar{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border2);padding-bottom:8px;margin-bottom:16px}
+.sec-name{font-size:18px;font-weight:700;color:var(--accent2)}
+.sec-sub{font-size:12px;color:var(--textdim)}
+.card{background:var(--navy2);border:1px solid var(--border);border-radius:9px;padding:18px 20px;margin-bottom:14px}
+.card.gate{border-color:rgba(224,140,58,.35)}
+.row-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.name{font-family:var(--mono);font-size:14px;color:var(--gold);font-weight:600}
+.lname{font-size:13px;color:var(--text)}
+.wt{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--teal)}
+.pill{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:3px;border:1px solid var(--border2);color:var(--textdim)}
+.pill.cp{color:var(--red);border-color:rgba(224,85,85,.4)}
+.pill.pp{color:var(--orange);border-color:rgba(224,140,58,.4)}
+.meaning{font-size:12.5px;color:var(--textdim);margin:4px 0}
+.formula{font-family:var(--mono);font-size:12px;color:var(--text);background:var(--navy);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin:8px 0;white-space:pre-wrap;line-height:1.7}
+.src{font-family:var(--mono);font-size:11px;color:var(--accent);margin-top:4px}
+.thr{font-size:11.5px;color:var(--textdim);background:var(--navy);border-left:2px solid var(--accent);padding:7px 10px;border-radius:0 5px 5px 0;margin-top:8px;font-family:var(--mono);line-height:1.6}
+.gatetag{font-size:11px;color:var(--orange);background:rgba(224,140,58,.08);border:1px solid rgba(224,140,58,.25);border-radius:5px;padding:7px 10px;margin-top:8px;font-family:var(--mono)}
+.qlocktag{font-size:11px;color:var(--gold);background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.3);border-radius:5px;padding:7px 10px;margin-top:8px;font-family:var(--mono)}
+.vsbox{font-size:12px;color:var(--purple);background:rgba(155,111,224,.05);border:1px solid rgba(155,111,224,.35);border-radius:8px;padding:14px 18px;margin-top:14px;line-height:1.7}
+.vsbox b{color:var(--text)}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+th{text-align:left;color:var(--gold);font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:8px 10px;border-bottom:1px solid var(--border2)}
+td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--textdim);vertical-align:top}
+td.kw{font-family:var(--mono);color:var(--text)}
+.sev-CATASTROPHIC,.sev-CRITICAL{color:var(--red);font-weight:600}
+.sev-HIGH{color:var(--gold)}
+.sev-MEDIUM{color:var(--textdim)}
+.sev-MINOR{color:var(--minor);font-style:italic}
+.sev-INFORMATIONAL{color:var(--purple)}
+.note{font-size:12px;color:var(--textdim);background:var(--navy3);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-top:14px;line-height:1.7}
+.note b{color:var(--gold)}
+</style></head><body>
+<div class="hdr-eye">CrystalBall Infinity — Capture Subsystem — GCP — LOCKED</div>
+<div class="hdr-title">GCP Confidence Score <span>v2.1 LOCKED · Per-Point Chain · 3 Blocks · 1 Chain-Level Hard Gate + Per-Point Gate</span></div>
+<div class="hdr-sub">Three-block evidence-based GCP confidence chain. Per-point chain (each survey has multiple GCPs; chain aggregates). Confidence-only output: score (0-100) + tier + recommendation. ONE chain-level hard gate: all-points-coverage-failed (Q-GCP-1 lock). Per-point gates (antenna_height_missing) degrade points but do not kill chain. NULL handling: NO_DESIGNATED_GCPS → chain returns null per Q-GCP-2 (survey-design choice, not failure). Severity vocabulary at band level: none / minor / material / critical. Recommendation vocabulary at chain level: good_to_go / review_recommended / resurvey_recommended. Per-point findings aggregated to top-3 with point attribution per Q-GCP-3.</div>
+<div class="flow">
+<span><b>Per-point GCP RINEX</b> (multiple)</span>→<span>+ Per-point Manifest</span>→<span>+ Operation Log per point</span>→<span>Per-point Indicators (10)</span>→<span>Per-point Scores</span>→<span>Blocks (3)</span>→<span><b>gcp_score</b></span>
+</div>
+
+<div class="sec"><div class="sec-bar"><div class="sec-name">v2.1 Q-Locks Applied (3 decisions)</div></div>
+<div class="card">
+<div class="qlocktag" style="margin-bottom:8px"><b>Q-GCP-1:</b> One chain-level hard gate (all-points-coverage-failed). Antenna_height_missing is per-point gate only (NOT chain-level).</div>
+<div class="qlocktag" style="margin-bottom:8px"><b>Q-GCP-2:</b> NO_DESIGNATED_GCPS → chain returns null (not applicable), not score=0.</div>
+<div class="qlocktag" style="margin-bottom:8px"><b>Q-GCP-3:</b> Customer view aggregates top-3 findings across all points with per-point attribution.</div>
+</div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Per-Point Dimension (new chain pattern)</div></div>
+<div class="card"><div class="meaning">GCP is the first CBMI chain with explicit per-point semantics. Each survey may have multiple GCPs (typically 4-12). The chain scores each point individually, then aggregates. Two scoring dimensions: (1) per-point score — computed from indicator values for that specific point; (2) chain-level score — weighted aggregation across all designated points. Findings surface to customer view with per-point attribution. Internal QA view exposes per-point decomposition.</div></div>
+<div class="card"><div class="meaning"><b style="color:var(--text)">Device type conditionality:</b> GCP indicators behave differently based on device_type: DGPS (manual antenna setup, like base station) — full indicator logic applies. CB_X / AEROPOINT (factory-known antenna height) — L3I_GCP_005 auto-scores 100 (antenna height known by definition). OTHER — operator-declared; treated as DGPS unless specified otherwise.</div></div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Core — gcp_score</div></div>
+<div class="card gate"><div class="row-top"><div class="name">gcp_score</div><div class="lname">GCP Confidence Score</div></div>
+<div class="formula">0.45*gcp_capture_completeness_score + 0.35*gcp_setup_confidence_score + 0.20*gcp_observation_environment_score</div>
+<div class="gatetag">⊘ CHAIN-LEVEL GATE (1): Sets gcp_score = 0 (HARD GATE — Q-GCP-1 lock v2.1). Raises FLAG: GCP_CRITICAL_FAILURE. Per-point coverage failures do NOT trigger this gate — only the all-points condition. Per-point antenna_height_missing is a per-point gate, NOT a chain-level gate (Q-GCP-1 lock).</div>
+<div class="qlocktag">∅ NULL HANDLING (Q-GCP-2): gcp_score = null when (a) NO_DESIGNATED_GCPS flag fires (survey designed without GCPs — chain not applicable per Q-GCP-2 lock), or (b) GCP device files not provided. When global hard gate fires (every designated GCP has occupation_coverage = 0), gcp_score = 0 (NOT null). Composite scoring downstream should treat null as &quot;not measured&quot; rather than &quot;measured zero&quot; to avoid unfairly penalizing GCP-less workflows.</div>
+<div class="vsbox"><b>Per-point handling (Q-GCP-3):</b><br>Q-GCP-3 lock v2.1: GCP chain is multi-point. Customer view aggregates top-3 findings across ALL designated GCPs, each finding tagged with the point identifier (e.g., &quot;Antenna height issue at GCP-003&quot;). Ranking: chain-level hard gate first (only fires when all points fail), then per-point critical findings, then per-point material findings ranked by (block_weight × indicator_weight × point_severity_score). Internal QA view shows per-point breakdown with each point&#x27;s individual score and findings.</div>
+<div class="vsbox"><b>Severity of finding vocabulary (band-level):</b><br>Indicator-band level severity (used in operator_action templates and rendering). Four values, in increasing severity: NONE (band passed, no concern) → MINOR (hygiene signal, audit-only; does NOT drive recommendation; visible only in &quot;what passed/what else was checked&quot; expandable per pattern Q5) → MATERIAL (warrants human review before processing; drives review_recommended recommendation) → CRITICAL (serious finding warranting recollection; drives resurvey_recommended recommendation). Note: severity_of_finding is the BAND-LEVEL vocabulary. The CHAIN-LEVEL recommendation vocabulary is good_to_go / review_recommended / resurvey_recommended. These are deliberately separate.</div>
+<div class="vsbox"><b>verification_status field (separate categorical):</b><br>Separate categorical field reporting gcp-level verification quality. VALUES: GCP_VERIFIED_HIGH (all designated GCPs passed cleanly); GCP_VERIFIED_MARGINAL (one or more points have material findings; review_recommended); GCP_VERIFIED_FAIL (one or more points have critical findings, but at least one usable point remains; resurvey_recommended for affected points); GCP_HARD_GATE_FIRED (all designated GCPs failed — chain-level hard gate); GCP_NOT_APPLICABLE (NO_DESIGNATED_GCPS — chain returns null per Q-GCP-2). NEVER score-gating. Score reflects measurement quality; status reports verification basis.</div>
+<div class="vsbox" style="border-color:rgba(201,168,76,.35);background:rgba(201,168,76,.05);color:var(--gold)"><b style="color:var(--text)">Tier interpretation:</b><br>BASE TIER (from numerical score): Gold 90-100; Silver 75-89; Bronze 60-74; Marginal 40-59; Poor &lt;40. 
+
+HARD GATE: When all-points coverage gate fires (every designated GCP has occupation_coverage_score = 0), gcp_score = 0. Tier = Poor (HARD GATE). 
+
+NULL CASE: When NO_DESIGNATED_GCPS fires, gcp_score = null. Tier = Not Applicable. This is NOT a failure — survey was designed without GCPs.
+
+Per-point gates (e.g., antenna_height_missing on one point) degrade that point&#x27;s contribution but do not gate the chain. If at least one designated GCP remains usable, chain score is computed from the surviving points with reduced weight.
+
+Q-GCP-1/2/3 lock decisions (v2.1):
+  Q-GCP-1: One chain-level hard gate (all-points-coverage-failed). Antenna_height_missing is per-point gate only, NOT chain-level.
+  Q-GCP-2: NO_DESIGNATED_GCPS → null return (chain not applicable), not score=0.
+  Q-GCP-3: Customer view aggregates top-3 findings across all points with per-point attribution.
+</div>
+<div class="meaning" style="margin-top:10px">Hardware-derived capture-confidence score. PPK only. Independent at runtime of base_station_score — requires only GCP device files + flight timing context + NOAA Kp API. Survey-design adequacy (counts, role allocation, check-point independence, target visibility, coordinate accuracy, datum) is owned by pre_processing_score. Check-point scoring is a future deliverable (check_point_score).</div></div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 1 — Building Blocks (3)</div></div>
+<div class="card gate">
+<div class="row-top"><div class="name" style="color:var(--red)">BB_GCP_COMPLETE</div>
+<div class="lname">Capture Completeness &amp; Integrity</div><div class="wt">weight 0.45 in gcp_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Are the per-point captures present, complete, and usable?  ·  <b style="color:var(--text)">Owner:</b> Per-point recording / hardware</div>
+<div class="formula">indicators:  occupation_coverage_score(0.35), occupation_integrity_score(0.30), occupation_format_score(0.20), occupation_continuity_score(0.15)</div><div class="gatetag">⊘ Triggers GCP_CRITICAL_FAILURE at gcp_score level.</div></div>
+<div class="card gate">
+<div class="row-top"><div class="name" style="color:var(--orange)">BB_GCP_SETUP</div>
+<div class="lname">Per-point Setup &amp; Documentation Confidence</div><div class="wt">weight 0.35 in gcp_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Is the per-point operator metadata trustworthy?  ·  <b style="color:var(--text)">Owner:</b> Operator (per-point setup)</div>
+<div class="formula">indicators:  gcp_antenna_height_documented_score(0.55), gcp_device_id_match_score(0.30), gcp_antenna_type_match_score(0.15)</div><div class="gatetag">⊘ That point per_point_setup_confidence = 0. FLAG: GCP_POINT_ANTENNA_HEIGHT_MISSING.</div></div>
+<div class="card">
+<div class="row-top"><div class="name" style="color:var(--teal)">BB_GCP_ENV</div>
+<div class="lname">Per-point Observation Environment</div><div class="wt">weight 0.2 in gcp_score</div></div>
+<div class="meaning"><b style="color:var(--text)">Q:</b> Was the sky/site environment good at each point?  ·  <b style="color:var(--text)">Owner:</b> Site / sky conditions</div>
+<div class="formula">indicators:  gcp_multipath_score(0.50), gcp_acquisition_score(0.30), gcp_ionospheric_risk_score(0.20)</div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Level 3 — Indicators (10)</div><div class="sec-sub">1 chain-level critical-path (coverage, fires only when ALL points fail). 1 per-point gate (antenna_height, degrades point only).</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--red);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for BB_GCP_COMPLETE</div>
+<div class="card gate">
+<div class="row-top"><div class="name">occupation_coverage_score</div><div class="lname">Per-point Flight Coverage &amp; Buffer</div>
+<span class="pill cp">CHAIN-LEVEL CRITICAL-PATH (when all points)</span><div class="wt">weight 0.35</div></div>
+<div class="src">← occupation_coverage_ratio;pre_flight_buffer_sec;post_flight_buffer_sec</div>
+<div class="thr">coverage_ratio=1.0 AND pre&gt;=120s AND post&gt;=60s -&gt; 100; coverage=1.0 AND pre&gt;=60s -&gt; 88; coverage=1.0 AND pre&lt;60s -&gt; 72; coverage&lt;1.0 -&gt; 0 + gate.</div><div class="gatetag">⊘ occupation_coverage_ratio &lt; 1.0 → Sets this point completeness sub-score = 0. FLAG: GCP_POINT_FLIGHT_GAP.</div><div class="qlocktag">v2.1 Q-lock: Q-GCP-1: chain-level hard gate (all-points condition). Per-point coverage failure degrades the point contribution; chain-level gate only when all points fail.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">occupation_integrity_score</div><div class="lname">Per-point Session &amp; Power Integrity</div>
+<div class="wt">weight 0.3</div></div>
+<div class="src">← session_integrity_ok;raw_log_download_confirmed;device_type</div>
+<div class="thr">device_type=DGPS: completed_normally AND 0 shutdowns AND battery_min&gt;=20% -&gt; 100; shutdown&gt;=1 -&gt; 30; oplog absent/null -&gt; 60 (unconfirmed); download not confirmed -&gt; advisory flag.  device_type in {CB_X, AEROPOINT, OTHER}: oplog expected-absent, no penalty for absence; score based on RINEX signals (any_gap_gt_60s=False -&gt; 100; else 40).</div></div>
+<div class="card">
+<div class="row-top"><div class="name">occupation_format_score</div><div class="lname">Per-point RINEX Format &amp; Compatibility</div>
+<div class="wt">weight 0.2</div></div>
+<div class="src">← rinex_version_supported;header_completeness;dual_freq_available;constellation_count</div>
+<div class="thr">version supported AND header complete AND dual-freq -&gt; 100; single-freq -&gt; 70; version unsupported -&gt; 35 (FLAG: GCP_POINT_RINEX_VERSION_UNSUPPORTED); header incomplete -&gt; 40.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">occupation_continuity_score</div><div class="lname">Per-point Recording Continuity</div>
+<div class="wt">weight 0.15</div></div>
+<div class="src">← cycle_slip_count;gap_gt_5s_count;any_gap_gt_60s</div>
+<div class="thr">no gaps AND &lt;5 slips -&gt; 100; minor gaps OR 5-20 slips -&gt; 75; any_gap_gt_60s OR &gt;20 slips -&gt; 40. Feeds disturbance composite.</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--orange);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for BB_GCP_SETUP</div>
+<div class="card gate">
+<div class="row-top"><div class="name">gcp_antenna_height_documented_score</div><div class="lname">Per-point Antenna Height Documentation</div>
+<span class="pill pp">PER-POINT GATE</span><div class="wt">weight 0.55</div></div>
+<div class="src">← antenna_height_auto_known;antenna_measurement_type;measured_to_reference;height_measured_count;antenna_height_agreement</div>
+<div class="thr">antenna_height_auto_known=True (CB_X / AEROPOINT) -&gt; 100 by definition (factory-known).  device_type=DGPS: VERTICAL AND measured_to=ARP AND count&gt;=3 AND RINEX agreement -&gt; 100; single VERTICAL -&gt; 88; SLANT -&gt; 72; height entered but RINEX delta_h disagrees -&gt; 55 (review).  No height entered (DGPS / OTHER) -&gt; 0 + gate.</div><div class="gatetag">⊘ antenna_height_m absent AND antenna_height_auto_known=False → Sets this point setup sub-score = 0. FLAG: GCP_POINT_ANTENNA_HEIGHT_MISSING.</div><div class="qlocktag">v2.1 Q-lock: Q-GCP-1: per-point gate ONLY. Not a chain-level hard gate. Per-point antenna height missing degrades that point; chain continues to score from other points.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_device_id_match_score</div><div class="lname">Per-point Device ID Match</div>
+<div class="wt">weight 0.3</div></div>
+<div class="src">← device_id_match</div>
+<div class="thr">Match -&gt; 100; mismatch -&gt; 50 + FLAG: GCP_POINT_DEVICE_ID_MISMATCH (HIGH, reviewer-blocking); either side missing -&gt; 60 (unconfirmed).</div></div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_antenna_type_match_score</div><div class="lname">Per-point Antenna Type Consistency</div>
+<div class="wt">weight 0.15</div></div>
+<div class="src">← antenna_type_match</div>
+<div class="thr">Match -&gt; 100; mismatch -&gt; 40 + FLAG. Type-string consistency only, NOT a true ANTEX calibration check (that is Stage 2).</div></div>
+<div style="font-family:var(--mono);font-size:11px;color:var(--teal);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 8px">→ Indicators for BB_GCP_ENV</div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_multipath_score</div><div class="lname">Per-point Multipath Environment</div>
+<div class="wt">weight 0.5</div></div>
+<div class="src">← multipath_risk_level;cn0_mean_dbhz</div>
+<div class="thr">multipath_risk_level low (&lt;=2.5 dB-Hz) -&gt; 100; moderate (2.5-4.0) -&gt; 65; high (&gt;4.0) -&gt; 35 + FLAG: GCP_POINT_HIGH_MULTIPATH. Risk proxy, not error magnitude.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_acquisition_score</div><div class="lname">Per-point Satellite Acquisition</div>
+<div class="wt">weight 0.3</div></div>
+<div class="src">← device_acquisition_time_sec</div>
+<div class="thr">acquisition &lt;60s -&gt; 100; 60-119s -&gt; 88; 120-299s -&gt; 65; &gt;=300s -&gt; 30 + FLAG: GCP_POINT_SLOW_ACQUISITION.</div></div>
+<div class="card">
+<div class="row-top"><div class="name">gcp_ionospheric_risk_score</div><div class="lname">Per-point Ionospheric Risk</div>
+<div class="wt">weight 0.2</div></div>
+<div class="src">← kp_index;dual_freq_available</div>
+<div class="thr">Kp &lt;= 4 OR dual-freq available -&gt; 100; Kp 5-6 AND single-freq -&gt; 60; Kp &gt;= 7 AND single-freq -&gt; 40 + FLAG: GCP_POINT_IONO_RISK. External NOAA SWPC dependency.</div></div>
+</div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Flags (14)</div></div><div class="card"><table><tr><th>Flag</th><th>Type</th><th>When</th><th>Sev</th><th>Covers</th><th>Meaning</th></tr>
+<tr><td class="kw">GCP_CRITICAL_FAILURE</td><td>score</td><td>every GCP-role point has occupation_coverage_score=0</td><td class="sev-CRITICAL">CRITICAL</td><td>#8 system view</td><td>Foundational GCP data unusable across the survey — gcp_score = 0. Parallels DRONE_CRITICAL_FAILURE and BASE_CRITICAL_FAILURE structurally; defined independently.</td></tr>
+<tr><td class="kw">GCP_POINT_ANTENNA_HEIGHT_MISSING</td><td>indicator_gate</td><td>antenna_height_m absent AND antenna_height_auto_known=False</td><td class="sev-CRITICAL">CRITICAL</td><td>#6</td><td>Per-point antenna height not entered for a non-factory-known device — per_point_setup_confidence = 0 for this point.</td></tr>
+<tr><td class="kw">GCP_POINT_FLIGHT_GAP</td><td>indicator_gate</td><td>occupation_coverage_ratio &lt; 1.0</td><td class="sev-CRITICAL">CRITICAL</td><td>#8</td><td>This GCP did not record over the full flight window; PPK will lack coverage for this point.</td></tr>
+<tr><td class="kw">GCP_POINT_DEVICE_FAILURE</td><td>indicator</td><td>unexpected_shutdown_count &gt;= 1 OR session_completed_normally = false (DGPS only)</td><td class="sev-HIGH">HIGH</td><td>#8</td><td>Per-point session interrupted by power/shutdown event.</td></tr>
+<tr><td class="kw">GCP_POINT_LOG_DOWNLOAD_UNCONFIRMED</td><td>indicator advisory</td><td>raw_log_download_confirmed != True (DGPS only)</td><td class="sev-MEDIUM">MEDIUM</td><td>#8</td><td>Raw log transfer off the device not confirmed (advisory).</td></tr>
+<tr><td class="kw">GCP_POINT_RINEX_VERSION_UNSUPPORTED</td><td>indicator</td><td>rinex_version not in supported set</td><td class="sev-HIGH">HIGH</td><td>#10</td><td>This point&#x27;s RINEX version may not be accepted by the PPK pipeline.</td></tr>
+<tr><td class="kw">GCP_POINT_HIGH_MULTIPATH</td><td>indicator</td><td>multipath_risk_level &gt; 4.0</td><td class="sev-HIGH">HIGH</td><td>#9</td><td>Elevated multipath risk at this point.</td></tr>
+<tr><td class="kw">GCP_POINT_IONO_RISK</td><td>indicator</td><td>kp_index &gt;= 7 AND single-frequency</td><td class="sev-HIGH">HIGH</td><td>#20</td><td>Ionospheric disturbance likely degraded accuracy at this point. External Kp dependency.</td></tr>
+<tr><td class="kw">GCP_POINT_SLOW_ACQUISITION</td><td>indicator</td><td>device_acquisition_time_sec &gt;= 300</td><td class="sev-MEDIUM">MEDIUM</td><td>#18</td><td>Per-point acquisition was unusually slow.</td></tr>
+<tr><td class="kw">GCP_POINT_DEVICE_ID_MISMATCH</td><td>indicator (reviewer-blocking)</td><td>form device_id != RINEX device_id</td><td class="sev-HIGH">HIGH</td><td>#14</td><td>Per-point form/RINEX device_id disagreement. Reviewer-blocking — must be resolved before survey delivery sign-off.</td></tr>
+<tr><td class="kw">GCP_POINT_DISTURBANCE</td><td>composite (flag-only)</td><td>position_disturbance_signature fires</td><td class="sev-HIGH">HIGH</td><td>#15</td><td>Composite signal of physical disturbance during this occupation. Flag-only; no weight. BLIND to slow settling.</td></tr>
+<tr><td class="kw">NO_DESIGNATED_GCPS</td><td>score advisory</td><td>no points with device_role=GCP in survey</td><td class="sev-INFORMATIONAL">INFORMATIONAL (null trigger — Q-GCP-2 lock v2.1)</td><td>system view</td><td>Survey was designed without any GCPs (no points carry GCP role). gcp_score = null (chain not applicable). NOT a hard gate failure. Composite scoring should treat null as &quot;not measured&quot; rather than &quot;measured zero&quot;.</td></tr>
+<tr><td class="kw">UNRECOGNIZED_DEVICE_TYPE</td><td>indicator advisory</td><td>device_type = OTHER</td><td class="sev-MEDIUM">MEDIUM</td><td>operational</td><td>Unknown device hardware; oplog expectations not enforced; reviewer should verify scoring assumptions.</td></tr>
+<tr><td class="kw">GCP_POINT_RINEX_TRUNCATED</td><td>composite (DGPS only)</td><td>|session_end_utc - obs_end_utc| &gt; tolerance, with oplog expected-present</td><td class="sev-HIGH">HIGH</td><td>#8</td><td>Device end-time and RINEX observation end-time disagree — silent truncation. Applies to DGPS only.</td></tr>
+</table></div></div>
+<div class="sec"><div class="sec-bar"><div class="sec-name">Problem Coverage (22)</div></div><div class="card"><table><tr><th>#</th><th>Problem</th><th>Severity</th><th>Frequency</th><th>Disposition</th><th>Covered by</th></tr>
+<tr><td class="kw">1</td><td>No Check Points</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>VERY COMMON</td><td>OUT-FUTURE</td><td>future check_point_score; survey-design — pre_processing_score also flags</td></tr>
+<tr><td class="kw">2</td><td>CP Not Spatially Independent</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>VERY COMMON</td><td>PRE-PROC</td><td>pre_processing_score</td></tr>
+<tr><td class="kw">3</td><td>Insufficient GCP Count</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td>PRE-PROC</td><td>pre_processing_score (count gate, needs site area)</td></tr>
+<tr><td class="kw">4</td><td>Clustered Near Access Roads</td><td class="sev-CRITICAL">CRITICAL</td><td>VERY COMMON</td><td>PRE-PROC</td><td>pre_processing_score (needs reconstruction extent)</td></tr>
+<tr><td class="kw">5</td><td>Vertical Extremes Uncovered</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td>LE</td><td>Learning Engine (needs DTM)</td></tr>
+<tr><td class="kw">6</td><td>Antenna Height Blunder (Pole-Mounted)</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>COMMON</td><td>OWNED</td><td>gcp_antenna_height_documented_score + hard gate</td></tr>
+<tr><td class="kw">7</td><td>Coordinate Accuracy Unknown</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>COMMON</td><td>PRE-PROC</td><td>pre_processing_score (Stage 2)</td></tr>
+<tr><td class="kw">8</td><td>Battery/Solar Failure Mid-Session</td><td class="sev-CRITICAL">CRITICAL</td><td>OCCASIONAL</td><td>OWNED</td><td>occupation_completeness + integrity per-point</td></tr>
+<tr><td class="kw">9</td><td>Multipath from Structures</td><td class="sev-HIGH">HIGH</td><td>COMMON</td><td>OWNED</td><td>gcp_multipath_score per point</td></tr>
+<tr><td class="kw">10</td><td>Mark Disturbed Pre-Flight</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td>SPLIT</td><td>CB_X / AeroPoint case detectable via RINEX (per-point continuity + disturbance composite); traditional marks → Stage 2 ODM detection</td></tr>
+<tr><td class="kw">11</td><td>Target Not Visible at Flight Altitude</td><td class="sev-HIGH">HIGH</td><td>COMMON</td><td>PRE-PROC</td><td>pre_processing_score (cross-doc with planned_gsd_cm)</td></tr>
+<tr><td class="kw">12</td><td>Wrong Coord Typo in ODM</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td>OUT</td><td>Outside CBMI (manual ODM entry)</td></tr>
+<tr><td class="kw">13</td><td>Pre-Surveyed Coords Wrong CRS</td><td class="sev-CATASTROPHIC">CATASTROPHIC</td><td>OCCASIONAL</td><td>PRE-PROC</td><td>pre_processing_score (datum)</td></tr>
+<tr><td class="kw">14</td><td>Device_ID Mismatch</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td>OWNED</td><td>gcp_device_id_match_score (reviewer-blocking)</td></tr>
+<tr><td class="kw">15</td><td>AeroPoint/CB_X Moved During Flight</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td>OWNED</td><td>GCP_POINT_DISTURBANCE composite (flag-only)</td></tr>
+<tr><td class="kw">16</td><td>Uneven Surface Tilt</td><td class="sev-MEDIUM">MEDIUM</td><td>OCCASIONAL</td><td>OUT</td><td>Hardware limitation (no inclinometer)</td></tr>
+<tr><td class="kw">17</td><td>Target Washed/Blown Away</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td>STAGE2</td><td>Stage 2 ODM target detection</td></tr>
+<tr><td class="kw">18</td><td>Recording Starts After Takeoff</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td>OWNED</td><td>gcp_acquisition_score</td></tr>
+<tr><td class="kw">19</td><td>Processing Method Too Weak</td><td class="sev-CRITICAL">CRITICAL</td><td>COMMON</td><td>PRE-PROC</td><td>pre_processing_score (Stage 2)</td></tr>
+<tr><td class="kw">20</td><td>Too Many Check Points, Few GCPs</td><td class="sev-MEDIUM">MEDIUM</td><td>OCCASIONAL</td><td>OUT-FUTURE</td><td>future check_point_score (and pre_processing role-allocation)</td></tr>
+<tr><td class="kw">21</td><td>Roles Reversed in ODM</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td>OUT</td><td>Outside CBMI (third-party software input)</td></tr>
+<tr><td class="kw">22</td><td>Drift Despite Good GCPs</td><td class="sev-HIGH">HIGH</td><td>OCCASIONAL</td><td>LE</td><td>Learning Engine (consequence of #5)</td></tr>
+</table></div>
+<div class="note"><b>Three-tier artifact architecture:</b><br>Tier 1 (this bundle) — chain definition (scoring logic + weights + thresholds + per-point + null handling)<br>Tier 2 (separate file) — gcp_indicator_library_v2_1.json (customer-voice text per indicator per band)<br>Tier 3 (separate file) — gcp_multi_view_v1_LOCKED.html (5-tab reference implementation with 4 scenarios)<br><br>See cbmi_chain_library_pattern.md for the propagation blueprint. GCP introduces per-point dimension + null-case handling — pattern doc update recommended.</div>
+</div></body></html>

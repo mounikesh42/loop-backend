@@ -1,0 +1,628 @@
+{
+  "_meta": {
+    "title": "check_point_indicator_library",
+    "version": "2.1.0 (LOCKED)",
+    "generated_at": "2026-06-11T09:58:23Z",
+    "description": "Library of customer-facing text for check_point indicators. 14 per-point RTK indicators, 3 blocks. Q-CP locks v2.1: global gate retained, fix_type per-point gate (Q-CP-2), aggregation formula locked (Q-CP-3). Two per-point gates: fix_type and antenna_height (both zero the individual point; aggregation dilutes across fleet).",
+    "three_tier_architecture": {
+      "tier_1_chain_definition": "check_point_confidence_score_v2_1_LOCKED.json",
+      "tier_2_library_this_file": "check_point_indicator_library_v2_1.json",
+      "tier_3_reference_html": "check_point_multi_view_v1_LOCKED.html"
+    },
+    "text_authorship_status": "CLAUDE-DRAFTED PLACEHOLDER. Structure locked, text marked placeholder pending domain refinement.",
+    "q_locks_applied": [
+      "Q-CP-1",
+      "Q-CP-2",
+      "Q-CP-3",
+      "Q-CP-4",
+      "Q-CP-5"
+    ],
+    "indicators_count": 14,
+    "total_bands_count": 32,
+    "per_point_gates": [
+      "L3I_CP_002",
+      "L3I_CP_005"
+    ],
+    "schema_notes": {
+      "gate_scope": "per_point_only (affects individual point; aggregation dilutes) / none.",
+      "per_point_gate_action": "When gate fires on a single point, that point is zeroed; other points continue to score and contribute to aggregation."
+    }
+  },
+  "library": {
+    "L3I_CP_001": {
+      "id": "L3I_CP_001",
+      "num": "#01",
+      "block": "BB_CP_COMPLETE",
+      "weight": 0.45,
+      "name": "Position sigma",
+      "fullName": "cp_position_sigma_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "RTK receiver reported position uncertainty (sigma) is within acceptable range.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Position sigma \u22645cm (excellent RTK convergence)",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            50,
+            84
+          ],
+          "level": "review",
+          "label": "Position sigma 5-15cm (moderate RTK convergence)",
+          "impact": "RTK locked but with visible uncertainty. Output position has larger error envelope. Acceptable for most survey classes but check whether specification is met.",
+          "actions": [
+            "Verify final deliverable accuracy against project specification",
+            "Check whether baseline length or multipath affected convergence",
+            "Document sigma value in metadata for downstream reference"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            49
+          ],
+          "level": "review",
+          "label": "Position sigma >15cm or no fix (degraded RTK)",
+          "impact": "RTK either did not converge fully or reported large uncertainty. Position accuracy is compromised; deliverable may not meet specification.",
+          "actions": [
+            "Inspect RTK log for fix-type history and base distance",
+            "Check whether multipath or obstructions degraded signal",
+            "Consider whether re-occupying under clearer conditions is practical"
+          ]
+        }
+      ],
+      "derivation": "Sigma is the anchor indicator for RTK quality. \u22645cm is industry 'good RTK', 5-15cm is 'acceptable with notes', >15cm is 'degraded'.",
+      "flag": "CP_SIGMA_REJECT"
+    },
+    "L3I_CP_002": {
+      "id": "L3I_CP_002",
+      "num": "#02",
+      "block": "BB_CP_COMPLETE",
+      "weight": 0.3,
+      "name": "Fix type at capture",
+      "fullName": "cp_fix_type_score",
+      "is_critical_path": false,
+      "gate_scope": "per_point_only",
+      "verified_statement": "RTK receiver had a FIXED integer ambiguity at the measurement epoch (not FLOAT or AUTONOMOUS).",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "FIXED RTK \u2014 integer ambiguity resolved",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            84
+          ],
+          "level": "critical",
+          "label": "FLOAT or AUTONOMOUS (per-point gate fires \u2014 Q-CP-2)",
+          "impact": "RTK did not achieve fixed integer ambiguity. Position is FLOAT (meter-level uncertainty) or AUTONOMOUS (GPS-only, 3-5m uncertainty). This point's score is zeroed per-point aggregation. Other points continue to score.",
+          "actions": [
+            "Inspect RTK log for why fix was not achieved",
+            "Check base station corrections availability at the time",
+            "If repeated, consider occupying this location longer or from different setup"
+          ]
+        }
+      ],
+      "derivation": "Q-CP-2: FLOAT/AUTONOMOUS promoted to per-point gate. Affects individual point; aggregation dilutes across fleet. Not a chain-level hard gate.",
+      "flag": "CP_FLOAT_ACCEPTED_AS_FIXED"
+    },
+    "L3I_CP_003": {
+      "id": "L3I_CP_003",
+      "num": "#03",
+      "block": "BB_CP_COMPLETE",
+      "weight": 0.15,
+      "name": "Correction age",
+      "fullName": "cp_correction_age_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Base station corrections at measurement epoch were recent (not stale).",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "Corrections <30s old at measurement",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "minor",
+          "label": "Corrections >30s old (hygiene signal)",
+          "impact": "RTK used aged corrections. Slight degradation in convergence quality; usually still acceptable but less optimal.",
+          "actions": [
+            "Check whether base station or NTRIP link was temporarily unstable",
+            "Inspect whether using a farther base would have better correction freshness"
+          ]
+        }
+      ],
+      "derivation": "Correction age >30s means increased atmospheric modeling error in base computation.",
+      "flag": "CP_CORRECTION_AGE_STALE"
+    },
+    "L3I_CP_004": {
+      "id": "L3I_CP_004",
+      "num": "#04",
+      "block": "BB_CP_COMPLETE",
+      "weight": 0.1,
+      "name": "Log integrity",
+      "fullName": "cp_log_integrity_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "RTK log file was downloaded cleanly and has valid checksum/signature.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Log downloaded, checksum valid",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            84
+          ],
+          "level": "minor",
+          "label": "Log download incomplete or checksum failed (hygiene signal)",
+          "impact": "Log file may be corrupted or truncated. Data is still usable but requires inspection for gap or corruption.",
+          "actions": [
+            "Attempt to download log again from device",
+            "Inspect log file directly for obvious gaps or truncation",
+            "Verify device storage and connectivity for next occupation"
+          ]
+        }
+      ],
+      "derivation": "Hygiene signal. Log integrity check catches storage failures early.",
+      "flag": null
+    },
+    "L3I_CP_005": {
+      "id": "L3I_CP_005",
+      "num": "#05",
+      "block": "BB_CP_SETUP",
+      "weight": 0.4,
+      "name": "Antenna height documented",
+      "fullName": "cp_antenna_height_documented_score",
+      "is_critical_path": false,
+      "gate_scope": "per_point_only",
+      "verified_statement": "Antenna height measurement was recorded and is traceable.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "Antenna height measured and documented",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "critical",
+          "label": "Antenna height not documented (per-point gate)",
+          "impact": "Height is unknown. Phase center offset cannot be corrected; vertical accuracy is compromised. This point's score is zeroed per aggregation.",
+          "actions": [
+            "Inspect field photo or notes for height evidence",
+            "If unavailable, mark this point as un-usable for final coordinates",
+            "For next occupation, enforce height measurement protocol"
+          ]
+        }
+      ],
+      "derivation": "Q-CP-4: no device-type special handling. All devices must have documented height (unlike GCP where factory-known devices auto-pass).",
+      "flag": "CP_ANTENNA_HEIGHT_MISSING"
+    },
+    "L3I_CP_006": {
+      "id": "L3I_CP_006",
+      "num": "#06",
+      "block": "BB_CP_SETUP",
+      "weight": 0.2,
+      "name": "Pole stability",
+      "fullName": "cp_pole_stability_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Antenna pole/rod was stable throughout measurement (no movement, no tilt).",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Pole stable, antenna plumb, no observed movement",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            84
+          ],
+          "level": "review",
+          "label": "Pole had some movement or slight tilt",
+          "impact": "Antenna may have shifted during measurement. Position reported is averaged over an unstable baseline; accuracy may be degraded.",
+          "actions": [
+            "Inspect field notes/photos for movement evidence",
+            "Check whether RTK fix remained constant despite movement",
+            "Consider whether re-occupying with more stable setup is practical"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "review",
+          "label": "Pole unstable or tilted significantly",
+          "impact": "Antenna position changed during measurement. Reported position is unreliable; deliverable may not meet specification.",
+          "actions": [
+            "Mark point as requiring re-occupation with stable setup",
+            "Review field protocol for pole stability checks"
+          ]
+        }
+      ],
+      "derivation": "Movement during occupation violates RTK assumption (static receiver).",
+      "flag": "CP_POLE_INSTABILITY"
+    },
+    "L3I_CP_007": {
+      "id": "L3I_CP_007",
+      "num": "#07",
+      "block": "BB_CP_SETUP",
+      "weight": 0.15,
+      "name": "Baseline length",
+      "fullName": "cp_baseline_length_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Distance to base station or CORS reference is reasonable for RTK convergence.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "Baseline \u226450 km to base/CORS (standard RTK range)",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "review",
+          "label": "Baseline >50 km (extended range, slower convergence)",
+          "impact": "RTK required longer convergence time. Fix quality may be weaker; uncertainty may be larger than nominal.",
+          "actions": [
+            "Check whether a closer base/CORS was available",
+            "Verify convergence time matches distance expectation",
+            "Inspect final sigma for degradation"
+          ]
+        }
+      ],
+      "derivation": "RTK atmospheric modeling errors grow with baseline. >50 km requires extended convergence.",
+      "flag": "CP_BASELINE_LONG"
+    },
+    "L3I_CP_008": {
+      "id": "L3I_CP_008",
+      "num": "#08",
+      "block": "BB_CP_SETUP",
+      "weight": 0.1,
+      "name": "NTRIP mountpoint",
+      "fullName": "cp_ntrip_mountpoint_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "NTRIP correction stream was correctly matched to location and receiver type.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Correct NTRIP mountpoint for location and receiver",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            84
+          ],
+          "level": "review",
+          "label": "NTRIP mountpoint mismatch (wrong region, wrong format)",
+          "impact": "Corrections may not apply well to location. RTK convergence is suboptimal; final accuracy may not meet specification.",
+          "actions": [
+            "Verify NTRIP stream coverage for the location",
+            "Check whether receiver is compatible with correction format",
+            "Use correct mountpoint for next occupation"
+          ]
+        }
+      ],
+      "derivation": "NTRIP mismatch degrades RTK performance.",
+      "flag": "CP_NTRIP_MISMATCH"
+    },
+    "L3I_CP_009": {
+      "id": "L3I_CP_009",
+      "num": "#09",
+      "block": "BB_CP_SETUP",
+      "weight": 0.1,
+      "name": "Antenna type consistency",
+      "fullName": "cp_antenna_type_match_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Antenna type matches documented type in receiver configuration.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "Antenna type matches receiver config",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "review",
+          "label": "Antenna type mismatch",
+          "impact": "Phase center offset model may be incorrect. Vertical accuracy especially is compromised.",
+          "actions": [
+            "Verify actual antenna installed vs receiver configuration",
+            "Update receiver configuration to match actual antenna",
+            "If old data, apply post-correction with correct antenna model"
+          ]
+        }
+      ],
+      "derivation": "Type mismatch causes incorrect phase center modeling.",
+      "flag": "CP_ANTENNA_TYPE_MISMATCH"
+    },
+    "L3I_CP_010": {
+      "id": "L3I_CP_010",
+      "num": "#10",
+      "block": "BB_CP_SETUP",
+      "weight": 0.05,
+      "name": "Device ID provenance",
+      "fullName": "cp_device_id_match_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Device serial number in log matches expected device (traceability).",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Device ID traceable and matches expected unit",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            84
+          ],
+          "level": "minor",
+          "label": "Device ID mismatch or not traceable (hygiene)",
+          "impact": "Audit trail unclear. Cannot verify which physical device was used.",
+          "actions": [
+            "Inspect field notes or device label to verify serial number",
+            "For next occupation, confirm device serial before and after use"
+          ]
+        }
+      ],
+      "derivation": "Hygiene/audit signal.",
+      "flag": null
+    },
+    "L3I_CP_011": {
+      "id": "L3I_CP_011",
+      "num": "#11",
+      "block": "BB_CP_ENV",
+      "weight": 0.4,
+      "name": "PDOP at capture",
+      "fullName": "cp_pdop_at_capture_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Satellite geometry at measurement epoch was favorable (PDOP within RTK range).",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "PDOP <3 at capture (excellent geometry)",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            74
+          ],
+          "level": "review",
+          "label": "PDOP 3-6 (acceptable but not ideal)",
+          "impact": "Satellite geometry was suboptimal. Position uncertainty elevated but usually acceptable.",
+          "actions": [
+            "Check PDOP forecast for future flights",
+            "Inspect final sigma for degradation related to PDOP"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "review",
+          "label": "PDOP >6 (poor geometry)",
+          "impact": "Satellite geometry was poor. RTK output reliability is questionable; final accuracy may not meet specification.",
+          "actions": [
+            "Check whether conditions were forecast; reschedule if possible",
+            "Inspect final sigma against tolerance"
+          ]
+        }
+      ],
+      "derivation": "PDOP <3 is RTK baseline. >6 indicates poor sky view or unfavorable geometry.",
+      "flag": "CP_PDOP_POOR"
+    },
+    "L3I_CP_012": {
+      "id": "L3I_CP_012",
+      "num": "#12",
+      "block": "BB_CP_ENV",
+      "weight": 0.25,
+      "name": "Fix hold duration",
+      "fullName": "cp_fix_hold_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "RTK maintained fixed integer solution continuously through measurement window.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "Fixed RTK throughout, no cycle slips",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "review",
+          "label": "Cycle slips or brief float detected",
+          "impact": "RTK lost fix momentarily. Position average may be slightly degraded; accuracy envelope larger than nominal.",
+          "actions": [
+            "Inspect RTK log for cause of slip (multipath, signal loss, etc.)",
+            "Check environment for temporary obstruction or interference",
+            "Re-occupy if accuracy-critical"
+          ]
+        }
+      ],
+      "derivation": "Cycle slips indicate RTK stability issue. Continuous fix is baseline expectation.",
+      "flag": "CP_CYCLE_SLIP"
+    },
+    "L3I_CP_013": {
+      "id": "L3I_CP_013",
+      "num": "#13",
+      "block": "BB_CP_ENV",
+      "weight": 0.2,
+      "name": "Sky obstruction",
+      "fullName": "cp_obstruction_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Clear sky view above antenna \u2014 no significant obstruction (buildings, trees, hills).",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Clear sky, >30\u00b0 elevation minimum",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "review",
+          "label": "Obstructed sky view (<30\u00b0 elevation minimum)",
+          "impact": "Low satellite count. RTK convergence slower; final uncertainty larger. RTK may not achieve fixed solution.",
+          "actions": [
+            "Relocate antenna away from obstructions if possible",
+            "Allow longer convergence time at obstructed location",
+            "Consider whether alternate location with clearer sky is practical"
+          ]
+        }
+      ],
+      "derivation": "RTK requires >4-5 satellites consistently. Obstruction reduces count and quality.",
+      "flag": "CP_SKY_OBSTRUCTED"
+    },
+    "L3I_CP_014": {
+      "id": "L3I_CP_014",
+      "num": "#14",
+      "block": "BB_CP_ENV",
+      "weight": 0.15,
+      "name": "Ionospheric risk",
+      "fullName": "cp_ionospheric_risk_score",
+      "is_critical_path": false,
+      "gate_scope": "none",
+      "verified_statement": "Ionospheric conditions during measurement were within historical normal range.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "Kp <5 (quiet ionosphere)",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            74
+          ],
+          "level": "review",
+          "label": "Kp 5-7 (active ionosphere, higher variance)",
+          "impact": "Ionospheric modeling error elevated. RTK convergence may be slower; final uncertainty slightly larger.",
+          "actions": [
+            "Check NOAA SWPC Kp forecast for future surveys; avoid high Kp if possible",
+            "Allow longer convergence time during active ionosphere"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "review",
+          "label": "Kp >7 (geomagnetic storm, significant ionospheric disturbance)",
+          "impact": "Ionospheric disturbance was severe. RTK performance degraded; final accuracy likely compromised.",
+          "actions": [
+            "Reschedule critical observations to quieter periods if possible",
+            "Inspect final accuracy against specification"
+          ]
+        }
+      ],
+      "derivation": "NOAA SWPC Kp index from external API. High ionospheric disturbance adds modeling error to RTK.",
+      "flag": "CP_IONOSPHERIC_STORM"
+    }
+  }
+}

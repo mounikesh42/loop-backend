@@ -1,0 +1,536 @@
+{
+  "_meta": {
+    "title": "base_station_indicator_library",
+    "version": "2.1.0 (LOCKED)",
+    "generated_at": "2026-06-10T13:27:30Z",
+    "description": "Library of customer-facing text for every indicator at every band of the base_station chain. Layered annotation ON TOP OF the canonical chain definition (base_station_confidence_score_v2_1_LOCKED.json). References chain indicator IDs (L3I_BASE_NNN). When chain weights or threshold ranges change, library entries for affected indicators need review for consistency.",
+    "three_tier_architecture": {
+      "tier_1_chain_definition": "base_station_confidence_score_v2_1_LOCKED.json \u2014 canonical scoring, chain logic, indicator weights, threshold values",
+      "tier_2_library_this_file": "base_station_indicator_library_v2_1.json \u2014 customer-voice text per indicator per band, derivation rationale",
+      "tier_3_reference_html": "base_station_multi_view_v3.html \u2014 five-tab reference implementation"
+    },
+    "text_authorship_status": "CLAUDE-DRAFTED PLACEHOLDER. Per user Q1 confirmation during v2.1 lock session: structure locked, library text marked as placeholder pending domain refinement.",
+    "q_locks_applied": [
+      "Q1",
+      "Q2",
+      "Q3",
+      "Q4",
+      "Q5",
+      "Q6"
+    ],
+    "indicators_count": 11,
+    "total_bands_count": 28,
+    "critical_path_indicators": [
+      "L3I_BASE_001",
+      "L3I_BASE_005"
+    ],
+    "schema_notes": {
+      "indicator": "top-level keyed by indicator ID (L3I_BASE_NNN)",
+      "verified_statement": "one-sentence statement shown when this indicator is in its good band",
+      "is_critical_path": "true if this indicator can fire a hard gate (forces overall score=0)",
+      "bands": "array of band entries with score_range, level (good/review/resurvey/minor), label, impact, actions",
+      "derivation": "threshold reasoning shown in auditor view",
+      "flag": "flag raised when indicator scores out of good band (null if no flag wired)"
+    }
+  },
+  "library": {
+    "L3I_BASE_001": {
+      "id": "L3I_BASE_001",
+      "num": "#01",
+      "block": "BB_BASE_COMPLETE",
+      "weight": 0.35,
+      "name": "Coverage",
+      "fullName": "coverage_score",
+      "is_critical_path": true,
+      "verified_statement": "Base recorded through the entire flight window with adequate pre-flight and post-flight buffer.",
+      "bands": [
+        {
+          "score_range": [
+            89,
+            100
+          ],
+          "level": "good",
+          "label": "Full coverage + \u22652 min pre-flight + \u226560s post-flight buffer",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            73,
+            88
+          ],
+          "level": "good",
+          "label": "Full coverage, pre-flight buffer 60\u2013120s",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            72
+          ],
+          "level": "review",
+          "label": "Full coverage but pre-flight buffer <60s",
+          "impact": "PPK convergence may be incomplete at flight start. Early position estimates can carry residual error.",
+          "actions": [
+            "Start base recording 2\u20133 min before takeoff next time",
+            "Review processed sigma values on early epochs",
+            "Trim any noisy early data if quality is critical"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            0
+          ],
+          "level": "resurvey",
+          "label": "Base not recording during part of flight (HARD GATE)",
+          "impact": "PPK cannot correct flight epochs without base coverage. Affected portions have only autonomous-fix accuracy.",
+          "actions": [
+            "Recollect base with adequate flight-window coverage",
+            "Start base recording 2\u20133 min before takeoff",
+            "Stop base only after motors off (60s post-landing)"
+          ]
+        }
+      ],
+      "derivation": "Score 100 (band [89-100]) reflects industry PPK convergence guidance (major receiver manufacturers recommend 2-min pre-flight buffer). Score 88 (band [73-88]) reflects pre-flight buffer 60-120s, convergence possible but compromised. Score 72 (band [40-72]) reflects pre<60s, drives review. Hard gate at 0 when coverage gap means PPK has no reference for affected epochs. (v2.1.1 boundary patch: bands shifted from [88-100]/[72-87]/[40-71] to [89-100]/[73-88]/[40-72] so pipeline-emitted scores 100/88/72 land in the intended bands 1/2/3.)",
+      "flag": "BASE_RINEX_FLIGHT_GAP"
+    },
+    "L3I_BASE_002": {
+      "id": "L3I_BASE_002",
+      "num": "#02",
+      "block": "BB_BASE_COMPLETE",
+      "weight": 0.3,
+      "name": "Integrity",
+      "fullName": "integrity_score",
+      "is_critical_path": false,
+      "verified_statement": "Base session ran end-to-end without interruption, log uploaded.",
+      "bands": [
+        {
+          "score_range": [
+            100,
+            100
+          ],
+          "level": "good",
+          "label": "Clean session, no interruptions, log uploaded",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            99
+          ],
+          "level": "review",
+          "label": "Operation Log absent \u2014 session integrity unconfirmed",
+          "impact": "Without the operation log, we can't confirm the base shut down cleanly. RINEX may still be usable but the audit trail is incomplete.",
+          "actions": [
+            "Verify RINEX file size matches expected duration",
+            "Inspect last epoch timestamp against planned session end",
+            "Ensure operation log uploads with base files next time"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "resurvey",
+          "label": "Session interrupted (unexpected shutdown)",
+          "impact": "Base shut down unexpectedly during recording. RINEX may be truncated or corrupted near the shutdown event.",
+          "actions": [
+            "Inspect RINEX around the shutdown timestamp",
+            "If shutdown was outside flight window, data may still process",
+            "If shutdown was during flight, recollect"
+          ]
+        }
+      ],
+      "derivation": "Score 60 (operation log absent) is conservative middle band \u2014 data may be fine but cannot verify shutdown cleanliness. Score 20 (interrupted) reflects flight-window shutdowns produce unrecoverable gaps. (Q3 lock: stays critical for v2.1; v2 enhancement to check timestamp overlap with flight window.)",
+      "flag": "BASE_SESSION_INTERRUPTED"
+    },
+    "L3I_BASE_003": {
+      "id": "L3I_BASE_003",
+      "num": "#03",
+      "block": "BB_BASE_COMPLETE",
+      "weight": 0.2,
+      "name": "Format",
+      "fullName": "format_score",
+      "is_critical_path": false,
+      "verified_statement": "RINEX is in a supported version with complete header and dual-frequency observations.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Supported version, complete header, dual-frequency",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            84
+          ],
+          "level": "review",
+          "label": "Single-frequency or incomplete header",
+          "impact": "Single-frequency means ionospheric error cannot be modeled \u2014 accuracy degrades during active solar weather. Header gaps may need manual patching before processing.",
+          "actions": [
+            "Verify receiver was configured for dual-frequency",
+            "Patch missing header fields (antenna, marker) if known",
+            "Expect reduced accuracy under high Kp index"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "review",
+          "label": "RINEX version not supported by PPK software",
+          "impact": "Processor cannot ingest this file directly. Data itself is fine \u2014 format conversion required, then resubmit.",
+          "actions": [
+            "Convert RINEX to a supported version (3.x or 2.11)",
+            "Use vendor converter or standard tool (e.g., teqc, gfzrnx)",
+            "Verify converted file passes format validation, then resubmit"
+          ]
+        }
+      ],
+      "derivation": "Q2 lock applied: version-unsupported downgraded from resurvey to review. Data is fine; format is fixable via conversion. The operational action is convert+resubmit, not recollect.",
+      "flag": "BASE_RINEX_VERSION_UNSUPPORTED"
+    },
+    "L3I_BASE_004": {
+      "id": "L3I_BASE_004",
+      "num": "#04",
+      "block": "BB_BASE_COMPLETE",
+      "weight": 0.15,
+      "name": "Continuity",
+      "fullName": "continuity_score",
+      "is_critical_path": false,
+      "verified_statement": "Continuous observations through the session with minimal cycle slips.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "No gaps or minor only (<60s), minimal cycle slips",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "review",
+          "label": "Gap >60s detected \u2014 PPK must re-converge",
+          "impact": "Base lost satellite tracking for >60s. PPK must re-converge after the gap, reducing accuracy in that window.",
+          "actions": [
+            "Check whether photos were taken during the gap",
+            "Investigate cause (signal blockage, brief power loss)",
+            "Position base in clearer location next time"
+          ]
+        }
+      ],
+      "derivation": "60s gap threshold from industry PPK best practice. Cycle slip count weighted by satellite \u2014 count below 5% of total epochs is normal.",
+      "flag": "BASE_POSITION_DISCONTINUITY"
+    },
+    "L3I_BASE_005": {
+      "id": "L3I_BASE_005",
+      "num": "#05",
+      "block": "BB_BASE_SETUP",
+      "weight": 0.55,
+      "name": "Antenna height",
+      "fullName": "antenna_height_documented_score",
+      "is_critical_path": true,
+      "verified_statement": "Antenna height documented to ARP, with field measurement matching RINEX header.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Vertical to ARP, matches RINEX",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            84
+          ],
+          "level": "review",
+          "label": "Slant measurement or conflicts with RINEX delta-H",
+          "impact": "Antenna height measurement carries higher uncertainty. Wrong height shifts all output elevations systematically.",
+          "actions": [
+            "Verify slant-to-vertical conversion was applied",
+            "Reconcile form value against RINEX delta-H",
+            "Re-measure if uncertain \u2014 measure vertical to ARP"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            0
+          ],
+          "level": "resurvey",
+          "label": "Antenna height not entered (HARD GATE)",
+          "impact": "PPK output elevations have unknown reference. Without antenna height, output is meaningless regardless of how clean everything else is.",
+          "actions": [
+            "Enter antenna height now if known from field notes",
+            "If not recoverable, redo base setup with measured height",
+            "Measure 3 times to ARP, average for best confidence"
+          ]
+        }
+      ],
+      "derivation": "Q1 lock applied: antenna height is a true hard gate (forces overall score to 0). Without antenna height, PPK output elevations are uninterpretable regardless of how clean other blocks are. Q6 lock applied: global_gate_condition string updated to include this indicator.",
+      "flag": "ANTENNA_HEIGHT_MISSING"
+    },
+    "L3I_BASE_006": {
+      "id": "L3I_BASE_006",
+      "num": "#06",
+      "block": "BB_BASE_SETUP",
+      "weight": 0.3,
+      "name": "Setup verification",
+      "fullName": "setup_verification_score",
+      "is_critical_path": false,
+      "verified_statement": "Base set up over a known reference mark, ideally with second-person verification.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "Known mark + verification (single or two-person)",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "review",
+          "label": "Reused mark not re-verified this session",
+          "impact": "Mark may have shifted since last use. Coordinates carry historical uncertainty.",
+          "actions": [
+            "Re-verify mark via static occupation + CORS",
+            "Compare PPK position against published coordinates",
+            "Document if verification not feasible"
+          ]
+        }
+      ],
+      "derivation": "Score 50 captures unverified-mark concept \u2014 conceptually a third-state (provenance unverifiable) pending chain-library retrofit.",
+      "flag": "BASE_BENCHMARK_UNVERIFIED"
+    },
+    "L3I_BASE_007": {
+      "id": "L3I_BASE_007",
+      "num": "#07",
+      "block": "BB_BASE_SETUP",
+      "weight": 0.15,
+      "name": "Antenna type match",
+      "fullName": "antenna_type_match_score",
+      "is_critical_path": false,
+      "verified_statement": "Antenna model on form matches RINEX header.",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Form antenna matches RINEX header",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            84
+          ],
+          "level": "review",
+          "label": "Form antenna differs from RINEX header",
+          "impact": "Wrong antenna profile means wrong ANTEX calibration \u2014 systematic position bias from millimeters to centimeters.",
+          "actions": [
+            "Verify physical antenna against form selection",
+            "Update whichever source is incorrect (form or header)",
+            "Re-process with corrected ANTEX profile"
+          ]
+        }
+      ],
+      "derivation": "Type-string consistency check only \u2014 not a true ANTEX phase-center calibration (Stage-2 concern in pre_processing chain).",
+      "flag": null
+    },
+    "L3I_BASE_008": {
+      "id": "L3I_BASE_008",
+      "num": "#08",
+      "block": "BB_BASE_ENV",
+      "weight": 0.45,
+      "name": "Multipath",
+      "fullName": "multipath_score",
+      "is_critical_path": false,
+      "verified_statement": "Clean signal environment \u2014 low C/N0 variance, no significant multipath risk.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "Low C/N0 variance \u2014 clean signal environment",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            40,
+            74
+          ],
+          "level": "review",
+          "label": "Moderate C/N0 variance \u2014 partial multipath risk",
+          "impact": "Base was near reflective surfaces. PPK can usually handle it but residuals may show position oscillations.",
+          "actions": [
+            "Check processed residuals for oscillation patterns",
+            "Position base \u226510m from buildings/vehicles/water next time",
+            "Choose open-sky locations for high-stakes work"
+          ]
+        },
+        {
+          "score_range": [
+            0,
+            39
+          ],
+          "level": "review",
+          "label": "High C/N0 variance \u2014 significant multipath risk",
+          "impact": "Base was clearly in a reflective environment. PPK output likely has position oscillations or elevated residuals.",
+          "actions": [
+            "Inspect PPK position output for wobble",
+            "Recollect at cleaner site if accuracy is critical",
+            "Scout base location for reflective surfaces in future"
+          ]
+        }
+      ],
+      "derivation": "C/N0 variance as multipath proxy is a standard signal-quality metric. Threshold values are heuristic \u2014 calibration against measured PPK residuals is a future deliverable.",
+      "flag": "BASE_MULTIPATH_RISK"
+    },
+    "L3I_BASE_009": {
+      "id": "L3I_BASE_009",
+      "num": "#09",
+      "block": "BB_BASE_ENV",
+      "weight": 0.2,
+      "name": "Ionospheric risk",
+      "fullName": "ionospheric_risk_score",
+      "is_critical_path": false,
+      "verified_statement": "Either calm geomagnetic conditions or dual-frequency observations (ionospheric error modeled).",
+      "bands": [
+        {
+          "score_range": [
+            85,
+            100
+          ],
+          "level": "good",
+          "label": "Low Kp OR dual-frequency base",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            84
+          ],
+          "level": "review",
+          "label": "High Kp AND single-frequency only",
+          "impact": "Active solar weather + single-frequency means ionospheric delay cannot be modeled. Position errors can reach centimeters or more.",
+          "actions": [
+            "Check NOAA SWPC Kp index for survey window",
+            "Prefer dual-frequency receiver for next survey",
+            "Reschedule if Kp \u22655 and accuracy is critical"
+          ]
+        }
+      ],
+      "derivation": "Kp \u22655 threshold from NOAA space weather scale (G1+ geomagnetic storm). Quantitative impact depends on storm magnitude \u2014 qualitative flag only at v1.",
+      "flag": "BASE_IONO_RISK"
+    },
+    "L3I_BASE_010": {
+      "id": "L3I_BASE_010",
+      "num": "#10",
+      "block": "BB_BASE_ENV",
+      "weight": 0.2,
+      "name": "PDOP",
+      "fullName": "pdop_score",
+      "is_critical_path": false,
+      "verified_statement": "Strong satellite geometry \u2014 PDOP within standard ranges throughout session.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "PDOP <4 \u2014 good to excellent geometry",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "review",
+          "label": "PDOP >4 \u2014 marginal to poor geometry",
+          "impact": "Satellite geometry was suboptimal \u2014 PPK still works but position uncertainty is elevated.",
+          "actions": [
+            "Check processed sigma values",
+            "Use mission planner for future surveys at this site",
+            "Reschedule if PDOP forecast >6 and accuracy is critical"
+          ]
+        }
+      ],
+      "derivation": "Standard PDOP categorization from GNSS handbooks. 2/4/6 boundaries widely used across industry.",
+      "flag": null
+    },
+    "L3I_BASE_011": {
+      "id": "L3I_BASE_011",
+      "num": "#11",
+      "block": "BB_BASE_ENV",
+      "weight": 0.15,
+      "name": "Acquisition",
+      "fullName": "acquisition_score",
+      "is_critical_path": false,
+      "verified_statement": "Base acquired satellites within normal startup time, no obstruction or interference signs.",
+      "bands": [
+        {
+          "score_range": [
+            75,
+            100
+          ],
+          "level": "good",
+          "label": "<3 min \u2014 normal startup",
+          "impact": null,
+          "actions": null
+        },
+        {
+          "score_range": [
+            0,
+            74
+          ],
+          "level": "minor",
+          "label": ">3 min \u2014 slow startup (hygiene signal)",
+          "impact": "Base was slow to lock onto satellites. Usually a cold start. Recurring slowness can indicate receiver health issues, but rarely affects this session's data quality.",
+          "actions": [
+            "Check antenna location for obstructions",
+            "Verify firmware version and battery state",
+            "Service unit if slow acquisition is recurring"
+          ]
+        }
+      ],
+      "derivation": "Q4 lock applied: downgraded from review to minor. Acquisition slowness is a hygiene signal, not a deliverable-quality concern. Q5 lock applied: minor findings hidden from default customer view; visible only in 'what passed / what else was checked' expandable as a subtle checklist row.",
+      "flag": "SLOW_BASE_ACQUISITION"
+    }
+  }
+}

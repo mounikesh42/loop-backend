@@ -1,0 +1,17 @@
+derived_id,derived_name,kind,formula_expression,meaning
+L2D_CP_001,sigma_relative_to_target,scoring,position_sigma_horizontal_m / accuracy_target_m,Ratio of receiver-estimated horizontal sigma to survey accuracy target. The primary quality indicator. Banded at 1×/2×/5× target.
+L2D_CP_002,sigma_available,scoring,position_sigma_horizontal_m IS NOT NULL,Whether per-point sigma is available in the device export. False triggers either Scenario 1 (exported subset missing sigma) or Scenario 2 (device truly does not report).
+L2D_CP_003,sigma_expected_for_device,scoring,"device_type IN {CB_X, AEROPOINT, DGPS}","Whether sigma should be exported for this device type. If True but sigma is missing → Scenario 1 (fixable by re-export). If False and sigma is missing → Scenario 2 (device limit, N/A treatment)."
+L2D_CP_004,antenna_height_auto_known,scoring,"device_type IN {CB_X, AEROPOINT}","Whether antenna height is factory-known for this device type. When True, antenna_height_documented_score = 100 by definition."
+L2D_CP_005,antenna_height_agreement,scoring,"|antenna_height_m (form) - antenna_delta_h (device)| within tolerance, when both populated",Form-height vs device-reported-height cross-check.
+L2D_CP_006,antenna_type_match,scoring,"antenna_model (form) == antenna_type (device), normalised",Form vs device antenna type consistency.
+L2D_CP_007,device_id_match,scoring,"device_id (form) == device_id (device), normalised","Form vs device ID match. Provenance check, not accuracy."
+L2D_CP_008,tilt_verifiable,scoring,device_type supports tilt logging AND tilt_logged_deg IS NOT NULL,Whether tilt can be verified from device log (vs operator-declarative boolean).
+L2D_CP_009,mountpoint_match,scoring,ntrip_mountpoint == expected_mountpoint,Whether actual NTRIP mountpoint matches project-declared expected mountpoint.
+L2D_CP_010,capture_to_flight_delay_hours,scoring,(capture_utc - flight_end_utc) / 3600  -- positive if capture after flight,Hours between drone flight end and check-point capture. Positive = after flight (preferred).
+L2D_CP_011,captured_before_flight,scoring,capture_utc < flight_start_utc,True if capture occurred before drone flight start.
+L2D_CP_012,captured_during_flight,scoring,flight_start_utc <= capture_utc <= flight_end_utc,True if capture occurred during drone flight window.
+L2D_CP_013,kp_index,scoring,NOAA SWPC Kp index at capture_utc,External geomagnetic activity index. KNOWN LIMITATION: Kp under-detects equatorial scintillation (relevant for India). Long-term roadmap: S4/ROTI from regional reference.
+L2D_CP_014,dual_freq_available,scoring,device firmware/model exposes L1+L2 carrier phase,Whether the device captured dual-frequency data — mitigates ionospheric impact.
+L2D_CP_015,session_integrity_ok,composite_scoring,"device_type-aware: CB_X / DGPS / AEROPOINT: completed_normally AND signature valid (if available); OTHER: signature N/A, integrity based on download confirmation",Whether the capture session terminated cleanly with download confirmed and signature (where applicable) intact.
+L2D_CP_016,effective_check_point_count,scoring,count of CHECK_POINT-role points where per_point_score > 0,Number of CP points that survived per-point gates. Drives the conditional severity escalation of CP_FLOAT_ACCEPTED_AS_FIXED.

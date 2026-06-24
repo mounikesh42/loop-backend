@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Check Point Confidence — Multi-View Reference (v1 LOCKED)</title>
+<style>
+:root {
+  --font-sans: var(--ds-font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  --font-mono: var(--ds-font-mono, "SF Mono", ui-monospace, Menlo, monospace);
+
+  --color-bg-primary:    var(--color-background-primary,    #ffffff);
+  --color-bg-secondary:  var(--color-background-secondary,  #f5f5f4);
+  --color-bg-tertiary:   var(--color-background-tertiary,   #fafaf9);
+  --color-bg-overlay:    var(--color-background-overlay,    #1a1a18);
+
+  --color-text-primary:   var(--color-text-primary,   #1a1a18);
+  --color-text-secondary: var(--color-text-secondary, #525252);
+  --color-text-tertiary:  var(--color-text-tertiary,  #8a8a86);
+  --color-text-inverse:   var(--color-text-inverse,   #ffffff);
+
+  --color-border-secondary: var(--color-border-secondary, #e7e5e4);
+  --color-border-tertiary:  var(--color-border-tertiary,  #efedeb);
+
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+
+  --color-good:     #1D9E75;
+  --color-good-bg:  #EAF3DE;
+  --color-good-fg:  #27500A;
+
+  --color-review:    #EF9F27;
+  --color-review-bg: #FAEEDA;
+  --color-review-fg: #633806;
+
+  --color-resurvey:    #E24B4A;
+  --color-resurvey-bg: #FCEBEB;
+  --color-resurvey-fg: #791F1F;
+
+  --color-minor:     #6E7B85;
+  --color-minor-bg:  #EEF1F3;
+  --color-minor-fg:  #3A434B;
+
+  --color-accent:    #4A8BBF;
+  --color-accent-bg: #E8F1F8;
+  --color-accent-fg: #1B4A6F;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); background: var(--color-bg-tertiary); color: var(--color-text-primary); }
+
+.page { max-width: 1200px; margin: 0 auto; padding: 24px 20px 80px; }
+.top-eyebrow { font-size: 11px; color: var(--color-text-tertiary); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+.top-title { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+.top-sub { font-size: 13px; color: var(--color-text-secondary); }
+
+.scenario-section { margin: 22px 0 16px; padding: 16px; background: var(--color-bg-primary); border-radius: var(--border-radius-lg); border: 0.5px solid var(--color-border-secondary); }
+.scenario-label { font-size: 11px; color: var(--color-text-tertiary); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 10px; }
+.scenario-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.scenario-btn { font-size: 13px; padding: 8px 14px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: var(--color-bg-tertiary); color: var(--color-text-secondary); cursor: pointer; transition: all 0.15s; text-align: left; flex: 1; min-width: 200px; }
+.scenario-btn:hover { background: var(--color-bg-secondary); }
+.scenario-btn.active { background: var(--color-text-primary); border-color: var(--color-text-primary); color: var(--color-text-inverse); }
+.scenario-btn .s-name { font-weight: 500; display: block; margin-bottom: 2px; }
+.scenario-btn .s-desc { font-size: 11px; opacity: 0.75; }
+
+.scenario-section.hidden { display: none; }
+
+.view-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 0.5px solid var(--color-border-secondary); flex-wrap: wrap; }
+.view-tab { font-size: 14px; padding: 12px 18px; border: none; background: transparent; color: var(--color-text-tertiary); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; font-weight: 500; }
+.view-tab:hover { color: var(--color-text-secondary); }
+.view-tab.active { color: var(--color-text-primary); border-bottom-color: var(--color-accent); }
+.view-tab.lib-tab { color: var(--color-text-secondary); font-style: italic; }
+.view-tab.lib-tab.active { color: var(--color-text-primary); font-style: normal; }
+
+.view-panel { display: none; }
+.view-panel.active { display: block; }
+
+.card { background: var(--color-bg-primary); border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-lg); padding: 20px; margin-bottom: 14px; }
+.card-title { font-size: 12px; color: var(--color-text-tertiary); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 12px; font-weight: 500; }
+
+.headline { display: flex; gap: 24px; align-items: center; padding: 28px; }
+.headline-score { font-size: 56px; font-weight: 700; line-height: 1; }
+.headline-score.good { color: var(--color-good); }
+.headline-score.review { color: var(--color-review); }
+.headline-score.resurvey { color: var(--color-resurvey); }
+.headline-meta { flex: 1; }
+.headline-rec { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+.headline-rec.good { color: var(--color-good-fg); }
+.headline-rec.review { color: var(--color-review-fg); }
+.headline-rec.resurvey { color: var(--color-resurvey-fg); }
+.headline-rationale { font-size: 13px; color: var(--color-text-secondary); line-height: 1.55; }
+
+.action-item { padding: 16px; background: var(--color-bg-tertiary); border-radius: var(--border-radius-md); border-left: 3px solid var(--color-border-secondary); margin-bottom: 10px; }
+.action-item.critical { border-left-color: var(--color-resurvey); }
+.action-item.material { border-left-color: var(--color-review); }
+.action-item-tag { font-size: 10.5px; font-weight: 500; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+.action-item-tag.critical { background: var(--color-resurvey-bg); color: var(--color-resurvey-fg); }
+.action-item-tag.material { background: var(--color-review-bg); color: var(--color-review-fg); }
+.action-item-why { font-size: 13.5px; color: var(--color-text-primary); margin-bottom: 8px; line-height: 1.5; }
+.action-item-why strong { font-weight: 600; }
+.action-list { list-style: none; padding-left: 0; }
+.action-list li { font-size: 13px; color: var(--color-text-secondary); padding: 4px 0 4px 18px; position: relative; line-height: 1.5; }
+.action-list li::before { content: "→"; position: absolute; left: 0; color: var(--color-accent); font-weight: 600; }
+
+.verified-item { padding: 16px; background: var(--color-bg-tertiary); border-radius: var(--border-radius-md); border-left: 3px solid var(--color-good); margin-bottom: 10px; }
+.verified-item-tag { font-size: 10.5px; font-weight: 500; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; background: var(--color-good-bg); color: var(--color-good-fg); }
+.verified-item-statement { font-size: 13.5px; color: var(--color-text-primary); line-height: 1.5; }
+.verified-item-statement strong { font-weight: 600; }
+
+.expandable { margin-bottom: 14px; }
+.expandable-toggle { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: var(--color-bg-primary); border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-lg); cursor: pointer; user-select: none; transition: background 0.15s; }
+.expandable-toggle:hover { background: var(--color-bg-tertiary); }
+.expandable-toggle.open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: var(--color-border-tertiary); }
+.expandable-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+.expandable-count { font-size: 11px; color: var(--color-text-tertiary); margin-left: 8px; }
+.expandable-arrow { font-size: 11px; color: var(--color-text-tertiary); transition: transform 0.2s; }
+.expandable-toggle.open .expandable-arrow { transform: rotate(180deg); }
+.expandable-content { display: none; background: var(--color-bg-primary); border: 0.5px solid var(--color-border-secondary); border-top: none; border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg); padding: 16px 20px 20px; }
+.expandable-content.open { display: block; }
+
+.checklist { list-style: none; padding: 0; }
+.checklist-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 13px; }
+.checklist-row:last-child { border-bottom: none; }
+.checklist-icon { font-size: 14px; flex-shrink: 0; width: 16px; text-align: center; }
+.checklist-icon.good { color: var(--color-good); }
+.checklist-icon.review { color: var(--color-review); }
+.checklist-icon.resurvey { color: var(--color-resurvey); }
+.checklist-icon.minor { color: var(--color-minor); }
+.checklist-name { flex: 1; color: var(--color-text-primary); font-weight: 500; }
+.checklist-status { color: var(--color-text-secondary); font-size: 12px; }
+.checklist-status.minor { color: var(--color-minor-fg); font-style: italic; }
+.checklist-statement { color: var(--color-text-tertiary); font-size: 12px; margin-left: 28px; padding-bottom: 6px; line-height: 1.5; }
+
+.block-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.block-row:last-child { border-bottom: none; }
+.block-name { flex: 1; font-size: 13px; font-weight: 500; }
+.block-bar-track { flex: 2; height: 8px; background: var(--color-bg-secondary); border-radius: 4px; overflow: hidden; }
+.block-bar-fill { height: 100%; transition: width 0.3s; }
+.block-bar-fill.good { background: var(--color-good); }
+.block-bar-fill.review { background: var(--color-review); }
+.block-bar-fill.resurvey { background: var(--color-resurvey); }
+.block-score { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 90px; text-align: right; color: var(--color-text-secondary); }
+.block-weight { font-size: 11px; color: var(--color-text-tertiary); font-variant-numeric: tabular-nums; }
+
+.ind-row { padding: 14px 0; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.ind-row:last-child { border-bottom: none; }
+.ind-row-top { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+.ind-id { font-family: var(--font-mono); font-size: 10.5px; color: var(--color-text-tertiary); }
+.ind-name { font-size: 13.5px; font-weight: 500; flex: 1; }
+.ind-score-pill { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+.ind-score-pill.good { background: var(--color-good-bg); color: var(--color-good-fg); }
+.ind-score-pill.review { background: var(--color-review-bg); color: var(--color-review-fg); }
+.ind-score-pill.resurvey { background: var(--color-resurvey-bg); color: var(--color-resurvey-fg); }
+.ind-score-pill.minor { background: var(--color-minor-bg); color: var(--color-minor-fg); }
+.ind-meta-row { display: flex; gap: 16px; font-size: 11.5px; color: var(--color-text-tertiary); margin-top: 4px; flex-wrap: wrap; }
+.ind-meta-row b { color: var(--color-text-secondary); font-weight: 500; }
+.ind-finding { font-size: 12.5px; color: var(--color-text-secondary); margin-top: 6px; line-height: 1.5; padding-left: 12px; border-left: 2px solid var(--color-border-secondary); }
+
+.block-group-hdr { font-size: 12px; color: var(--color-text-tertiary); letter-spacing: 0.05em; text-transform: uppercase; padding: 16px 0 6px; font-weight: 500; }
+
+.methodology-block { padding: 16px; background: var(--color-bg-tertiary); border-radius: var(--border-radius-md); margin-bottom: 12px; font-size: 13px; line-height: 1.6; color: var(--color-text-secondary); }
+.methodology-block strong { color: var(--color-text-primary); font-weight: 600; }
+.threshold-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+.threshold-table th { text-align: left; padding: 8px 10px; background: var(--color-bg-secondary); font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); letter-spacing: 0.04em; text-transform: uppercase; border-bottom: 0.5px solid var(--color-border-secondary); }
+.threshold-table td { padding: 8px 10px; border-bottom: 0.5px solid var(--color-border-tertiary); color: var(--color-text-secondary); vertical-align: top; }
+.threshold-table td.kw { font-family: var(--font-mono); font-size: 11px; }
+
+.verif-status { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--color-text-secondary); padding: 10px 14px; background: var(--color-accent-bg); border-radius: var(--border-radius-md); margin-bottom: 14px; }
+.verif-status b { color: var(--color-accent-fg); }
+
+.audit-note { padding: 14px 18px; background: var(--color-bg-secondary); border-left: 3px solid var(--color-accent); border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0; margin-top: 16px; font-size: 12.5px; color: var(--color-text-secondary); line-height: 1.55; }
+.audit-note b { color: var(--color-text-primary); }
+
+.footer-info { margin-top: 32px; padding: 16px; font-size: 11.5px; color: var(--color-text-tertiary); text-align: center; line-height: 1.6; }
+.footer-info b { color: var(--color-text-secondary); }
+
+/* ============ LIBRARY TABS — SHARED STYLES ============ */
+.lib-block-group { margin-bottom: 24px; }
+.lib-block-header { display: flex; align-items: baseline; gap: 14px; padding: 16px 20px; background: var(--color-text-primary); color: var(--color-text-inverse); border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0; }
+.lib-block-name { font-size: 15px; font-weight: 600; flex: 1; }
+.lib-block-weight { font-family: var(--font-mono); font-size: 11px; opacity: 0.7; }
+.lib-block-desc { font-size: 12px; color: var(--color-text-secondary); padding: 12px 20px; background: var(--color-bg-secondary); border-radius: 0; border: 0.5px solid var(--color-border-secondary); border-top: none; border-bottom: none; line-height: 1.55; }
+.lib-indicator-wrap { border: 0.5px solid var(--color-border-secondary); border-top: none; background: var(--color-bg-primary); }
+.lib-indicator-wrap:last-child { border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg); }
+.lib-indicator-header { display: flex; align-items: baseline; gap: 12px; padding: 14px 20px; cursor: pointer; user-select: none; border-bottom: 0.5px solid var(--color-border-tertiary); transition: background 0.15s; flex-wrap: wrap; }
+.lib-indicator-header:hover { background: var(--color-bg-tertiary); }
+.lib-indicator-header.collapsed { border-bottom: none; }
+.lib-ind-arrow { font-size: 10px; color: var(--color-text-tertiary); transition: transform 0.2s; }
+.lib-indicator-header.collapsed .lib-ind-arrow { transform: rotate(-90deg); }
+.lib-ind-id { font-family: var(--font-mono); font-size: 10.5px; color: var(--color-text-tertiary); }
+.lib-ind-name { font-size: 14px; font-weight: 600; }
+.lib-ind-tag { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 3px; background: var(--color-accent-bg); color: var(--color-accent-fg); }
+.lib-ind-tag.cp { background: var(--color-resurvey-bg); color: var(--color-resurvey-fg); }
+.lib-ind-meta { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-tertiary); margin-left: auto; }
+.lib-indicator-body { padding: 16px 20px 20px; }
+.lib-indicator-body.hidden { display: none; }
+
+/* Band entry in library */
+.lib-band { margin-bottom: 18px; padding-bottom: 18px; border-bottom: 0.5px dashed var(--color-border-tertiary); }
+.lib-band:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+.lib-band-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.lib-band-range { font-family: var(--font-mono); font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+.lib-band-range.good { background: var(--color-good-bg); color: var(--color-good-fg); }
+.lib-band-range.review { background: var(--color-review-bg); color: var(--color-review-fg); }
+.lib-band-range.resurvey { background: var(--color-resurvey-bg); color: var(--color-resurvey-fg); }
+.lib-band-range.minor { background: var(--color-minor-bg); color: var(--color-minor-fg); }
+.lib-band-level { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+.lib-band-level.good { color: var(--color-good-fg); }
+.lib-band-level.review { color: var(--color-review-fg); }
+.lib-band-level.resurvey { color: var(--color-resurvey-fg); }
+.lib-band-level.minor { color: var(--color-minor-fg); }
+.lib-band-label { font-size: 12.5px; color: var(--color-text-secondary); font-style: italic; }
+
+/* Library Cards tab — mini customer card style */
+.lib-card-preview-label { font-size: 10px; color: var(--color-text-tertiary); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; font-weight: 500; }
+.lib-card-preview { margin-bottom: 8px; }
+.lib-card-preview .verified-item, .lib-card-preview .action-item, .lib-card-preview .checklist-row-container { margin-bottom: 0; }
+
+/* Library Structured tab — dense rows */
+.lib-struct-grid { display: grid; grid-template-columns: 180px 1fr; gap: 8px 16px; font-size: 12.5px; line-height: 1.55; }
+.lib-struct-key { color: var(--color-text-tertiary); font-weight: 500; }
+.lib-struct-val { color: var(--color-text-primary); }
+.lib-struct-val.muted { color: var(--color-text-tertiary); font-style: italic; }
+.lib-struct-val ul { list-style: none; padding-left: 0; }
+.lib-struct-val ul li { padding: 2px 0 2px 16px; position: relative; }
+.lib-struct-val ul li::before { content: "→"; position: absolute; left: 0; color: var(--color-accent); }
+
+/* QA preview within library */
+.lib-qa-preview { background: var(--color-bg-tertiary); border-radius: var(--border-radius-md); padding: 10px 14px; margin-top: 10px; }
+.lib-qa-preview-label { font-size: 10px; color: var(--color-text-tertiary); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; font-weight: 500; }
+
+/* Library tab controls (top of library tabs) */
+.lib-controls { margin-bottom: 16px; padding: 12px 16px; background: var(--color-bg-primary); border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.lib-controls-label { font-size: 11px; color: var(--color-text-tertiary); letter-spacing: 0.05em; text-transform: uppercase; font-weight: 500; }
+.lib-control-btn { font-size: 12px; padding: 6px 12px; border-radius: var(--border-radius-sm); border: 0.5px solid var(--color-border-secondary); background: var(--color-bg-tertiary); color: var(--color-text-secondary); cursor: pointer; }
+.lib-control-btn:hover { background: var(--color-bg-secondary); }
+</style>
+</head>
+
+<body>
+
+<div class="page">
+
+  <div class="top-eyebrow">CrystalBall Infinity · CBMI v2.1</div>
+  <h1 class="top-title">Check Point Confidence — Multi-View Reference (v1 LOCKED)</h1>
+  <p class="top-sub">Five tabs: 3 scenario views + 2 library views. Per-point RTK scoring with mean-minus-worst aggregation. Q-CP-1/2/3/4/5 locks. 4 scenarios including null case.</p>
+
+  <div class="scenario-section" id="scenario-section">
+    <div class="scenario-label">Choose Scenario (applies to Customer/Internal/Auditor views)</div>
+    <div class="scenario-row" id="scenario-row"></div>
+  </div>
+
+  <div class="view-tabs">
+    <button class="view-tab active" data-view="customer">Customer View</button>
+    <button class="view-tab" data-view="internal">Internal QA View</button>
+    <button class="view-tab" data-view="auditor">Auditor View</button>
+    <button class="view-tab lib-tab" data-view="lib-cards">Library — Cards</button>
+    <button class="view-tab lib-tab" data-view="lib-structured">Library — Structured</button>
+  </div>
+
+  <div class="view-panel active" id="view-customer"><div id="customer-content"></div></div>
+  <div class="view-panel" id="view-internal"><div id="internal-content"></div></div>
+  <div class="view-panel" id="view-auditor"><div id="auditor-content"></div></div>
+  <div class="view-panel" id="view-lib-cards"><div id="lib-cards-content"></div></div>
+  <div class="view-panel" id="view-lib-structured"><div id="lib-structured-content"></div></div>
+
+  <div class="footer-info">
+    <b>Customer / Internal QA / Auditor</b> respond to scenario picker (live scoring).<br>
+    <b>Library — Cards / Library — Structured</b> are scenario-independent — full content of every indicator at every band.<br>
+    Q1: antenna_height is true hard gate. Q2: format-unsupported is review (not resurvey). Q4: acquisition is minor. Q5: minor hidden from default view, visible on expand. Q6: global_gate_condition lists both gates.
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// CHAIN STRUCTURE — base_station v2.1 (Q1-Q6 locks applied)
+// ============================================================
+const BLOCKS = [
+  {
+    "id": "BB_CP_COMPLETE",
+    "name": "Capture Completeness & Integrity",
+    "weight": 0.45,
+    "description": "Position sigma, fix type, correction age, and log integrity at the check-point."
+  },
+  {
+    "id": "BB_CP_SETUP",
+    "name": "Setup & Documentation Confidence",
+    "weight": 0.35,
+    "description": "Antenna height, pole stability, baseline length, NTRIP, antenna type match, device ID traceability."
+  },
+  {
+    "id": "BB_CP_ENV",
+    "name": "Observation Environment",
+    "weight": 0.2,
+    "description": "PDOP, fix hold, sky obstruction, ionospheric risk at measurement epoch."
+  }
+];
+
+const GLOBAL_GATE_CONDITION = "(every CHECK_POINT-role point has cp_fix_type_score == 0) OR (every CHECK_POINT-role point has cp_position_sigma_score == 0)";
+
+// ============================================================
+// INDICATOR LIBRARY — single source of truth (Q1, Q2, Q4 locks applied)
+// ============================================================
+const INDICATOR_LIBRARY = {
+  "L3I_CP_001": {
+    "id": "L3I_CP_001",
+    "num": "#01",
+    "block": "BB_CP_COMPLETE",
+    "weight": 0.45,
+    "name": "Position sigma",
+    "fullName": "cp_position_sigma_score",
+    "is_critical_path": false,
+    "gate_scope": "none",
+    "verified_statement": "RTK receiver reported position uncertainty (sigma) is within acceptable range.",
+    "bands": [
+      {
+        "score_range": [
+          85,
+          100
+        ],
+        "level": "good",
+        "label": "Position sigma \u22645cm (excellent RTK convergence)",
+        "impact": null,
+        "actions": null
+      },
+      {
+        "score_range": [
+          50,
+          84
+        ],
+        "level": "review",
+        "label": "Position sigma 5-15cm (moderate RTK convergence)",
+        "impact": "RTK locked but with visible uncertainty. Output position has larger error envelope. Acceptable for most survey classes but check whether specification is met.",
+        "actions": [
+          "Verify final deliverable accuracy against project specification",
+          "Check whether baseline length or multipath affected convergence",
+          "Document sigma value in metadata for downstream reference"
+        ]
+      },
+      {
+        "score_range": [
+          0,
+          49
+        ],
+        "level": "review",
+        "label": "Position sigma >15cm or no fix (degraded RTK)",
+        "impact": "RTK either did not converge fully or reported large uncertainty. Position accuracy is compromised; deliverable may not meet specification.",
+        "actions": [
+          "Inspect RTK log for fix-type history and base distance",
+          "Check whether multipath or obstructions degraded signal",
+          "Consider whether re-occupying under clearer conditions is practical"
+        ]
+      }
+    ],
+    "derivation": "Sigma is the anchor indicator for RTK quality. \u22645cm is industry 'good RTK', 5-15cm is 'acceptable with notes', >15cm is 'degraded'.",
+    "flag": "CP_SIGMA_REJECT"
+  },
+  "L3I_CP_002": {
+    "id": "L3I_CP_002",
+    "num": "#02",
+    "block": "BB_CP_COMPLETE",
+    "weight": 0.3,
+    "name": "Fix type at capture",
+    "fullName": "cp_fix_type_score",
+    "is_critical_path": false,
+    "gate_scope": "per_point_only",
+    "verified_statement": "RTK receiver had a FIXED integer ambiguity at the measurement epoch (not FLOAT or AUTONOMOUS).",
+    "bands": [
+      {
+        "score_range": [
+          85,
+          100
+        ],
+        "level": "good",
+        "label": "FIXED RTK \u2014 integer ambiguity resolved",
+        "impact": null,
+        "actions": null
+      },
+      {
+        "score_range": [
+          0,
+          84
+        ],
+        "level": "critical",
+        "label": "FLOAT or AUTONOMOUS (per-point gate fires \u2014 Q-CP-2)",
+        "impact": "RTK did not achieve fixed integer ambiguity. Position is FLOAT (meter-level uncertainty) or AUTONOMOUS (GPS-only, 3-5m uncertainty). This point's score is zeroed per-point aggregation. Other points continue to score.",
+        "actions": [
+          "Inspect RTK log for why fix was not achieved",
+          "Check base station corrections availability at the time",
+          "If repeated, consider occupying this location longer or from different setup"
+        ]
+      }
+    ],
+    "derivation": "Q-CP-2: FLOAT/AUTONOMOUS promoted to per-point gate. Affects individual point; aggregation dilutes across fleet. Not a chain-level hard gate.",
+    "flag": "CP_FLOAT_ACCEPTED_AS_FIXED"
+  },
+  "L3I_CP_003": {
+    "id": "L3I_CP_003",
+    "num": "#03",
+    "block": "BB_CP_COMPLETE",
+    "weight": 0.15,
+    "name": "Correction age",
+    "fullName": "cp_correction_age_score",
+    "is_critical_path": false,
+    "gate_scope": "none",
+    "verified_statement": "Base station corrections at measurement epoch were recent (not stale).",
+    "bands": [
+      {
+        "score_range": [
+          75,
+          100
+        ],
+        "level": "good",
+        "label": "Corrections <30s old at measurement",
+        "impact": null,
+        "actions": null
+      },
+      {
+        "score_range": [
+          0,
+          74
+        ],
+        "level": "minor",
+        "label": "Corrections >30s old (hygiene signal)",
+        "impact": "RTK used aged corrections. Slight degradation in convergence quality; usually still acceptable but less optimal.",
+        "actions": [
+          "Check whether base station or NTRIP link was temporarily unstable",
+          "Inspect whether using a farther base would have better correction freshness"
+        ]
+      }
+    ],
+    "derivation": "Correction age >30s means increased atmospheric modeling error in base computation.",
+    "flag": "CP_CORRECTION_AGE_STALE"
+  },
+  "L3I_CP_004": {
+    "id": "L3I_CP_004",
+    "num": "#04",
+    "block": "BB_CP_COMPLETE",
+    "weight": 0.1,
+    "name": "Log integrity",
+    "fullName": "cp_log_integrity_score",
+    "is_critical_path": false,
+    "gate_scope": "none",
+    "verified_statement": "RTK log file was downloaded cleanly and has valid checksum/signature.",
+    "bands": [
+      {
+        "score_range": [
+          85,
+          100
+        ],
+        "level": "good",
+        "label": "Log downloaded, checksum valid",
+        "impact": null,
+        "actions": null
+      },
+      {
+        "score_range": [
+          0,
+          84
+        ],
+        "level": "minor",
+        "label": "Log download incomplete or checksum failed (hygiene signal)",
+        "impact": "Log file may be corrupted or truncated. Data is still usable but requires inspection for gap or corruption.",
+        "actions": [
+          "Attempt to download log again from device",
+          "Inspect log file directly for obvious gaps or truncation",
+          "Verify device storage and connectivity for next occupation"
+        ]
+      }
+    ],
+    "derivation": "Hygiene signal. Log integrity check catches storage failures early.",
+    "flag": null
+  },
+  "L3I_CP_005": {
+    "id": "L3I_CP_005",
+    "num": "#05",
+    "block": "BB_CP_SETUP",
+    "weight": 0.4,
+    "name": "Antenna height documented",
+    "fullName": "cp_antenna_height_documented_score",
+    "is_critical_path": false,
+    "gate_scope": "per_point_only",
+    "verified_statement": "Antenna height measurement was recorded and is traceable.",
+    "bands": [
+      {
+        "score_range": [
+          75,
+          100
+        ],
+        "level": "good",
+        "label": "Antenna height measured and documented",
+        "impact": null,
+        "actions": null
+      },
+      {
+        "score_range": [
+          0,
+          74
+        ],
+        "level": "critical",
+        "label": "Antenna height not documented (per-point gate)",
+        "impact": "Height is unknown. Phase center offset cannot be corrected; vertical accuracy is compromised. This point's score is zeroed per aggregation.",
+        "actions": [
+          "Inspect field photo or notes for height evidence",
+          "If unavailable, mark this point as un-usable for final coordinates",
+          "For next occupation, enforce height measurement protocol"
+        ]
+      }
+    ],
+    "derivation": "Q-CP-4: no device-type special handling. All devices must have documented height (unlike GCP where factory-known devices auto-pass).",
+    "flag": "CP_ANTENNA_HEIGHT_MISSING"
+  },
+  "L3I_CP_006": {
+    "id": "L3I_CP_006",
+    "num": "#06",
+    "block": "BB_CP_SETUP",
+    "weight": 0.2,
+    "name": "Pole stability",
+    "fullName": "cp_pole_stability_score",
+    "is_critical_path": false,
+    "gate_scope": "none",
+    "verified_statement": "Antenna pole/rod was stable throughout measurement (no movement, no tilt).",
+    "bands": [
+      {
+        "score_range": [
+          85,
+          100
+        ],
+        "level": "good",
+        "label": "Pole stable, antenna plumb, no observed movement",
+        "impact": null,
+        "actions": null
+      },
+      {
+        "score_range": [
+          40,
+          84
+        ],
+        "level": "review",
+        "label": "Pole had some movement or slight tilt",
+        "impact": "Antenna may have shifted during measurement. Position reported is averaged over an unstable baseline; accuracy may be degraded.",
+        "actions": [
+          "Inspect field notes/photos for movement evidence",
+          "Check whether RTK fix remained constant despite movement",
+          "Consider whether re-occupying with more stable setup is practical"
+        ]
+      },
+      {
+        "score_range": [
+          0,
+          39
+        ],
+        "level": "review",
+        "label": "Pole unstable or tilted significantly",
+        "impact": "Antenna position changed during measurement. Reported position is unreliable; deliverable may not meet specification.",
+        "actions": [
+          "Mark point as requiring re-occupation with stable setup",
+          "Review field protocol for pole stability checks"
+        ]
+      }
+    ],
+    "derivation": "Movement during occupation violates RTK assumption (static receiver).",
+    "flag": "CP_POLE_INSTABILITY"
+  },
+  "L3I_CP_007": {
+    "id": "L3I_CP_007",
+    "num": "#07",
+    "block": "BB_CP_SETUP",
+    "weight": 0.15,
+    "name": "Baseline length",
+    "fullName": "cp_baseline_length_score",
+    "is_critical_path": false,
+    "gate_scope": "none",
+    "verified_statement": "Distance to base station or CORS reference is reasonable for RTK convergence.",
+    "bands": [
+      {
+        "score_range": [
+          75,
+          100
+        ],
+        "level": "good",
+        "label": "Baseline \u226450 km to base/CORS (standard RTK range)",
+        "impact": null,
+        "actions": null
+      },
+      {
+        "score_range": [
+          0,
+          74
+        ],
+        "level": "review",
+        "label": "Baseline >50 km (extended range, slower convergence)",
+        "impact": "RTK required longer convergence time. Fix quality may be weaker; uncertainty may be larger than nominal.",
+        "actions": [
+          "Check whether a closer base/CORS was available",
+          "Verify convergence time matches distance expectation",
+          "Inspect final sigma for degradation"
+        ]
+      }
+    ],
+    "derivation": "RTK atmospheric modeling errors grow with baseline. >50 km requires extended convergence.",
+    "flag": "CP_BASELINE_LONG"
+  },
+  "L3I_CP_008": {
+    "id": "L3I_CP_008",
+    "num": "#08",
+    "block": "BB_CP_SETUP",
+    "weight": 0.1,
+    "name": "NTRIP mountpoint",
+    "fullName": "cp_ntrip_mountpoint_score",
+    "is_critical_path": false,
+    "gate_scope": "none",
+    "verified_statement": "NTRIP correction stream was correctly matched to location and receiver type.",
+    "bands": [
+      {
+        "score_range": [
+          85,
+          100
+        ],
+        "level": "good",
+        "label": "Correct NTRIP mountpoint for location and receiver",
+        "impact": null,
+        "actions": null
+      },
+      {
+        "score_range": [
+          0,
+          84
+        ],
+        "level": "review",
+        "label": "NTRIP mountpoint mismatch (wrong region, wrong format)",
+        "impact": "Corrections may not apply well to location. RTK convergence is suboptimal; final accuracy may not meet specification.",
+        "actions": [
+          "Verify NTRIP stream coverage for the location",
+          "Check whether receiver is compatible with correction format",
+          "Use correct mountpoint for next occupation"
+        ]
+      }
+    ],
+    "derivation": "NTRIP mismatch degrades RTK performance.",
+    "flag": "CP_NTRIP_MISMATCH"
+  },
+  "L3I_CP_009": {
+    "id": "L3I_CP_009",
+    "num": "#09",
+    "block": "BB_CP_SETUP",
+    "weight": 0.1,
+    "name": "Antenna type consistency",
+    "fullName": "cp_antenna_type_match_score",
+    "is_critical_path": false,
+    "gate_scope": "none",
+    "verified_statement": "Antenna type matches documented type in receiver configuration.",
+    "bands": [
+      {
+        "score_range": [
+          75,
+          100
+        ],
+        "level": "good",
+        "label": "Antenna type matches receiver config",
+        "impact": null,
+        "actions": null
+      },
+      {
+        "score_range": [
+          0,
+          74
+        ],
+        "level": "review",
+        "label": "Antenna type mismatch",
+        "impact": "Phase center offset model may be incorrect. Vertical accuracy especially is compromised.",
+        "actions": [
+          "Verify actual antenna installed vs receiver configuration",
+          "Update receiver configuration to match actual antenna",
+          "If old data, apply post-correction with correct antenna model"
+        ]
+      }
+    ],
+    "derivation": "Type mismatch causes incorrect phase center modeling.",
+    "flag": "CP_ANTENNA_TYPE_MISMATCH"
+  },
+  "L3I_CP_010": {
+    "id": "L3I_CP_010",
+    "num": "#10",
+    "block": "BB_CP_SETUP",
+    "weight": 0.05,
+    "name": "Device ID provenance",
+    "fullName": "cp_device_id_match_score",
+    "is_critical_path": false,
+    "gate_scope": "none",
+    "verified_statement": "Device serial number in log matches expected device (traceability).",
+    "bands": [
+      {
+        "score_range": [
+          85,
+          100
+        ],
+        "level": "good",
+        "label": "Device ID traceable and matches expected unit",
+        "impact": null,
+        "actions": null
+      },
+      {
+        "score_range": [
+          0,
+          84
+        ],
+        "level": "minor",
+        "label": "Device ID mismatch or not traceable (hygiene)",
+        "impact": "Audit trail unclear. Cannot verify which physical device was used.",
+        "actions": [
+          "Inspect field notes or device label to verify serial number",
+          "For next occupation, confirm device serial before and after use"
+        ]
+      }
+    ],
+    "derivation": "Hygiene/audit signal.",
+    "flag": null
+  },
+  "L3I_CP_011": {
+    "id": "L3I_CP_011",
+    "num": "#11",
+    "block": "BB_CP_ENV",
+    "weight": 0.4,
+    "name": "PDOP at capture",
+    "fullName": "cp_pdop_at_capture_score",
+    "is_critical_path": false,
+    "gate_scope": "none",
+    "verified_statement": "Satellite geometry at measurement epoch was favorable (PDOP within RTK range).",
+    "bands": [
+      {
+        "score_range": [
+          75,
+          100
+        ],
+        "level": "good",
+        "label": "PDOP <3 at capture (excellent geometry)",
+        "impact": null,
+        "actions": null
+      },
+      {
+        "score_range": [
+          40,
+          74
+        ],
+        "level": "review",
+        "label": "PDOP 3-6 (acceptable but not ideal)",
+        "impact": "Satellite geometry was suboptimal. Position uncertainty elevated but usually acceptable.",
+        "actions": [
+          "Check PDOP forecast for future flights",
+          "Inspect final sigma for degradation related to PDOP"
+        ]
+      },
+      {
+        "score_range": [
+          0,
+          39
+        ],
+        "level": "review",
+        "label": "PDOP >6 (poor geometry)",
+        "impact": "Satellite geometry was poor. RTK output reliability is questionable; final accuracy may not meet specification.",
+        "actions": [
+          "Check whether conditions were forecast; reschedule if possible",
+          "Inspect final sigma against tolerance"
+        ]
+      }
+    ],
+    "derivation": "PDOP <3 is RTK baseline. >6 indicates poor sky view or unfavorable geometry.",
+    "flag": "CP_PDOP_POOR"
+  },
+  "L3I_CP_012": {
+    "id": "L3I_CP_012",
+    "num": "#12",
+    "block": "BB_CP_ENV",
+    "weight": 0.25,
+    "name": "Fix hold duration",
+    "fullName": "cp_fix_hold_score",
+    "is_critical_path": false,
+    "gate_scope": "none",
+    "verified_statement": "RTK maintained fixed integer solution continuously through measurement window.",
+    "bands": [
+      {
+        "score_range": [
+          75,
+          100
+        ],
+        "level": "good",
+        "label": "Fixed RTK throughout, no cycle slips",
+        "impact": null,
+        "actions": null
+      },
+      {
+        "score_range": [
+          0,
+          74
+        ],
+        "level": "review",
+        "label": "Cycle slips or brief float detected",
+        "impact": "RTK lost fix momentarily. Position average may be slightly degraded; accuracy envelope larger than nominal.",
+        "actions": [
+          "Inspect RTK log for cause of slip (multipath, signal loss, etc.)",
+          "Check environment for temporary obstruction or interference",
+          "Re-occupy if accuracy-critical"
+        ]
+      }
+    ],
+    "derivation": "Cycle slips indicate RTK stability issue. Continuous fix is baseline expectation.",
+    "flag": "CP_CYCLE_SLIP"
+  },
+  "L3I_CP_013": {
+    "id": "L3I_CP_013",
+    "num": "#13",
+    "block": "BB_CP_ENV",
+    "weight": 0.2,
+    "name": "Sky obstruction",
+    "fullName": "cp_obstruction_score",
+    "is_critical_path": false,
+    "gate_scope": "none",
+    "verified_statement": "Clear sky view above antenna \u2014 no significant obstruction (buildings, trees, hills).",
+    "bands": [
+      {
+        "score_range": [
+          85,
+          100
+        ],
+        "level": "good",
+        "label": "Clear sky, >30\u00b0 elevation minimum",
+        "impact": null,
+        "actions": null
+      },
+      {
+        "score_range": [
+          0,
+          74
+        ],
+        "level": "review",
+        "label": "Obstructed sky view (<30\u00b0 elevation minimum)",
+        "impact": "Low satellite count. RTK convergence slower; final uncertainty larger. RTK may not achieve fixed solution.",
+        "actions": [
+          "Relocate antenna away from obstructions if possible",
+          "Allow longer convergence time at obstructed location",
+          "Consider whether alternate location with clearer sky is practical"
+        ]
+      }
+    ],
+    "derivation": "RTK requires >4-5 satellites consistently. Obstruction reduces count and quality.",
+    "flag": "CP_SKY_OBSTRUCTED"
+  },
+  "L3I_CP_014": {
+    "id": "L3I_CP_014",
+    "num": "#14",
+    "block": "BB_CP_ENV",
+    "weight": 0.15,
+    "name": "Ionospheric risk",
+    "fullName": "cp_ionospheric_risk_score",
+    "is_critical_path": false,
+    "gate_scope": "none",
+    "verified_statement": "Ionospheric conditions during measurement were within historical normal range.",
+    "bands": [
+      {
+        "score_range": [
+          75,
+          100
+        ],
+        "level": "good",
+        "label": "Kp <5 (quiet ionosphere)",
+        "impact": null,
+        "actions": null
+      },
+      {
+        "score_range": [
+          40,
+          74
+        ],
+        "level": "review",
+        "label": "Kp 5-7 (active ionosphere, higher variance)",
+        "impact": "Ionospheric modeling error elevated. RTK convergence may be slower; final uncertainty slightly larger.",
+        "actions": [
+          "Check NOAA SWPC Kp forecast for future surveys; avoid high Kp if possible",
+          "Allow longer convergence time during active ionosphere"
+        ]
+      },
+      {
+        "score_range": [
+          0,
+          39
+        ],
+        "level": "review",
+        "label": "Kp >7 (geomagnetic storm, significant ionospheric disturbance)",
+        "impact": "Ionospheric disturbance was severe. RTK performance degraded; final accuracy likely compromised.",
+        "actions": [
+          "Reschedule critical observations to quieter periods if possible",
+          "Inspect final accuracy against specification"
+        ]
+      }
+    ],
+    "derivation": "NOAA SWPC Kp index from external API. High ionospheric disturbance adds modeling error to RTK.",
+    "flag": "CP_IONOSPHERIC_STORM"
+  }
+};
+
+const INDICATORS = Object.values(INDICATOR_LIBRARY);
+
+// ============================================================
+// SCENARIOS
+// ============================================================
+const SCENARIOS = [
+  {
+    "id": "all_fixed",
+    "name": "All Points Fixed RTK",
+    "desc": "Fleet of check-points all achieved FIXED RTK with good sigma",
+    "scores": {
+      "L3I_CP_001": 100,
+      "L3I_CP_002": 100,
+      "L3I_CP_003": 100,
+      "L3I_CP_004": 100,
+      "L3I_CP_005": 100,
+      "L3I_CP_006": 100,
+      "L3I_CP_007": 100,
+      "L3I_CP_008": 100,
+      "L3I_CP_009": 100,
+      "L3I_CP_010": 100,
+      "L3I_CP_011": 100,
+      "L3I_CP_012": 100,
+      "L3I_CP_013": 100,
+      "L3I_CP_014": 100
+    }
+  },
+  {
+    "id": "mixed",
+    "name": "Mixed Quality (some float)",
+    "desc": "CP-001 good, CP-002 has FLOAT fix (per-point gate fires), CP-003 has high sigma",
+    "scores": {
+      "L3I_CP_001": 50,
+      "L3I_CP_002": 95,
+      "L3I_CP_003": 85,
+      "L3I_CP_004": 90,
+      "L3I_CP_005": 90,
+      "L3I_CP_006": 90,
+      "L3I_CP_007": 90,
+      "L3I_CP_008": 90,
+      "L3I_CP_009": 90,
+      "L3I_CP_010": 90,
+      "L3I_CP_011": 85,
+      "L3I_CP_012": 90,
+      "L3I_CP_013": 90,
+      "L3I_CP_014": 85
+    }
+  },
+  {
+    "id": "all_float",
+    "name": "Global Gate Fired (all FLOAT)",
+    "desc": "All points have FLOAT fix (global gate condition: all points have fix_type==0). check_point_score = 0.",
+    "scores": {
+      "L3I_CP_001": 80,
+      "L3I_CP_002": 0,
+      "L3I_CP_003": 80,
+      "L3I_CP_004": 90,
+      "L3I_CP_005": 90,
+      "L3I_CP_006": 90,
+      "L3I_CP_007": 90,
+      "L3I_CP_008": 90,
+      "L3I_CP_009": 90,
+      "L3I_CP_010": 90,
+      "L3I_CP_011": 90,
+      "L3I_CP_012": 90,
+      "L3I_CP_013": 90,
+      "L3I_CP_014": 90
+    }
+  },
+  {
+    "id": "no_checkpoints",
+    "name": "No Check Points (null case)",
+    "desc": "Survey designed without any CHECK_POINT-role points. check_point_score = null (not applicable).",
+    "scores": {},
+    "null_case": true
+  }
+];
+
+// ============================================================
+// LIBRARY HELPERS
+// ============================================================
+function getBandForScore(indicator, score) {
+  for (const band of indicator.bands) {
+    const [lo, hi] = band.score_range;
+    if (score >= lo && score <= hi) return band;
+  }
+  return indicator.bands[indicator.bands.length - 1];
+}
+
+function severityForBand(band) {
+  if (band.level === "resurvey") return "critical";
+  if (band.level === "review")   return "material";
+  if (band.level === "minor")    return "minor";
+  return "none";
+}
+
+function severityForScore(indicator, score) {
+  return severityForBand(getBandForScore(indicator, score));
+}
+
+function scoreLevel(score) {
+  if (score === 0) return "resurvey";
+  if (score >= 75) return "good";
+  if (score >= 50) return "review";
+  return "resurvey";
+}
+
+// ============================================================
+// SCORING
+// ============================================================
+function computeBlockScore(blockId, scores) {
+  const inds = INDICATORS.filter(i => i.block === blockId);
+  let totalW = 0, sumW = 0;
+  for (const i of inds) {
+    const s = scores[i.id];
+    if (s === undefined) continue;
+    totalW += i.weight;
+    sumW += i.weight * s;
+  }
+  return totalW > 0 ? sumW / totalW : 0;
+}
+
+function checkHardGate(scores) {
+  for (const i of INDICATORS) {
+    if (i.is_critical_path && scores[i.id] === 0) return { fired: true, source: i };
+  }
+  return { fired: false, source: null };
+}
+
+function computeOverallScore(scores) {
+  const gate = checkHardGate(scores);
+  if (gate.fired) return { score: 0, hardGate: true, gateSource: gate.source };
+  let totalW = 0, sumW = 0;
+  for (const b of BLOCKS) {
+    const bs = computeBlockScore(b.id, scores);
+    totalW += b.weight;
+    sumW += b.weight * bs;
+  }
+  return { score: totalW > 0 ? sumW / totalW : 0, hardGate: false };
+}
+
+function overallRecommendation(scores) {
+  const overall = computeOverallScore(scores);
+  if (overall.hardGate) return { rec: "resurvey", overall };
+  for (const i of INDICATORS) {
+    if (severityForScore(i, scores[i.id]) === "critical") return { rec: "resurvey", overall };
+  }
+  for (const i of INDICATORS) {
+    if (severityForScore(i, scores[i.id]) === "material") return { rec: "review", overall };
+  }
+  // minor findings don't drive recommendation
+  return { rec: "good", overall };
+}
+
+function rankFindings(scores) {
+  const findings = [];
+  for (const i of INDICATORS) {
+    const s = scores[i.id];
+    const band = getBandForScore(i, s);
+    if (band.level === "good") continue;
+    if (band.level === "minor") continue; // minor doesn't surface in top-3
+    const blockWeight = BLOCKS.find(b => b.id === i.block).weight;
+    const deficit = 100 - s;
+    const isHardGate = (band.score_range[0] === 0 && band.score_range[1] === 0 && i.is_critical_path);
+    const isCritical = (band.level === "resurvey");
+    findings.push({
+      indicator: i, score: s, band,
+      sev: severityForScore(i, s),
+      isHardGate, isCritical,
+      priority: isHardGate ? 1000 : (isCritical ? 500 + blockWeight * deficit : blockWeight * deficit)
+    });
+  }
+  findings.sort((a, b) => b.priority - a.priority);
+  return findings;
+}
+
+function rankVerified(scores) {
+  // Items in 'good' band only — for hero of "good to go"
+  const verified = [];
+  for (const i of INDICATORS) {
+    const s = scores[i.id];
+    const band = getBandForScore(i, s);
+    if (band.level !== "good") continue;
+    const blockWeight = BLOCKS.find(b => b.id === i.block).weight;
+    verified.push({
+      indicator: i, score: s, band,
+      isCriticalPath: i.is_critical_path,
+      priority: (i.is_critical_path ? 1000 : 0) + blockWeight * i.weight * 100
+    });
+  }
+  verified.sort((a, b) => b.priority - a.priority);
+  return verified;
+}
+
+function listMinorAndVerified(scores) {
+  // For "what passed / what else was checked" expandable — includes minor as audit-only
+  const items = [];
+  for (const i of INDICATORS) {
+    const s = scores[i.id];
+    const band = getBandForScore(i, s);
+    if (band.level === "good" || band.level === "minor") {
+      items.push({ indicator: i, score: s, band });
+    }
+  }
+  return items;
+}
+
+// ============================================================
+// CUSTOMER VIEW RENDERING
+// ============================================================
+function recommendationLabel(rec) {
+  return { good: "Good to go", review: "Review recommended", resurvey: "Resurvey recommended" }[rec];
+}
+
+function renderHeadline(rec, overall) {
+  const overallDisplay = overall.hardGate ? "0" : overall.score.toFixed(0);
+  let rationale = "";
+  if (rec === "good") {
+    rationale = "All quality checks passed. Base station data is fit for processing.";
+  } else if (rec === "review") {
+    rationale = "Some conditions warrant a human check before processing. No hard gates fired; data appears usable but issues should be reviewed.";
+  } else if (overall.hardGate) {
+    rationale = `Critical issue: ${overall.gateSource.name} hard gate fired. Base data cannot be used as-is; recollection required.`;
+  } else {
+    rationale = "Critical conditions detected. Recollection required before this base station data can be used.";
+  }
+  return `
+    <div class="card">
+      <div class="headline">
+        <div class="headline-score ${rec}">${overallDisplay}</div>
+        <div class="headline-meta">
+          <div class="headline-rec ${rec}">${recommendationLabel(rec)}</div>
+          <div class="headline-rationale">${rationale}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderActionItem(item) {
+  const sevClass = item.sev === "critical" ? "critical" : "material";
+  const sevLabel = item.sev === "critical" ? "RESURVEY TRIGGER" : "REVIEW";
+  return `
+    <div class="action-item ${sevClass}">
+      <span class="action-item-tag ${sevClass}">${sevLabel}</span>
+      <div class="action-item-why"><strong>${item.indicator.name}:</strong> ${item.band.impact || item.indicator.verified_statement}</div>
+      ${item.band.actions ? `<ul class="action-list">${item.band.actions.map(a => `<li>${a}</li>`).join("")}</ul>` : ""}
+    </div>
+  `;
+}
+
+function renderVerifiedItem(item) {
+  return `
+    <div class="verified-item">
+      <span class="verified-item-tag">VERIFIED</span>
+      <div class="verified-item-statement"><strong>${item.indicator.name}:</strong> ${item.indicator.verified_statement}</div>
+    </div>
+  `;
+}
+
+function renderChecklistRow(item) {
+  const isMinor = item.band.level === "minor";
+  const icon = isMinor ? "ⓘ" : "✓";
+  const statusText = isMinor ? "Audit only — minor finding" : "Verified";
+  const statusClass = isMinor ? "minor" : "";
+  const iconClass = isMinor ? "minor" : "good";
+  const statement = isMinor ? (item.band.impact || item.band.label) : item.indicator.verified_statement;
+  return `
+    <li>
+      <div class="checklist-row">
+        <span class="checklist-icon ${iconClass}">${icon}</span>
+        <span class="checklist-name">${item.indicator.name}</span>
+        <span class="checklist-status ${statusClass}">${statusText}</span>
+      </div>
+      <div class="checklist-statement">${statement}</div>
+    </li>
+  `;
+}
+
+function renderExpandable(id, title, count, contentHtml) {
+  return `
+    <div class="expandable">
+      <div class="expandable-toggle" data-expandable="${id}">
+        <div><span class="expandable-title">${title}</span><span class="expandable-count">${count}</span></div>
+        <span class="expandable-arrow">▼</span>
+      </div>
+      <div class="expandable-content" id="exp-${id}">${contentHtml}</div>
+    </div>
+  `;
+}
+
+function renderCustomerView(scenario) {
+  const scores = scenario.scores;
+  const { rec, overall } = overallRecommendation(scores);
+  const findings = rankFindings(scores);
+  const verified = rankVerified(scores);
+  const passedAndMinor = listMinorAndVerified(scores);
+
+  let html = renderHeadline(rec, overall);
+
+  if (rec === "good") {
+    const top3 = verified.slice(0, 3);
+    const restPassed = verified.slice(3);
+    const minorItems = passedAndMinor.filter(x => x.band.level === "minor");
+    const restAll = [...restPassed, ...minorItems];
+
+    html += `<div class="card"><div class="card-title">Top ${top3.length} Verified Check${top3.length > 1 ? "s" : ""}</div>${top3.map(renderVerifiedItem).join("")}</div>`;
+    if (restAll.length > 0) {
+      const checklistHtml = `<ul class="checklist">${restAll.map(renderChecklistRow).join("")}</ul>`;
+      html += renderExpandable("else-checked", "What else was checked", `(${restAll.length} more)`, checklistHtml);
+    }
+  } else {
+    const top3 = findings.slice(0, 3);
+    const restFindings = findings.slice(3);
+    html += `<div class="card"><div class="card-title">Top ${top3.length} Action Item${top3.length > 1 ? "s" : ""}</div>${top3.map(renderActionItem).join("")}</div>`;
+    if (restFindings.length > 0) {
+      const findingsHtml = `<div>${restFindings.map(renderActionItem).join("")}</div>`;
+      html += renderExpandable("other-findings", "Other findings", `(${restFindings.length} additional)`, findingsHtml);
+    }
+    if (passedAndMinor.length > 0) {
+      const passedHtml = `<ul class="checklist">${passedAndMinor.map(renderChecklistRow).join("")}</ul>`;
+      html += renderExpandable("what-passed", "What passed", `(${passedAndMinor.length} checks)`, passedHtml);
+    }
+  }
+  return html;
+}
+
+// ============================================================
+// INTERNAL QA VIEW
+// ============================================================
+function renderInternalView(scenario) {
+  const scores = scenario.scores;
+  const { rec, overall } = overallRecommendation(scores);
+  const overallDisplay = overall.hardGate ? "0" : overall.score.toFixed(1);
+
+  let verifStatus = overall.hardGate ? "BASE_HARD_GATE_FIRED"
+    : rec === "good" ? "BASE_VERIFIED_HIGH"
+    : rec === "review" ? "BASE_VERIFIED_MARGINAL" : "BASE_VERIFIED_FAIL";
+
+  let html = `
+    <div class="card">
+      <div class="headline">
+        <div class="headline-score ${rec}">${overallDisplay}</div>
+        <div class="headline-meta">
+          <div class="headline-rec ${rec}">${recommendationLabel(rec)}</div>
+          <div class="headline-rationale">Diagnostic decomposition below. Indicator scores → block scores → overall.</div>
+        </div>
+      </div>
+      <div class="verif-status"><b>verification_status:</b> ${verifStatus}</div>
+      <div class="verif-status" style="background:var(--color-bg-secondary);"><b>global_gate_condition:</b> <code style="font-family:var(--font-mono);font-size:11px;">${GLOBAL_GATE_CONDITION}</code></div>
+    </div>
+  `;
+
+  html += `<div class="card"><div class="card-title">Block Decomposition</div>`;
+  for (const b of BLOCKS) {
+    const bs = computeBlockScore(b.id, scores);
+    const lvl = scoreLevel(bs);
+    html += `
+      <div class="block-row">
+        <div class="block-name">${b.name} <span class="block-weight">(weight ${b.weight})</span></div>
+        <div class="block-bar-track"><div class="block-bar-fill ${lvl}" style="width:${bs}%;"></div></div>
+        <div class="block-score">${bs.toFixed(1)} × ${b.weight.toFixed(2)} = ${(bs * b.weight).toFixed(2)}</div>
+      </div>
+    `;
+  }
+  html += `
+    <div class="block-row" style="border-top:0.5px solid var(--color-border-secondary); padding-top:14px; margin-top:6px;">
+      <div class="block-name" style="font-weight:600;">Overall base_station_score</div>
+      <div class="block-bar-track"><div class="block-bar-fill ${rec}" style="width:${overall.hardGate ? 0 : overall.score}%;"></div></div>
+      <div class="block-score" style="font-weight:600;">${overallDisplay}</div>
+    </div>
+  </div>`;
+
+  html += `<div class="card"><div class="card-title">Indicator Decomposition (all 11)</div>`;
+  for (const b of BLOCKS) {
+    html += `<div class="block-group-hdr">${b.name}</div>`;
+    const inds = INDICATORS.filter(i => i.block === b.id);
+    for (const i of inds) {
+      const s = scores[i.id];
+      const band = getBandForScore(i, s);
+      const sev = severityForScore(i, s);
+      html += `
+        <div class="ind-row">
+          <div class="ind-row-top">
+            <span class="ind-id">${i.id}</span>
+            <div class="ind-name">${i.name}</div>
+            <span class="ind-score-pill ${band.level}">${s}</span>
+          </div>
+          <div class="ind-meta-row">
+            <span><b>weight in block:</b> ${i.weight}</span>
+            <span><b>severity of finding:</b> ${sev}</span>
+            ${i.flag ? `<span><b>raises:</b> <code style="font-family:var(--font-mono);">${i.flag}</code></span>` : ""}
+            ${i.is_critical_path ? `<span><b>critical-path:</b> yes (can hard-gate)</span>` : ""}
+          </div>
+          <div class="ind-finding"><b>Band [${band.score_range.join("–")}]:</b> ${band.label}</div>
+        </div>
+      `;
+    }
+  }
+  html += `</div>`;
+
+  html += `<div class="audit-note"><b>Why this score:</b> ${overall.hardGate ? "Hard gate fired — overall score forced to 0 regardless of other indicators. Gate source: " + overall.gateSource.name + "." : "base_station_score is a weighted aggregate of 3 block scores; each block is a weighted aggregate of its indicators. Thresholds calibrated against industry conventions — see Auditor View for derivation rationale."}</div>`;
+
+  return html;
+}
+
+// ============================================================
+// AUDITOR VIEW
+// ============================================================
+function renderAuditorView(scenario) {
+  let html = renderInternalView(scenario);
+  html += `
+    <div class="card">
+      <div class="card-title">Threshold Derivation Methodology</div>
+      <div class="methodology-block"><strong>Source of threshold values:</strong> Indicator threshold bands were proposed during chain design through first-principles reasoning, calibrated against industry conventions. Where direct industry convention exists, those values were adopted. Where convention does not exist, values reflect design-team operational judgment.</div>
+      <div class="methodology-block"><strong>Calibration roadmap (v1.1+):</strong> CBEI verification checkpoint RMSE outcomes are retained in S3 for every processed job. Quarterly retrospective analysis will plot indicator scores against measured outcomes to identify inflection points. Thresholds will be tightened where empirical evidence disagrees with current judgment.</div>
+      <div class="methodology-block"><strong>Threshold transparency policy:</strong> Customers see score + recommendation + action items. They do NOT see indicator-level thresholds (would create false precision). Internal QA sees full decomposition. Auditors see methodology and per-indicator threshold derivation below.</div>
+      <div class="methodology-block"><strong>Q1-Q6 locks applied (v2.1):</strong> Q1: antenna_height is true hard gate. Q2: format version-unsupported downgraded to review (data is fine, format is fixable). Q3: session interrupted stays critical (safe default; v2 enhancement for flight-window overlap pending). Q4: SLOW_BASE_ACQUISITION downgraded to minor. Q5: minor findings hidden from default customer view, surface in "what passed/what else was checked" expandable. Q6: global_gate_condition string lists both hard gates.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Per-Indicator Threshold Derivation</div>
+      <table class="threshold-table">
+        <thead><tr><th>Indicator</th><th>Threshold Derivation</th></tr></thead>
+        <tbody>${INDICATORS.map(i => `<tr><td><span class="kw">${i.id}</span><br>${i.name}</td><td>${i.derivation}</td></tr>`).join("")}</tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Block Weights &amp; Aggregation</div>
+      <table class="threshold-table">
+        <thead><tr><th>Block</th><th>Weight</th><th>Rationale</th></tr></thead>
+        <tbody>${BLOCKS.map(b => `<tr><td><span class="kw">${b.id}</span><br>${b.name}</td><td>${b.weight.toFixed(2)}</td><td>${b.description}</td></tr>`).join("")}</tbody>
+      </table>
+      <div class="methodology-block" style="margin-top:14px;"><strong>Weights sum to 1.0.</strong> Block weights reflect relative contribution to base station deliverable confidence.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Known Limitations</div>
+      <ul style="font-size:13px;color:var(--color-text-secondary);line-height:1.7;padding-left:20px;">
+        <li>Check-point is the simplest capture chain (14 indicators, per-point RTK). Q-CP-2 per-point gates (fix_type, antenna_height) affect individual points; aggregation dilutes. Q-CP-3 formula (mean-0.25*(100-min)) is calibrated.</li>
+        <li>Multipath score is a risk proxy via C/N0 variance — actual error magnitude only emerges in pre_processing residuals</li>
+        <li>Antenna type match is type-string consistency only — not true ANTEX phase-center calibration</li>
+        <li>Ionospheric risk currently requires manual Kp index lookup against NOAA SWPC — automation pending</li>
+        <li>Setup verification score 50 is conceptually a third-state (provenance unverifiable) — chain-library retrofit pending</li>
+        <li>Session interrupted (Q3): v2 enhancement to check timestamp overlap with flight window pending</li>
+        <li>Pressure-tested against synthetic scenarios; real-world calibration data accumulating in S3</li>
+      </ul>
+    </div>
+  `;
+  return html;
+}
+
+// ============================================================
+// LIBRARY — CARDS TAB (Option 1: mini customer card previews per band)
+// ============================================================
+function renderLibraryBandAsCard(indicator, band) {
+  // Render the band as it would appear in the customer view
+  let cardHtml = "";
+  const sevForRender = severityForBand(band);
+
+  if (band.level === "good") {
+    // Verified hero card
+    cardHtml = `
+      <div class="verified-item">
+        <span class="verified-item-tag">VERIFIED</span>
+        <div class="verified-item-statement"><strong>${indicator.name}:</strong> ${indicator.verified_statement}</div>
+      </div>
+    `;
+  } else if (band.level === "minor") {
+    // Minor: rendered as checklist row (audit-only)
+    cardHtml = `
+      <div class="card" style="margin-bottom:0; padding:14px 16px; border-color:var(--color-border-tertiary);">
+        <div class="lib-card-preview-label" style="margin-bottom:8px; color:var(--color-minor-fg);">Renders as checklist row in "What passed" expandable (audit-only)</div>
+        <ul class="checklist" style="margin:0;">
+          <li>
+            <div class="checklist-row">
+              <span class="checklist-icon minor">ⓘ</span>
+              <span class="checklist-name">${indicator.name}</span>
+              <span class="checklist-status minor">Audit only — minor finding</span>
+            </div>
+            <div class="checklist-statement">${band.impact || band.label}</div>
+          </li>
+        </ul>
+      </div>
+    `;
+  } else {
+    // Action item card (review or resurvey)
+    const sevClass = sevForRender === "critical" ? "critical" : "material";
+    const sevLabel = sevForRender === "critical" ? "RESURVEY TRIGGER" : "REVIEW";
+    cardHtml = `
+      <div class="action-item ${sevClass}">
+        <span class="action-item-tag ${sevClass}">${sevLabel}</span>
+        <div class="action-item-why"><strong>${indicator.name}:</strong> ${band.impact || indicator.verified_statement}</div>
+        ${band.actions ? `<ul class="action-list">${band.actions.map(a => `<li>${a}</li>`).join("")}</ul>` : ""}
+      </div>
+    `;
+  }
+
+  // QA preview alongside
+  const qaPreview = `
+    <div class="lib-qa-preview">
+      <div class="lib-qa-preview-label">Internal QA View — how this band appears in indicator decomposition</div>
+      <div class="ind-row" style="padding:6px 0; border:none;">
+        <div class="ind-row-top">
+          <span class="ind-id">${indicator.id}</span>
+          <div class="ind-name">${indicator.name}</div>
+          <span class="ind-score-pill ${band.level}">${band.score_range.join("–")}</span>
+        </div>
+        <div class="ind-meta-row">
+          <span><b>severity of finding:</b> ${sevForRender}</span>
+          <span><b>level:</b> ${band.level}</span>
+          ${indicator.flag ? `<span><b>raises:</b> <code style="font-family:var(--font-mono);">${indicator.flag}</code></span>` : `<span><b>flag:</b> none</span>`}
+        </div>
+        <div class="ind-finding"><b>Band [${band.score_range.join("–")}]:</b> ${band.label}</div>
+      </div>
+    </div>
+  `;
+
+  return `
+    <div class="lib-band">
+      <div class="lib-band-header">
+        <span class="lib-band-range ${band.level}">${band.score_range.join("–")}</span>
+        <span class="lib-band-level ${band.level}">${band.level}</span>
+        <span class="lib-band-label">${band.label}</span>
+      </div>
+      <div class="lib-card-preview-label">Customer view — how this band appears as a card</div>
+      <div class="lib-card-preview">${cardHtml}</div>
+      ${qaPreview}
+    </div>
+  `;
+}
+
+function renderLibraryStructuredBand(indicator, band) {
+  const sevForRender = severityForBand(band);
+  const isGood = band.level === "good";
+
+  const customerText = isGood ? indicator.verified_statement : (band.impact || "(no impact statement)");
+  const actionsHtml = band.actions ? `<ul>${band.actions.map(a => `<li>${a}</li>`).join("")}</ul>` : `<span class="lib-struct-val muted">(no actions — verified/passing band)</span>`;
+
+  return `
+    <div class="lib-band">
+      <div class="lib-band-header">
+        <span class="lib-band-range ${band.level}">${band.score_range.join("–")}</span>
+        <span class="lib-band-level ${band.level}">${band.level}</span>
+      </div>
+      <div class="lib-struct-grid">
+        <div class="lib-struct-key">Threshold label</div>
+        <div class="lib-struct-val">${band.label}</div>
+
+        <div class="lib-struct-key">Severity of finding</div>
+        <div class="lib-struct-val">${sevForRender}</div>
+
+        <div class="lib-struct-key">Customer-facing text</div>
+        <div class="lib-struct-val">${customerText}</div>
+
+        <div class="lib-struct-key">Action items</div>
+        <div class="lib-struct-val">${actionsHtml}</div>
+
+        ${indicator.flag ? `
+        <div class="lib-struct-key">Raises flag</div>
+        <div class="lib-struct-val"><code style="font-family:var(--font-mono);font-size:11px;">${indicator.flag}</code></div>
+        ` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function renderLibraryBlock(block, perBandRenderer) {
+  const inds = INDICATORS.filter(i => i.block === block.id);
+  return `
+    <div class="lib-block-group">
+      <div class="lib-block-header">
+        <div class="lib-block-name">${block.name}</div>
+        <div class="lib-block-weight">weight ${block.weight} · ${inds.length} indicator${inds.length > 1 ? "s" : ""}</div>
+      </div>
+      <div class="lib-block-desc">${block.description}</div>
+      ${inds.map((ind, idx) => {
+        const cpTag = ind.is_critical_path ? `<span class="lib-ind-tag cp">CRITICAL-PATH (can hard-gate)</span>` : "";
+        return `
+          <div class="lib-indicator-wrap">
+            <div class="lib-indicator-header" data-lib-ind="${ind.id}">
+              <span class="lib-ind-arrow">▼</span>
+              <span class="lib-ind-id">${ind.id}</span>
+              <span class="lib-ind-name">${ind.name}</span>
+              ${cpTag}
+              <span class="lib-ind-meta">weight ${ind.weight} · ${ind.bands.length} band${ind.bands.length > 1 ? "s" : ""}</span>
+            </div>
+            <div class="lib-indicator-body" id="lib-body-${ind.id}">
+              ${ind.bands.map(b => perBandRenderer(ind, b)).join("")}
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderLibraryCards() {
+  return `
+    <div class="lib-controls">
+      <span class="lib-controls-label">Library — Cards · ${INDICATORS.length} indicators · ${INDICATORS.reduce((n,i) => n + i.bands.length, 0)} total bands</span>
+      <button class="lib-control-btn" data-action="lib-expand-all">Expand all</button>
+      <button class="lib-control-btn" data-action="lib-collapse-all">Collapse all</button>
+    </div>
+    ${BLOCKS.map(b => renderLibraryBlock(b, renderLibraryBandAsCard)).join("")}
+  `;
+}
+
+function renderLibraryStructured() {
+  return `
+    <div class="lib-controls">
+      <span class="lib-controls-label">Library — Structured · ${INDICATORS.length} indicators · ${INDICATORS.reduce((n,i) => n + i.bands.length, 0)} total bands</span>
+      <button class="lib-control-btn" data-action="lib-expand-all">Expand all</button>
+      <button class="lib-control-btn" data-action="lib-collapse-all">Collapse all</button>
+    </div>
+    ${BLOCKS.map(b => renderLibraryBlock(b, renderLibraryStructuredBand)).join("")}
+  `;
+}
+
+// ============================================================
+// STATE & WIRING
+// ============================================================
+let currentScenario = SCENARIOS[0];
+let currentView = "customer";
+
+function render() {
+  document.getElementById("customer-content").innerHTML = renderCustomerView(currentScenario);
+  document.getElementById("internal-content").innerHTML = renderInternalView(currentScenario);
+  document.getElementById("auditor-content").innerHTML = renderAuditorView(currentScenario);
+  document.getElementById("lib-cards-content").innerHTML = renderLibraryCards();
+  document.getElementById("lib-structured-content").innerHTML = renderLibraryStructured();
+  wireExpandables();
+  wireLibraryToggles();
+}
+
+function setScenario(id) {
+  currentScenario = SCENARIOS.find(s => s.id === id);
+  document.querySelectorAll(".scenario-btn").forEach(b => b.classList.toggle("active", b.dataset.scenario === id));
+  render();
+}
+
+function setView(id) {
+  currentView = id;
+  document.querySelectorAll(".view-tab").forEach(t => t.classList.toggle("active", t.dataset.view === id));
+  document.querySelectorAll(".view-panel").forEach(p => p.classList.toggle("active", p.id === `view-${id}`));
+  // Hide scenario picker for library tabs (they're scenario-independent)
+  const isLib = id.startsWith("lib-");
+  document.getElementById("scenario-section").classList.toggle("hidden", isLib);
+}
+
+function wireExpandables() {
+  document.querySelectorAll(".expandable-toggle").forEach(toggle => {
+    toggle.onclick = () => {
+      const id = toggle.dataset.expandable;
+      const content = document.getElementById(`exp-${id}`);
+      const isOpen = content.classList.toggle("open");
+      toggle.classList.toggle("open", isOpen);
+    };
+  });
+}
+
+function wireLibraryToggles() {
+  document.querySelectorAll(".lib-indicator-header").forEach(hdr => {
+    hdr.onclick = () => {
+      const indId = hdr.dataset.libInd;
+      // There are two copies (one in cards tab, one in structured tab) — toggle only THIS one
+      const body = hdr.parentElement.querySelector(".lib-indicator-body");
+      const isCollapsed = body.classList.toggle("hidden");
+      hdr.classList.toggle("collapsed", isCollapsed);
+    };
+  });
+  document.querySelectorAll(".lib-control-btn").forEach(btn => {
+    btn.onclick = () => {
+      const action = btn.dataset.action;
+      const activePanel = document.querySelector(".view-panel.active");
+      const bodies = activePanel.querySelectorAll(".lib-indicator-body");
+      const headers = activePanel.querySelectorAll(".lib-indicator-header");
+      if (action === "lib-expand-all") {
+        bodies.forEach(b => b.classList.remove("hidden"));
+        headers.forEach(h => h.classList.remove("collapsed"));
+      } else {
+        bodies.forEach(b => b.classList.add("hidden"));
+        headers.forEach(h => h.classList.add("collapsed"));
+      }
+    };
+  });
+}
+
+// Build scenario picker
+const row = document.getElementById("scenario-row");
+SCENARIOS.forEach((s, idx) => {
+  const btn = document.createElement("button");
+  btn.className = "scenario-btn" + (idx === 0 ? " active" : "");
+  btn.dataset.scenario = s.id;
+  btn.innerHTML = `<span class="s-name">${s.name}</span><span class="s-desc">${s.desc}</span>`;
+  btn.onclick = () => setScenario(s.id);
+  row.appendChild(btn);
+});
+
+document.querySelectorAll(".view-tab").forEach(tab => {
+  tab.onclick = () => setView(tab.dataset.view);
+});
+
+render();
+</script>
+
+</body>
+</html>
