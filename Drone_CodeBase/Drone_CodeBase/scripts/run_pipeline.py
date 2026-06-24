@@ -62,7 +62,7 @@ def stage2_merge(config: dict, project_root: Path) -> dict:
 
     print("[stage2] parse_rinex ... (georinex load takes ~7 min on this file)")
     rinex = parse_rinex.parse(config, project_root)
-    print(f"[stage2]   obs {rinex['fields']['L1F_GNSS_001']} → {rinex['fields']['L1F_GNSS_002']}; "
+    print(f"[stage2]   obs {rinex['fields']['L1F_GNSS_001']} -> {rinex['fields']['L1F_GNSS_002']}; "
           f"epochs={rinex['fields']['L1F_GNSS_006']}")
 
     print("[stage2] parse_bin ...")

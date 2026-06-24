@@ -134,7 +134,7 @@ def inventory_bin(folder: Path) -> dict:
     other = [p.name for p in files if p.suffix.lower() != ".bin"]
 
     if len(bin_files) == 0:
-        hard = None
+        hard = "no .BIN file found in telemetry folder"
     elif len(bin_files) > 1:
         hard = f"expected exactly 1 .BIN file, found {len(bin_files)}"
     else:

@@ -9833,7 +9833,7 @@ function renderBBCards(){
     var fillW=lvl==="good"?100:bs;
     var fillCol=lvl==="good"?"rgba(16,185,214,.38)":(lvl==="resurvey"?"rgba(201,64,64,.5)":"rgba(232,228,218,.18)");
     return ''+
-      '<div class="'+cls+'" id="'+b.id+'">'+
+      '<div class="'+cls+'" id="'+b.id+'" role="button" tabindex="0" onclick="dsBase.toggleBBIndicators(\''+b.id+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();dsBase.toggleBBIndicators(\''+b.id+'\')}">'+
         '<div class="bb-header"><div class="bb-h-left">'+
           '<div class="bb-num">'+num+'</div>'+
           '<div class="bb-name">'+b.name+'</div>'+
@@ -9844,7 +9844,6 @@ function renderBBCards(){
         '</div></div>'+
         '<div class="bb-inner-always">'+
           '<div class="bb-bar"><div class="bb-bar-fill" style="width:'+fillW+'%;background:'+fillCol+'"></div></div>'+
-          '<div class="bb-toggle-row" onclick="dsBase.toggleBBIndicators(\''+b.id+'\')"><span class="bb-check"></span><span class="bb-toggle-text">Show indicators</span></div>'+
           '<div class="bb-status-full">'+statusText(lvl)+'</div>'+
           '<div class="bb-details" onclick="event.stopPropagation();dsBase.openBBDetails(\''+b.id+'\')">Details ›</div>'+
         '</div>'+
@@ -9857,20 +9856,21 @@ function renderIndicators(){
   var layer=document.getElementById("indicatorLayer");
   if(!layer)return;
   var scores=currentScenario.scores;
-  var html=[];
-  BLOCKS.forEach(function(b){
-    if(!selected[b.id])return;
+  var anySelected=false;BLOCKS.forEach(function(b){if(selected[b.id])anySelected=true;});
+  if(!anySelected){layer.innerHTML="";layer.className="indicator-layer";return;}
+  var html=BLOCKS.map(function(b,idx){
+    if(!selected[b.id])return "";
     var inds=blockIndicators(b.id);
-    var pts=POS[inds.length]||POS[4];
-    inds.forEach(function(ind,i){
-      var p=pts[i]||[50,75];
+    var cls='bb-data-panel slot-'+idx;
+    var rows=inds.map(function(ind){
       var lvl=getBandForScore(ind,scores[ind.id]).level;
-      var sev=lvl==="good"?"":(lvl==="resurvey"?" sev-resurvey":(lvl==="minor"?" sev-minor":" sev-review"));
-      html.push('<div class="indicator-pill'+sev+'" style="left:'+p[0]+'%;top:'+p[1]+'%"><span></span>'+ind.name.toUpperCase()+'<b class="ip-score">'+scores[ind.id]+'</b></div>');
-    });
-  });
-  layer.innerHTML=html.join("");
-  layer.className="indicator-layer"+(html.length?" show":"");
+      var sev=lvl==="good"?"good":(lvl==="resurvey"?"resurvey":(lvl==="minor"?"minor":"review"));
+      return '<div class="bb-data-row '+sev+'"><span class="bb-data-dot"></span><span class="bb-data-name">'+ind.name.toUpperCase()+'</span><b>'+scores[ind.id]+'</b></div>';
+    }).join("");
+    return '<div class="'+cls+'"><div class="bb-data-head"><span>'+b.name+'</span><b>'+pctRound(computeBlockScore(b.id,scores))+'</b></div><div class="bb-data-list">'+rows+'</div></div>';
+  }).join("");
+  layer.innerHTML=html;
+  layer.className="indicator-layer show data-panels";
 }
 
 function toggleBBIndicators(id){selected[id]=!selected[id];markActiveBB();renderIndicators();}
@@ -9880,7 +9880,7 @@ function markActiveBB(){
 
 /* drawer: per-block indicator decomposition with band content */
 function openBBDetails(blockId){
-  selected[blockId]=true;markActiveBB();renderIndicators();
+  selected={};selected[blockId]=true;markActiveBB();renderIndicators();
   var b=BLOCKS.filter(function(x){return x.id===blockId;})[0];
   var scores=currentScenario.scores;
   var bs=pctRound(computeBlockScore(blockId,scores));
@@ -11732,7 +11732,7 @@ function renderBBCards(){
     var num="BB · 0"+(idx+1);
     var fillW=lvl==="good"?100:bs;
     var fillCol=lvl==="good"?"rgba(16,185,214,.38)":(lvl==="resurvey"?"rgba(201,64,64,.5)":"rgba(232,228,218,.18)");
-    return '<div class="'+cls+'" id="dn-'+b.id+'">'+
+    return '<div class="'+cls+'" id="dn-'+b.id+'" role="button" tabindex="0" onclick="dsDrone.toggleBBIndicators(\''+b.id+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();dsDrone.toggleBBIndicators(\''+b.id+'\')}">'+
         '<div class="bb-header"><div class="bb-h-left">'+
           '<div class="bb-num">'+num+'</div>'+
           '<div class="bb-name">'+b.name+'</div>'+
@@ -11743,7 +11743,6 @@ function renderBBCards(){
         '</div></div>'+
         '<div class="bb-inner-always">'+
           '<div class="bb-bar"><div class="bb-bar-fill" style="width:'+fillW+'%;background:'+fillCol+'"></div></div>'+
-          '<div class="bb-toggle-row" onclick="dsDrone.toggleBBIndicators(\''+b.id+'\')"><span class="bb-check"></span><span class="bb-toggle-text">Show indicators</span></div>'+
           '<div class="bb-status-full">'+statusText(lvl)+'</div>'+
           '<div class="bb-details" onclick="event.stopPropagation();dsDrone.openBBDetails(\''+b.id+'\')">Details ›</div>'+
         '</div>'+
@@ -11755,24 +11754,24 @@ function renderBBCards(){
 function renderIndicators(){
   var layer=document.getElementById("dn-indicatorLayer");if(!layer)return;
   var scores=currentScenario.scores,nul=curNul();
-  var html=[];
-  BLOCKS.forEach(function(b){
-    if(!selected[b.id])return;
+  var anySelected=false;BLOCKS.forEach(function(b){if(selected[b.id])anySelected=true;});
+  if(!anySelected){layer.innerHTML="";layer.className="indicator-layer";return;}
+  var html=BLOCKS.map(function(b,idx){
+    if(!selected[b.id])return "";
     var inds=blockIndicators(b.id);
-    var pts=posFor(inds.length);
-    inds.forEach(function(ind,i){
-      var p=pts[i]||[50,75];
+    var cls='bb-data-panel slot-'+idx;
+    var rows=inds.map(function(ind){
       if(isNull(ind.id,nul)){
-        html.push('<div class="indicator-pill sev-pending" style="left:'+p[0]+'%;top:'+p[1]+'%"><span></span>'+ind.name.toUpperCase()+'<b class="ip-score">N/A</b></div>');
-        return;
+        return '<div class="bb-data-row pending"><span class="bb-data-dot"></span><span class="bb-data-name">'+ind.name.toUpperCase()+'</span><b>N/A</b></div>';
       }
       var lvl=getBandForScore(ind,scores[ind.id]).level;
-      var sev=lvl==="good"?"":(lvl==="resurvey"?" sev-resurvey":(lvl==="minor"?" sev-minor":" sev-review"));
-      html.push('<div class="indicator-pill'+sev+'" style="left:'+p[0]+'%;top:'+p[1]+'%"><span></span>'+ind.name.toUpperCase()+'<b class="ip-score">'+scores[ind.id]+'</b></div>');
-    });
-  });
-  layer.innerHTML=html.join("");
-  layer.className="indicator-layer"+(html.length?" show":"");
+      var sev=lvl==="good"?"good":(lvl==="resurvey"?"resurvey":(lvl==="minor"?"minor":"review"));
+      return '<div class="bb-data-row '+sev+'"><span class="bb-data-dot"></span><span class="bb-data-name">'+ind.name.toUpperCase()+'</span><b>'+scores[ind.id]+'</b></div>';
+    }).join("");
+    return '<div class="'+cls+'"><div class="bb-data-head"><span>'+b.name+'</span><b>'+pctRound(computeBlockScore(b.id,scores))+'</b></div><div class="bb-data-list">'+rows+'</div></div>';
+  }).join("");
+  layer.innerHTML=html;
+  layer.className="indicator-layer show data-panels";
 }
 
 function toggleBBIndicators(id){selected[id]=!selected[id];markActiveBB();renderIndicators();}
@@ -11780,7 +11779,7 @@ function markActiveBB(){BLOCKS.forEach(function(b){var el=document.getElementByI
 
 /* ---- per-block Details drawer ---- */
 function openBBDetails(blockId){
-  selected[blockId]=true;markActiveBB();renderIndicators();
+  selected={};selected[blockId]=true;markActiveBB();renderIndicators();
   var b=BLOCKS.filter(function(x){return x.id===blockId;})[0];
   var scores=currentScenario.scores,nul=curNul();
   var bs=pctRound(computeBlockScore(blockId,scores));
@@ -12723,7 +12722,7 @@ function renderBBCards(){
     var cls="bb-card"+(lvl==="review"?" review":"")+(lvl==="resurvey"?" resurvey":"");
     var fillW=raw===null?0:(lvl==="good"?100:pctRound(raw));
     var fillCol=lvl==="good"?"rgba(16,185,214,.38)":(lvl==="resurvey"?"rgba(201,64,64,.5)":(lvl==="na"?"rgba(255,255,255,.06)":"rgba(232,228,218,.18)"));
-    return '<div class="'+cls+'" id="gp-'+b.id+'">'+
+    return '<div class="'+cls+'" id="gp-'+b.id+'" role="button" tabindex="0" onclick="dsGcp.toggleBBIndicators(\''+b.id+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();dsGcp.toggleBBIndicators(\''+b.id+'\')}">'+
       '<div class="bb-header"><div class="bb-h-left">'+
         '<div class="bb-num">BB · 0'+(idx+1)+'</div>'+
         '<div class="bb-name">'+blockName(b)+'</div>'+
@@ -12733,7 +12732,6 @@ function renderBBCards(){
       '</div></div>'+
       '<div class="bb-inner-always">'+
         '<div class="bb-bar"><div class="bb-bar-fill" style="width:'+fillW+'%;background:'+fillCol+'"></div></div>'+
-        '<div class="bb-toggle-row" onclick="dsGcp.toggleBBIndicators(\''+b.id+'\')"><span class="bb-check"></span><span class="bb-toggle-text">Show indicators</span></div>'+
         '<div class="bb-status-full">'+statusText(lvl)+'</div>'+
         '<div class="bb-details" onclick="event.stopPropagation();dsGcp.openBBDetails(\''+b.id+'\')">Details ›</div>'+
       '</div></div>';
@@ -12779,12 +12777,33 @@ function renderIndicators(){
   layer.innerHTML=html.join("");
   layer.className="indicator-layer"+(html.length?" show":"");
 }
+function renderIndicators(){
+  var layer=document.getElementById("gp-indicatorLayer");if(!layer)return;
+  var sc=currentScenario,p=curPoint();
+  var anySelected=false;BLOCKS.forEach(function(b){if(selected[b.id])anySelected=true;});
+  if(!anySelected||(!p&&!hasPoints(sc))){layer.innerHTML="";layer.className="indicator-layer";return;}
+  var html=BLOCKS.map(function(b,idx){
+    if(!selected[b.id])return "";
+    var cls='bb-data-panel slot-'+idx;
+    var raw=p?computePointBlockScore(b.id,p.scores):aggBlockScore(b.id,sc);
+    var rows=blockIndicators(b.id).map(function(ind){
+      var value,lvl;
+      if(p){value=p.scores[ind.id];lvl=getBandForScore(ind,value).level;}
+      else {value=aggIndicatorWorstScore(ind,sc);lvl=aggIndicatorLevel(ind,sc);}
+      var sev=lvl==="good"?"good":(lvl==="resurvey"?"resurvey":(lvl==="minor"?"minor":"review"));
+      return '<div class="bb-data-row '+sev+'"><span class="bb-data-dot"></span><span class="bb-data-name">'+ind.name.toUpperCase()+'</span><b>'+(value===null?"-":value)+'</b></div>';
+    }).join("");
+    return '<div class="'+cls+'"><div class="bb-data-head"><span>'+blockName(b)+'</span><b>'+(raw===null?"N/A":pctRound(raw))+'</b></div><div class="bb-data-list">'+rows+'</div></div>';
+  }).join("");
+  layer.innerHTML=html;
+  layer.className="indicator-layer show data-panels";
+}
 function toggleBBIndicators(id){selected[id]=!selected[id];markActiveBB();renderIndicators();}
 function markActiveBB(){BLOCKS.forEach(function(b){var el=document.getElementById("gp-"+b.id);if(el)el.classList.toggle("active",!!selected[b.id]);});}
 
 /* ---- per-block Details drawer (aggregate decomposition, worst-point detail) ---- */
 function openBBDetails(blockId){
-  selected[blockId]=true;markActiveBB();renderIndicators();
+  selected={};selected[blockId]=true;markActiveBB();renderIndicators();
   var b=BLOCKS.filter(function(x){return x.id===blockId;})[0];
   var sc=currentScenario;
   var p=curPoint();
@@ -14221,7 +14240,7 @@ function renderBBCards(){
     var cls="bb-card"+(lvl==="review"?" review":"")+(lvl==="resurvey"?" resurvey":"");
     var fillW=raw===null?0:(lvl==="good"?100:pctRound(raw));
     var fillCol=lvl==="good"?"rgba(16,185,214,.38)":(lvl==="resurvey"?"rgba(201,64,64,.5)":(lvl==="na"?"rgba(255,255,255,.06)":"rgba(232,228,218,.18)"));
-    return '<div class="'+cls+'" id="cp-'+b.id+'">'+
+    return '<div class="'+cls+'" id="cp-'+b.id+'" role="button" tabindex="0" onclick="dsCp.toggleBBIndicators(\''+b.id+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();dsCp.toggleBBIndicators(\''+b.id+'\')}">'+
       '<div class="bb-header"><div class="bb-h-left">'+
         '<div class="bb-num">BB · 0'+(idx+1)+'</div>'+
         '<div class="bb-name">'+blockName(b)+'</div>'+
@@ -14231,7 +14250,6 @@ function renderBBCards(){
       '</div></div>'+
       '<div class="bb-inner-always">'+
         '<div class="bb-bar"><div class="bb-bar-fill" style="width:'+fillW+'%;background:'+fillCol+'"></div></div>'+
-        '<div class="bb-toggle-row" onclick="dsCp.toggleBBIndicators(\''+b.id+'\')"><span class="bb-check"></span><span class="bb-toggle-text">Show indicators</span></div>'+
         '<div class="bb-status-full">'+statusText(lvl)+'</div>'+
         '<div class="bb-details" onclick="event.stopPropagation();dsCp.openBBDetails(\''+b.id+'\')">Details ›</div>'+
       '</div></div>';
@@ -14277,12 +14295,33 @@ function renderIndicators(){
   layer.innerHTML=html.join("");
   layer.className="indicator-layer"+(html.length?" show":"");
 }
+function renderIndicators(){
+  var layer=document.getElementById("cp-indicatorLayer");if(!layer)return;
+  var sc=currentScenario,p=curPoint();
+  var anySelected=false;BLOCKS.forEach(function(b){if(selected[b.id])anySelected=true;});
+  if(!anySelected||(!p&&!hasPoints(sc))){layer.innerHTML="";layer.className="indicator-layer";return;}
+  var html=BLOCKS.map(function(b,idx){
+    if(!selected[b.id])return "";
+    var cls='bb-data-panel slot-'+idx;
+    var raw=p?computePointBlockScore(b.id,p.scores):aggBlockScore(b.id,sc);
+    var rows=blockIndicators(b.id).map(function(ind){
+      var value,lvl;
+      if(p){value=p.scores[ind.id];lvl=getBandForScore(ind,value).level;}
+      else {value=aggIndicatorWorstScore(ind,sc);lvl=aggIndicatorLevel(ind,sc);}
+      var sev=lvl==="good"?"good":(lvl==="resurvey"?"resurvey":(lvl==="minor"?"minor":"review"));
+      return '<div class="bb-data-row '+sev+'"><span class="bb-data-dot"></span><span class="bb-data-name">'+ind.name.toUpperCase()+'</span><b>'+(value===null?"-":value)+'</b></div>';
+    }).join("");
+    return '<div class="'+cls+'"><div class="bb-data-head"><span>'+blockName(b)+'</span><b>'+(raw===null?"N/A":pctRound(raw))+'</b></div><div class="bb-data-list">'+rows+'</div></div>';
+  }).join("");
+  layer.innerHTML=html;
+  layer.className="indicator-layer show data-panels";
+}
 function toggleBBIndicators(id){selected[id]=!selected[id];markActiveBB();renderIndicators();}
 function markActiveBB(){BLOCKS.forEach(function(b){var el=document.getElementById("cp-"+b.id);if(el)el.classList.toggle("active",!!selected[b.id]);});}
 
 /* ---- per-block Details drawer (aggregate decomposition, worst-point detail) ---- */
 function openBBDetails(blockId){
-  selected[blockId]=true;markActiveBB();renderIndicators();
+  selected={};selected[blockId]=true;markActiveBB();renderIndicators();
   var b=BLOCKS.filter(function(x){return x.id===blockId;})[0];
   var sc=currentScenario;
   var p=curPoint();

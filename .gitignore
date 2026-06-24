@@ -21,6 +21,17 @@ loop-upload-smoke-*/
 **/tests/scenarios/
 **/.claude/settings.local.json
 *.log
+*.zip
+*.7z
+*.rar
+*.tar
+*.tgz
+*.tar.gz
+Datum/
+rinex_log*/
+cbmi_loop*/
+new/
+**/* Zip Files Collection/
 site_reality.zip
 site_reality/compare/pointcloud_3dtiles/
 site_reality/compare/models/
