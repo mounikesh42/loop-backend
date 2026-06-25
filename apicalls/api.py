@@ -11,6 +11,7 @@ import threading
 import urllib.error
 import urllib.request
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from flask import Flask, jsonify, abort, request, send_from_directory, Response
@@ -78,11 +79,15 @@ INPUT_LABELS = {
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
+@contextmanager
 def get_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def utc_now():
@@ -98,41 +103,45 @@ def parse_iso(value):
         return None
 
 
+@contextmanager
 def get_jobs_db():
     JOBS_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(JOBS_DB_PATH)
     conn.row_factory = sqlite3.Row
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS jobs (
-            id TEXT PRIMARY KEY,
-            status TEXT NOT NULL,
-            upload_dir TEXT NOT NULL,
-            file_count INTEGER NOT NULL DEFAULT 0,
-            files_json TEXT NOT NULL DEFAULT '[]',
-            stdout TEXT,
-            stderr TEXT,
-            error TEXT,
-            created_at TEXT NOT NULL,
-            started_at TEXT,
-            completed_at TEXT
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS jobs (
+                id TEXT PRIMARY KEY,
+                status TEXT NOT NULL,
+                upload_dir TEXT NOT NULL,
+                file_count INTEGER NOT NULL DEFAULT 0,
+                files_json TEXT NOT NULL DEFAULT '[]',
+                stdout TEXT,
+                stderr TEXT,
+                error TEXT,
+                created_at TEXT NOT NULL,
+                started_at TEXT,
+                completed_at TEXT
+            )
+            """
         )
-        """
-    )
-    existing_columns = {
-        row["name"]
-        for row in conn.execute("PRAGMA table_info(jobs)").fetchall()
-    }
-    migrations = {
-        "target": "ALTER TABLE jobs ADD COLUMN target TEXT",
-        "config_path": "ALTER TABLE jobs ADD COLUMN config_path TEXT",
-        "config_json": "ALTER TABLE jobs ADD COLUMN config_json TEXT",
-    }
-    for column, statement in migrations.items():
-        if column not in existing_columns:
-            conn.execute(statement)
-    conn.commit()
-    return conn
+        existing_columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(jobs)").fetchall()
+        }
+        migrations = {
+            "target": "ALTER TABLE jobs ADD COLUMN target TEXT",
+            "config_path": "ALTER TABLE jobs ADD COLUMN config_path TEXT",
+            "config_json": "ALTER TABLE jobs ADD COLUMN config_json TEXT",
+        }
+        for column, statement in migrations.items():
+            if column not in existing_columns:
+                conn.execute(statement)
+        conn.commit()
+        yield conn
+    finally:
+        conn.close()
 
 
 def cleanup_old_uploads(retention_days: int = UPLOAD_RETENTION_DAYS, dry_run: bool = False):
@@ -311,12 +320,17 @@ def validate_job_inputs(job: dict, target: str):
 
 def module_commands(job_id: str, target: str, env: dict):
     python_exe = os.environ.get("LOOP_PIPELINE_PYTHON", sys.executable)
+    recommendations_loader = ROOT_PATH / "scripts" / "load_recommendations_to_db.py"
 
     if target == "base_station":
         root = module_root("BaseStation_CodeBase", "BaseStation_CodeBase")
         add_site_packages(env, root)
         config_path = write_base_station_job_config(job_id)
-        return [(root, [python_exe, "scripts/run_pipeline.py", str(config_path)])]
+        return [
+            (root, [python_exe, "scripts/run_pipeline.py", str(config_path)]),
+            (root, [python_exe, "scripts/compute_recommendations.py", str(config_path)]),
+            (ROOT_PATH, [python_exe, str(recommendations_loader), "base_station", str(config_path)]),
+        ]
 
     if target == "drone":
         root = module_root("Drone_CodeBase", "Drone_CodeBase")
@@ -324,7 +338,9 @@ def module_commands(job_id: str, target: str, env: dict):
         config_path = write_drone_job_config(job_id)
         return [
             (root, [python_exe, "scripts/run_pipeline.py", str(config_path)]),
+            (root, [python_exe, "scripts/compute_recommendations.py", str(config_path)]),
             (root, [python_exe, "scripts/load_to_db.py", str(config_path)]),
+            (ROOT_PATH, [python_exe, str(recommendations_loader), "drone", str(config_path)]),
         ]
 
     if target == "gcp":
@@ -333,14 +349,20 @@ def module_commands(job_id: str, target: str, env: dict):
         config_path = write_gcp_job_config(job_id)
         return [
             (root, [python_exe, "scripts/run_pipeline.py", str(config_path)]),
+            (root, [python_exe, "scripts/compute_recommendations.py", str(config_path)]),
             (root, [python_exe, "scripts/load_to_db.py", str(config_path)]),
+            (ROOT_PATH, [python_exe, str(recommendations_loader), "gcp", str(config_path)]),
         ]
 
     if target == "check_point":
         root = module_root("CheckPoint_CodeBase", "CheckPoint_CodeBase")
         add_site_packages(env, root)
         config_path = write_check_point_job_config(job_id)
-        return [(root, [python_exe, "scripts/sqlite_pipeline.py", "save", str(config_path)])]
+        return [
+            (root, [python_exe, "scripts/sqlite_pipeline.py", "save", str(config_path)]),
+            (root, [python_exe, "scripts/compute_recommendations.py", str(config_path)]),
+            (ROOT_PATH, [python_exe, str(recommendations_loader), "check_point", str(config_path)]),
+        ]
 
     if target == "all":
         commands = []
@@ -708,6 +730,23 @@ def latest_table_payload(table: str):
     return payload
 
 
+def latest_recommendations(namespace: str):
+    table = {
+        "base_station": "base_station_stage4_recommendations",
+        "drone": "drone_stage4_recommendations",
+        "gcp": "gcp_stage4_recommendations",
+        "check_point": "check_point_stage4_recommendations",
+    }[namespace]
+    payload = latest_table_payload(table)
+    if payload:
+        return payload
+    return {
+        "namespace": namespace,
+        "decision": "not_available",
+        "message": "Recommendations are available after a completed validation run.",
+    }
+
+
 def envelope_data(table: str):
     payload = latest_table_payload(table)
     if payload:
@@ -877,9 +916,13 @@ def health():
         "tables": tables,
         "endpoints": {
             "base_station": "/api/base-station",
+            "base_station_recommendations": "/api/base-station/recommendations",
             "gcp": "/api/gcp",
+            "gcp_recommendations": "/api/gcp/recommendations",
             "drone": "/api/drone",
+            "drone_recommendations": "/api/drone/recommendations",
             "check_point": "/api/check-point",
+            "check_point_recommendations": "/api/check-point/recommendations",
             "create_job": "POST /api/jobs",
             "list_jobs": "GET /api/jobs",
         },
@@ -1103,9 +1146,13 @@ def get_job_results(job_id: str):
         "tables": tables,
         "endpoints": {
             "base_station": "/api/base-station",
+            "base_station_recommendations": "/api/base-station/recommendations",
             "gcp": "/api/gcp",
+            "gcp_recommendations": "/api/gcp/recommendations",
             "drone": "/api/drone",
+            "drone_recommendations": "/api/drone/recommendations",
             "check_point": "/api/check-point",
+            "check_point_recommendations": "/api/check-point/recommendations",
         },
     })
 
@@ -1117,21 +1164,25 @@ def all_pipeline_health():
             "base_station_stage3b_indicators",
             "base_station_stage3c_building_blocks",
             "base_station_stage3d_base_station_score",
+            "base_station_stage4_recommendations",
         ),
         "drone": (
             "drone_stage3_indicators",
             "drone_stage3_building_blocks",
             "drone_stage3_drone_score",
+            "drone_stage4_recommendations",
         ),
         "gcp": (
             "gcp_stage3_indicators",
             "gcp_stage3_building_blocks",
             "gcp_stage3_gcp_score",
+            "gcp_stage4_recommendations",
         ),
         "check_point": (
             "check_point_stage3_indicators",
             "check_point_stage3_building_blocks",
             "check_point_stage3_check_point_score",
+            "check_point_stage4_recommendations",
         ),
     }
     with get_db() as conn:
@@ -1170,6 +1221,7 @@ def base_station_health():
                 "base_station_stage3b_indicators",
                 "base_station_stage3c_building_blocks",
                 "base_station_stage3d_base_station_score",
+                "base_station_stage4_recommendations",
             )
         }
     return jsonify({
@@ -1239,6 +1291,11 @@ def get_base_station_meta():
     return jsonify(base_station_latest_meta())
 
 
+@app.get("/api/base-station/recommendations")
+def get_base_station_recommendations():
+    return jsonify(latest_recommendations("base_station"))
+
+
 @app.get("/api/gcp")
 def gcp_health():
     with get_db() as conn:
@@ -1251,6 +1308,7 @@ def gcp_health():
                 "gcp_stage3_indicators",
                 "gcp_stage3_building_blocks",
                 "gcp_stage3_gcp_score",
+                "gcp_stage4_recommendations",
             )
         }
     return jsonify({
@@ -1356,6 +1414,11 @@ def get_gcp_meta():
     })
 
 
+@app.get("/api/gcp/recommendations")
+def get_gcp_recommendations():
+    return jsonify(latest_recommendations("gcp"))
+
+
 @app.get("/api/drone")
 def drone_health():
     with get_db() as conn:
@@ -1368,6 +1431,7 @@ def drone_health():
                 "drone_stage3_indicators",
                 "drone_stage3_building_blocks",
                 "drone_stage3_drone_score",
+                "drone_stage4_recommendations",
             )
         }
     return jsonify({
@@ -1424,6 +1488,11 @@ def get_drone_flags():
     return jsonify({"count": len(flags), "flags": flags})
 
 
+@app.get("/api/drone/recommendations")
+def get_drone_recommendations():
+    return jsonify(latest_recommendations("drone"))
+
+
 @app.get("/api/check-point")
 def check_point_health():
     with get_db() as conn:
@@ -1436,6 +1505,7 @@ def check_point_health():
                 "check_point_stage3_indicators",
                 "check_point_stage3_building_blocks",
                 "check_point_stage3_check_point_score",
+                "check_point_stage4_recommendations",
             )
         }
     return jsonify({
@@ -1472,6 +1542,11 @@ def get_check_point_flags():
     if not isinstance(flags, list):
         flags = []
     return jsonify({"count": len(flags), "flags": flags})
+
+
+@app.get("/api/check-point/recommendations")
+def get_check_point_recommendations():
+    return jsonify(latest_recommendations("check_point"))
 
 
 # ── run ────────────────────────────────────────────────────────────────────────
